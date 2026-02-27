@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AI Coding Starter Kit",
-  description: "Built with AI Agent Team System",
+  title: "deckr – Presentation Management",
+  description: "Create, manage, and present company presentations without ever opening PowerPoint.",
 };
 
 export default function RootLayout({

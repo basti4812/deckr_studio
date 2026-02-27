@@ -1,0 +1,175 @@
+'use client'
+
+import { useRouter } from 'next/navigation'
+import { useCurrentUser } from '@/hooks/use-current-user'
+import { createBrowserSupabaseClient } from '@/lib/supabase'
+import { useState } from 'react'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { CompanyStep } from '@/components/setup-steps/company-step'
+import { BrandColorStep } from '@/components/setup-steps/brand-color-step'
+import { SlidesStep } from '@/components/setup-steps/slides-step'
+import { InviteStep } from '@/components/setup-steps/invite-step'
+
+// ---------------------------------------------------------------------------
+// Step metadata
+// ---------------------------------------------------------------------------
+
+const STEPS = [
+  {
+    title: 'Set up your company',
+    description: 'Add your company name and logo so your team knows whose workspace this is.',
+  },
+  {
+    title: 'Choose your brand color',
+    description: 'Your primary color will be used throughout the app and in shared presentations.',
+  },
+  {
+    title: 'Upload your first slides',
+    description: 'Add approved slides to the library so your team can start assembling presentations.',
+  },
+  {
+    title: 'Invite your team',
+    description: 'Bring your colleagues on board so they can start using deckr right away.',
+  },
+]
+
+// ---------------------------------------------------------------------------
+// API helper
+// ---------------------------------------------------------------------------
+
+async function patchTenant(token: string, body: Record<string, unknown>) {
+  const res = await fetch('/api/tenant', {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error ?? 'Failed to save')
+  }
+}
+
+async function getToken(): Promise<string> {
+  const supabase = createBrowserSupabaseClient()
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new Error('Not authenticated')
+  return session.access_token
+}
+
+// ---------------------------------------------------------------------------
+// Progress indicator
+// ---------------------------------------------------------------------------
+
+function StepIndicator({ current, total }: { current: number; total: number }) {
+  return (
+    <div className="flex items-center justify-center gap-0">
+      {Array.from({ length: total }).map((_, i) => (
+        <div key={i} className="flex items-center">
+          <div
+            className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium transition-colors ${
+              i < current
+                ? 'bg-primary text-primary-foreground'
+                : i === current
+                ? 'bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2'
+                : 'bg-muted text-muted-foreground'
+            }`}
+          >
+            {i + 1}
+          </div>
+          {i < total - 1 && (
+            <div
+              className={`h-px w-8 transition-colors ${
+                i < current ? 'bg-primary' : 'bg-muted'
+              }`}
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Wizard
+// ---------------------------------------------------------------------------
+
+export function SetupWizard() {
+  const router = useRouter()
+  const { tenantName, primaryColor } = useCurrentUser()
+  const [step, setStep] = useState(0)
+
+  async function complete() {
+    try {
+      const token = await getToken()
+      await patchTenant(token, { setup_complete: true })
+    } catch {
+      // Best-effort — redirect even if PATCH fails
+    }
+    router.push('/dashboard')
+  }
+
+  const currentStep = STEPS[step]
+
+  return (
+    <Card className="w-full max-w-md">
+      <CardHeader className="pb-4">
+        <StepIndicator current={step} total={STEPS.length} />
+        <div className="mt-4">
+          <CardTitle>{currentStep.title}</CardTitle>
+          <CardDescription className="mt-1">{currentStep.description}</CardDescription>
+        </div>
+      </CardHeader>
+
+      <CardContent>
+        {step === 0 && (
+          <CompanyStep
+            initialName={tenantName ?? ''}
+            onNext={async (name) => {
+              const token = await getToken()
+              await patchTenant(token, { name })
+              setStep(1)
+            }}
+            onSkip={() => setStep(1)}
+          />
+        )}
+
+        {step === 1 && (
+          <BrandColorStep
+            initialColor={primaryColor ?? '#2B4EFF'}
+            onNext={async (color) => {
+              const token = await getToken()
+              await patchTenant(token, { primary_color: color })
+              setStep(2)
+            }}
+            onBack={() => setStep(0)}
+            onSkip={() => setStep(2)}
+          />
+        )}
+
+        {step === 2 && (
+          <SlidesStep
+            onNext={() => setStep(3)}
+            onBack={() => setStep(1)}
+            onSkip={() => setStep(3)}
+          />
+        )}
+
+        {step === 3 && (
+          <InviteStep
+            onComplete={complete}
+            onBack={() => setStep(2)}
+          />
+        )}
+      </CardContent>
+    </Card>
+  )
+}
