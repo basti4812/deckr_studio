@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Menu } from 'lucide-react'
+import { createBrowserSupabaseClient } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -12,6 +13,14 @@ import {
 
 export function LandingNav() {
   const [open, setOpen] = useState(false)
+  const [loggedIn, setLoggedIn] = useState(false)
+
+  useEffect(() => {
+    const supabase = createBrowserSupabaseClient()
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setLoggedIn(!!session)
+    })
+  }, [])
 
   const navLinks = [
     { label: 'Features', href: '#features' },
@@ -47,12 +56,20 @@ export function LandingNav() {
 
         {/* Desktop actions */}
         <div className="hidden items-center gap-3 md:flex">
-          <Button variant="ghost" size="sm" asChild className="text-gray-300 hover:text-white hover:bg-white/10">
-            <Link href="/login">Log in</Link>
-          </Button>
-          <Button size="sm" asChild>
-            <Link href="/register">Start free trial</Link>
-          </Button>
+          {loggedIn ? (
+            <Button size="sm" asChild>
+              <Link href="/home">Open App</Link>
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" asChild className="text-gray-300 hover:text-white hover:bg-white/10">
+                <Link href="/login">Log in</Link>
+              </Button>
+              <Button size="sm" asChild>
+                <Link href="/register">Start free trial</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Mobile hamburger */}
@@ -90,12 +107,20 @@ export function LandingNav() {
                 ))}
               </nav>
               <div className="flex flex-col gap-3 border-t border-white/10 pt-4">
-                <Button variant="ghost" asChild className="justify-start text-gray-300 hover:text-white hover:bg-white/10">
-                  <Link href="/login" onClick={() => setOpen(false)}>Log in</Link>
-                </Button>
-                <Button asChild>
-                  <Link href="/register" onClick={() => setOpen(false)}>Start free trial</Link>
-                </Button>
+                {loggedIn ? (
+                  <Button asChild>
+                    <Link href="/home" onClick={() => setOpen(false)}>Open App</Link>
+                  </Button>
+                ) : (
+                  <>
+                    <Button variant="ghost" asChild className="justify-start text-gray-300 hover:text-white hover:bg-white/10">
+                      <Link href="/login" onClick={() => setOpen(false)}>Log in</Link>
+                    </Button>
+                    <Button asChild>
+                      <Link href="/register" onClick={() => setOpen(false)}>Start free trial</Link>
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </SheetContent>

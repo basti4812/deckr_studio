@@ -1,6 +1,6 @@
 # PROJ-1: Multi-tenancy & Tenant Data Model
 
-## Status: In Review
+## Status: Deployed
 **Created:** 2026-02-25
 **Last Updated:** 2026-02-25
 

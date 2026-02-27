@@ -1,6 +1,6 @@
 # PROJ-4: Subscription Data Model & Access Control
 
-## Status: In Review
+## Status: Deployed
 **Created:** 2026-02-25
 **Last Updated:** 2026-02-26
 

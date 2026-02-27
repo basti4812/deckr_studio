@@ -1,6 +1,6 @@
 # PROJ-5: Landing Page
 
-## Status: In Review
+## Status: Deployed
 **Created:** 2026-02-25
 **Last Updated:** 2026-02-25
 
