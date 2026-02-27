@@ -20,7 +20,7 @@
 | PROJ-6 | Admin Setup Wizard | P0 | Deployed | [PROJ-6](PROJ-6-admin-setup-wizard.md) | 2026-02-25 |
 | PROJ-7 | Public Interactive Demo | P1 | Planned | [PROJ-7](PROJ-7-public-interactive-demo.md) | 2026-02-25 |
 | PROJ-8 | User Profile & Account Settings | P1 | Deployed | [PROJ-8](PROJ-8-user-profile-account-settings.md) | 2026-02-25 |
-| PROJ-9 | Team Management (Admin) | P1 | Planned | [PROJ-9](PROJ-9-team-management-admin.md) | 2026-02-25 |
+| PROJ-9 | Team Management (Admin) | P1 | In Progress | [PROJ-9](PROJ-9-team-management-admin.md) | 2026-02-25 |
 | PROJ-10 | Billing Portal (Admin) | P1 | Planned | [PROJ-10](PROJ-10-billing-portal-admin.md) | 2026-02-25 |
 | PROJ-11 | Stripe Webhook Endpoints & Payment Integration Points | P1 | Planned | [PROJ-11](PROJ-11-stripe-webhook-endpoints.md) | 2026-02-25 |
 | PROJ-12 | Legal Pages & Cookie Consent | P2 | Planned | [PROJ-12](PROJ-12-legal-pages-cookie-consent.md) | 2026-02-25 |
