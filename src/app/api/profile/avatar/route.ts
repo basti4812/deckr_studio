@@ -97,15 +97,16 @@ export async function POST(request: NextRequest) {
   }
 
   const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(storagePath)
+  const cacheBustedUrl = `${publicUrl}?t=${Date.now()}`
 
   const { error: dbError } = await supabase
     .from('users')
-    .update({ avatar_url: publicUrl })
+    .update({ avatar_url: cacheBustedUrl })
     .eq('id', user.id)
 
   if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 })
 
-  return NextResponse.json({ avatar_url: publicUrl })
+  return NextResponse.json({ avatar_url: cacheBustedUrl })
 }
 
 // ---------------------------------------------------------------------------
@@ -115,6 +116,10 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const user = await getAuthenticatedUser(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // 10 deletions per 15 minutes
+  const limited = await checkRateLimit(user.id, 'profile:avatar:delete', 10, 15 * 60 * 1000)
+  if (limited) return limited
 
   const profile = await getUserProfile(user.id)
   if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 })

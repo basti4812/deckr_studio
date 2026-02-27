@@ -260,6 +260,8 @@ function LanguageCard({
   const [lang, setLang] = useState(preferredLanguage ?? 'de')
   const [loading, setLoading] = useState(false)
 
+  useEffect(() => { setLang(preferredLanguage ?? 'de') }, [preferredLanguage])
+
   async function handleSave() {
     setLoading(true)
     try {
