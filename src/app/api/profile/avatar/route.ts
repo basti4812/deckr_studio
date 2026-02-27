@@ -6,12 +6,42 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const MAX_SIZE = 5 * 1024 * 1024 // 5 MB
 
 // ---------------------------------------------------------------------------
+// In-memory rate limiter — 5 uploads per 15 minutes per user
+// ---------------------------------------------------------------------------
+
+const RATE_LIMIT_MAX = 5
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000
+
+const uploadAttempts = new Map<string, { count: number; resetAt: number }>()
+
+function checkRateLimit(userId: string): NextResponse | null {
+  const now = Date.now()
+  const record = uploadAttempts.get(userId)
+  if (record && now < record.resetAt) {
+    if (record.count >= RATE_LIMIT_MAX) {
+      const retryAfterSec = Math.ceil((record.resetAt - now) / 1000)
+      return NextResponse.json(
+        { error: 'Too many upload attempts. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(retryAfterSec) } }
+      )
+    }
+    record.count++
+  } else {
+    uploadAttempts.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
+  }
+  return null
+}
+
+// ---------------------------------------------------------------------------
 // POST /api/profile/avatar — upload a new profile picture
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
   const user = await getAuthenticatedUser(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const limited = checkRateLimit(user.id)
+  if (limited) return limited
 
   const profile = await getUserProfile(user.id)
   if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
