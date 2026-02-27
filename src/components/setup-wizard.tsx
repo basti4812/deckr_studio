@@ -104,8 +104,18 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
 
 export function SetupWizard() {
   const router = useRouter()
-  const { tenantName, primaryColor } = useCurrentUser()
-  const [step, setStep] = useState(0)
+  const { tenantName, primaryColor, setupStep } = useCurrentUser()
+  const [step, setStep] = useState(setupStep)
+
+  async function goToStep(next: number) {
+    setStep(next)
+    try {
+      const token = await getToken()
+      await patchTenant(token, { setup_step: next })
+    } catch {
+      // Best-effort — UI still advances even if persist fails
+    }
+  }
 
   async function complete() {
     try {
@@ -136,9 +146,9 @@ export function SetupWizard() {
             onNext={async (name) => {
               const token = await getToken()
               await patchTenant(token, { name })
-              setStep(1)
+              goToStep(1)
             }}
-            onSkip={() => setStep(1)}
+            onSkip={() => goToStep(1)}
           />
         )}
 
@@ -148,25 +158,25 @@ export function SetupWizard() {
             onNext={async (color) => {
               const token = await getToken()
               await patchTenant(token, { primary_color: color })
-              setStep(2)
+              goToStep(2)
             }}
-            onBack={() => setStep(0)}
-            onSkip={() => setStep(2)}
+            onBack={() => goToStep(0)}
+            onSkip={() => goToStep(2)}
           />
         )}
 
         {step === 2 && (
           <SlidesStep
-            onNext={() => setStep(3)}
-            onBack={() => setStep(1)}
-            onSkip={() => setStep(3)}
+            onNext={() => goToStep(3)}
+            onBack={() => goToStep(1)}
+            onSkip={() => goToStep(3)}
           />
         )}
 
         {step === 3 && (
           <InviteStep
             onComplete={complete}
-            onBack={() => setStep(2)}
+            onBack={() => goToStep(2)}
           />
         )}
       </CardContent>

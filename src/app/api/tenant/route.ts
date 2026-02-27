@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
         sso_provider,
         crm_provider,
         setup_complete,
+        setup_step,
         created_at
       )
     `
@@ -76,6 +77,7 @@ const UpdateTenantSchema = z.object({
     .optional(),
   default_language: z.enum(['de', 'en']).optional(),
   setup_complete: z.boolean().optional(),
+  setup_step: z.number().int().min(0).max(10).optional(),
 })
 
 export async function PATCH(request: NextRequest) {

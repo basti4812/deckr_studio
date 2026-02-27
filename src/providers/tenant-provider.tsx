@@ -23,6 +23,7 @@ interface TenantData {
   sso_provider: string | null
   crm_provider: string | null
   setup_complete: boolean
+  setup_step: number
   created_at: string
 }
 
@@ -44,6 +45,7 @@ interface TenantContextValue {
   primaryColor: string | null
   defaultLanguage: string | null
   setupComplete: boolean
+  setupStep: number
 
   // User fields
   userId: string | null
@@ -146,6 +148,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     primaryColor: userData?.tenant.primary_color ?? null,
     defaultLanguage: userData?.tenant.default_language ?? null,
     setupComplete: userData?.tenant.setup_complete ?? false,
+    setupStep: userData?.tenant.setup_step ?? 0,
 
     userId: userData?.id ?? null,
     role: userData?.role ?? null,
