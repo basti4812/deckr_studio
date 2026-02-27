@@ -2,33 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getAuthenticatedUser } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase'
-
-// ---------------------------------------------------------------------------
-// In-memory rate limiter — 20 requests per 15 minutes per user
-// ---------------------------------------------------------------------------
-
-const RATE_LIMIT_MAX = 20
-const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000
-
-const attempts = new Map<string, { count: number; resetAt: number }>()
-
-function checkRateLimit(userId: string): NextResponse | null {
-  const now = Date.now()
-  const record = attempts.get(userId)
-  if (record && now < record.resetAt) {
-    if (record.count >= RATE_LIMIT_MAX) {
-      const retryAfterSec = Math.ceil((record.resetAt - now) / 1000)
-      return NextResponse.json(
-        { error: 'Too many requests. Please try again later.' },
-        { status: 429, headers: { 'Retry-After': String(retryAfterSec) } }
-      )
-    }
-    record.count++
-  } else {
-    attempts.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
-  }
-  return null
-}
+import { checkRateLimit } from '@/lib/rate-limit'
 
 const PatchProfileSchema = z.object({
   display_name: z.string().min(1).max(80).optional(),
@@ -45,7 +19,8 @@ export async function PATCH(request: NextRequest) {
   const user = await getAuthenticatedUser(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const limited = checkRateLimit(user.id)
+  // 20 requests per 15 minutes
+  const limited = await checkRateLimit(user.id, 'profile:patch', 20, 15 * 60 * 1000)
   if (limited) return limited
 
   let body: unknown
