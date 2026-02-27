@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyWebhookSecret } from '@/lib/webhook-auth'
 
 // ---------------------------------------------------------------------------
 // POST /api/webhooks/subscription-cancelled
@@ -20,7 +21,10 @@ export async function POST(request: NextRequest) {
     body = null
   }
 
-  // TODO: Replace with real signature verification and DB update
+  const authError = verifyWebhookSecret(request)
+  if (authError) return authError
+
+  // TODO: Replace verifyWebhookSecret with provider HMAC signature verification and DB update
   console.log('[webhook] subscription-cancelled received', JSON.stringify(body))
 
   return NextResponse.json({ received: true }, { status: 200 })

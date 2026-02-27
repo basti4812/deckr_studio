@@ -29,6 +29,9 @@ const PUBLIC_PREFIXES = ['/view/', '/api/']
 // Auth routes — redirect to app if already logged in
 const AUTH_ROUTES = ['/login', '/register']
 
+// Admin-only route prefixes — require role === 'admin'
+const ADMIN_PREFIXES = ['/admin', '/dashboard']
+
 // Routes that are always accessible to authenticated users, even if subscription is blocked.
 // Prevents redirect loops and ensures admins can always fix billing issues.
 const SUBSCRIPTION_EXEMPT_PREFIXES = [
@@ -51,6 +54,10 @@ function isSubscriptionExempt(pathname: string): boolean {
   return SUBSCRIPTION_EXEMPT_PREFIXES.some((prefix) =>
     pathname.startsWith(prefix)
   )
+}
+
+function isAdminRoute(pathname: string): boolean {
+  return ADMIN_PREFIXES.some((prefix) => pathname.startsWith(prefix))
 }
 
 // ---------------------------------------------------------------------------
@@ -112,6 +119,17 @@ export async function proxy(request: NextRequest) {
     url.pathname = '/login'
     url.searchParams.set('redirect', pathname)
     return NextResponse.redirect(url)
+  }
+
+  // If authenticated user tries to access an admin route without admin role,
+  // redirect server-side (prevents the client-side admin layout flash)
+  if (user && isAdminRoute(pathname)) {
+    const role = user.app_metadata?.role ?? 'employee'
+    if (role !== 'admin') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/home'
+      return NextResponse.redirect(url)
+    }
   }
 
   // ---------------------------------------------------------------------------

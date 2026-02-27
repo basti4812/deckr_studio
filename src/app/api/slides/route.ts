@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { getAuthenticatedUser, getUserProfile, requireAdmin } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase'
+
+const CreateSlideSchema = z.object({
+  title: z.string().min(1, 'title is required').max(255),
+  status: z.enum(['standard', 'mandatory', 'deprecated']).default('standard'),
+  pptx_url: z.string().url().optional().nullable(),
+  thumbnail_url: z.string().url().optional().nullable(),
+  editable_fields: z.array(z.unknown()).default([]),
+})
 
 // ---------------------------------------------------------------------------
 // GET /api/slides — list all slides for the caller's tenant (all auth users)
@@ -39,29 +48,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: auth.error }, { status: auth.status })
   }
 
-  let body: {
-    title?: string
-    status?: string
-    pptx_url?: string
-    thumbnail_url?: string
-    editable_fields?: unknown[]
-  }
+  let rawBody: unknown
   try {
-    body = await request.json()
+    rawBody = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { title, status = 'standard', pptx_url, thumbnail_url, editable_fields = [] } = body
-
-  if (!title?.trim()) {
-    return NextResponse.json({ error: 'title is required' }, { status: 400 })
+  const parsed = CreateSlideSchema.safeParse(rawBody)
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? 'Invalid input' },
+      { status: 400 }
+    )
   }
 
-  const validStatuses = ['standard', 'mandatory', 'deprecated']
-  if (!validStatuses.includes(status)) {
-    return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
-  }
+  const { title, status, pptx_url, thumbnail_url, editable_fields } = parsed.data
 
   const supabase = createServiceClient()
   const { data, error } = await supabase

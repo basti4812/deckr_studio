@@ -1,29 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase'
-
-// ---------------------------------------------------------------------------
-// Rate limiting (in-memory, per-IP, 5 attempts per hour)
-// ---------------------------------------------------------------------------
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
-const RATE_LIMIT_MAX = 5
-const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000 // 1 hour
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now()
-  const entry = rateLimitMap.get(ip)
-
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
-    return false
-  }
-
-  entry.count += 1
-  if (entry.count > RATE_LIMIT_MAX) {
-    return true
-  }
-  return false
-}
+import { checkIpRateLimit } from '@/lib/rate-limit'
 
 // ---------------------------------------------------------------------------
 // Input validation
@@ -41,18 +19,9 @@ const RegisterSchema = z.object({
 // Creates a new auth user, tenant, and user row. Sets app_metadata.
 // ---------------------------------------------------------------------------
 export async function POST(request: NextRequest) {
-  // Rate limiting
-  const ip =
-    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    request.headers.get('x-real-ip') ??
-    'unknown'
-
-  if (isRateLimited(ip)) {
-    return NextResponse.json(
-      { error: 'Too many registration attempts. Please try again later.' },
-      { status: 429 }
-    )
-  }
+  // 5 registrations per hour per IP (persists across cold starts)
+  const limited = await checkIpRateLimit(request, 'register', 5, 60 * 60 * 1000)
+  if (limited) return limited
 
   // Parse and validate body
   let body: unknown

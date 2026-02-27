@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyWebhookSecret } from '@/lib/webhook-auth'
 
 // ---------------------------------------------------------------------------
 // POST /api/webhooks/subscription-created
@@ -21,7 +22,10 @@ export async function POST(request: NextRequest) {
     body = null
   }
 
-  // TODO: Replace with real signature verification
+  const authError = verifyWebhookSecret(request)
+  if (authError) return authError
+
+  // TODO: Replace verifyWebhookSecret with provider HMAC signature verification
   console.log('[webhook] subscription-created received', JSON.stringify(body))
 
   return NextResponse.json({ received: true }, { status: 200 })
