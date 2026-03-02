@@ -1,9 +1,10 @@
 'use client'
 
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Monitor } from 'lucide-react'
+import { Monitor, Share2, Users } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentUser } from '@/hooks/use-current-user'
@@ -17,6 +18,9 @@ import { EditFieldsDialog } from '@/components/board/edit-fields-dialog'
 import { FillWarningDialog } from '@/components/board/fill-warning-dialog'
 import { ExportProgressDialog } from '@/components/board/export-progress-dialog'
 import { PresentationMode, type PresentationSlide } from '@/components/board/presentation-mode'
+import { SharePanel, type ShareRecord, type SearchUser } from '@/components/projects/share-panel'
+import { SearchFilterBar } from '@/components/board/search-filter-bar'
+import { FilterPanel, type ActiveFilters } from '@/components/board/filter-panel'
 import { checkFillStatus, type UnfilledField } from '@/lib/fill-check'
 import type { Slide } from '@/components/slides/slide-card'
 
@@ -65,8 +69,12 @@ interface Membership {
 interface Project {
   id: string
   name: string
+  owner_id: string
+  owner_name?: string
   slide_order: TrayItem[]
   text_edits: Record<string, Record<string, string>>
+  updated_at: string
+  userPermission?: 'owner' | 'view' | 'edit'
 }
 
 // ---------------------------------------------------------------------------
@@ -82,7 +90,8 @@ export default function BoardPage() {
 }
 
 function BoardPageInner() {
-  const { loading: userLoading, isAdmin } = useCurrentUser()
+  const router = useRouter()
+  const { loading: userLoading, isAdmin, userId, displayName } = useCurrentUser()
   const searchParams = useSearchParams()
   const projectId = searchParams.get('project')
 
@@ -102,6 +111,21 @@ function BoardPageInner() {
   const [fillWarning, setFillWarning] = useState<{ issues: UnfilledField[]; proceed: () => void; proceedLabel: string } | null>(null)
   const [exportState, setExportState] = useState<{ open: boolean; error: string | null } | null>(null)
   const [presentationMode, setPresentationMode] = useState(false)
+
+  // Share panel state
+  const [sharePanelOpen, setSharePanelOpen] = useState(false)
+  const [shares, setShares] = useState<ShareRecord[]>([])
+
+  // Search + filter state
+  const [searchInput, setSearchInput] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [activeFilters, setActiveFilters] = useState<ActiveFilters>({ groups: [], tags: [], statuses: [] })
+
+  // Derived permission state
+  const isProjectOwner = project ? project.owner_id === userId : true
+  const userPermission = project?.userPermission ?? (isProjectOwner ? 'owner' : 'view')
+  const canEdit = userPermission === 'owner' || userPermission === 'edit'
 
   const containerRef = useRef<HTMLDivElement>(null)
   const canvas = useCanvas(0.5)
@@ -151,37 +175,92 @@ function BoardPageInner() {
   // Fetch project when ?project= param is set
   // -------------------------------------------------------------------------
 
+  const loadProject = useCallback(async (showLoading = true) => {
+    if (!projectId) return
+    const supabase = createBrowserSupabaseClient()
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { if (showLoading) setTrayLoading(false); return }
+
+    if (showLoading) setTrayLoading(true)
+    const res = await fetch(`/api/projects/${projectId}`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+    if (res.ok) {
+      const d = await res.json()
+      if (d.project.status === 'archived') {
+        router.replace('/projects')
+        return
+      }
+      setProject(d.project)
+      const items: TrayItem[] = Array.isArray(d.project.slide_order) ? d.project.slide_order : []
+      const edits: Record<string, Record<string, string>> =
+        d.project.text_edits && typeof d.project.text_edits === 'object' ? d.project.text_edits : {}
+      setTrayItems(items)
+      setTextEdits(edits)
+      trayItemsRef.current = items
+      textEditsRef.current = edits
+    }
+    if (showLoading) setTrayLoading(false)
+  }, [projectId])
+
   useEffect(() => {
     if (!projectId || userLoading) return
-    setTrayLoading(true)
     setTrayItems([])
     setTextEdits({})
     setProject(null)
+    loadProject(true)
+  }, [projectId, userLoading, loadProject])
 
-    async function loadProject() {
-      const supabase = createBrowserSupabaseClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { setTrayLoading(false); return }
-
-      const res = await fetch(`/api/projects/${projectId}`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      })
-      if (res.ok) {
-        const d = await res.json()
-        setProject(d.project)
-        const items: TrayItem[] = Array.isArray(d.project.slide_order) ? d.project.slide_order : []
-        const edits: Record<string, Record<string, string>> =
-          d.project.text_edits && typeof d.project.text_edits === 'object' ? d.project.text_edits : {}
-        setTrayItems(items)
-        setTextEdits(edits)
-        trayItemsRef.current = items
-        textEditsRef.current = edits
-      }
-      setTrayLoading(false)
+  // Re-fetch project on tab focus + periodic poll to pick up permission changes
+  useEffect(() => {
+    if (!projectId) return
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') loadProject(false)
     }
+    document.addEventListener('visibilitychange', handleVisibility)
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') loadProject(false)
+    }, 60_000)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility)
+      clearInterval(interval)
+    }
+  }, [projectId, loadProject])
 
-    loadProject()
-  }, [projectId, userLoading])
+  // -------------------------------------------------------------------------
+  // Search + filter effects
+  // -------------------------------------------------------------------------
+
+  // Restore filter state from URL on mount
+  useEffect(() => {
+    const q = searchParams.get('q') ?? ''
+    const tagParam = searchParams.get('tags')
+    const statusParam = searchParams.get('statuses')
+    const groupParam = searchParams.get('groups')
+    if (q) { setSearchInput(q); setDebouncedQuery(q) }
+    setActiveFilters({
+      tags: tagParam ? tagParam.split('|').filter(Boolean) : [],
+      statuses: statusParam ? statusParam.split('|').filter(Boolean) : [],
+      groups: groupParam ? groupParam.split('|').filter(Boolean) : [],
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // mount only
+
+  // Debounce search input → debouncedQuery
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(searchInput), 200)
+    return () => clearTimeout(timer)
+  }, [searchInput])
+
+  // Sync filter state to URL params
+  useEffect(() => {
+    const current = new URLSearchParams(window.location.search)
+    if (debouncedQuery) current.set('q', debouncedQuery); else current.delete('q')
+    if (activeFilters.tags.length) current.set('tags', activeFilters.tags.join('|')); else current.delete('tags')
+    if (activeFilters.statuses.length) current.set('statuses', activeFilters.statuses.join('|')); else current.delete('statuses')
+    if (activeFilters.groups.length) current.set('groups', activeFilters.groups.join('|')); else current.delete('groups')
+    window.history.replaceState(null, '', `?${current.toString()}`)
+  }, [debouncedQuery, activeFilters])
 
   // -------------------------------------------------------------------------
   // Auto-save tray
@@ -351,6 +430,86 @@ function BoardPageInner() {
   }
 
   // -------------------------------------------------------------------------
+  // Share panel handlers (placeholder — will call real API after backend)
+  // -------------------------------------------------------------------------
+
+  async function fetchShares() {
+    if (!projectId) return
+    const supabase = createBrowserSupabaseClient()
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    const res = await fetch(`/api/projects/${projectId}/shares`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+    if (res.ok) {
+      const d = await res.json()
+      setShares(d.shares ?? [])
+    }
+  }
+
+  function handleOpenSharePanel() {
+    fetchShares()
+    setSharePanelOpen(true)
+  }
+
+  async function handleAddShare(targetUserId: string, permission: 'view' | 'edit'): Promise<string | null> {
+    if (!projectId) return 'No project selected'
+    const supabase = createBrowserSupabaseClient()
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return 'Not authenticated'
+    const res = await fetch(`/api/projects/${projectId}/shares`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ user_id: targetUserId, permission }),
+    })
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      return (d as { error?: string }).error ?? 'Failed to add user'
+    }
+    await fetchShares()
+    return null
+  }
+
+  async function handleUpdatePermission(shareId: string, permission: 'view' | 'edit') {
+    if (!projectId) return
+    const supabase = createBrowserSupabaseClient()
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    await fetch(`/api/projects/${projectId}/shares/${shareId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ permission }),
+    })
+    await fetchShares()
+  }
+
+  async function handleRemoveShare(shareId: string) {
+    if (!projectId) return
+    const supabase = createBrowserSupabaseClient()
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    await fetch(`/api/projects/${projectId}/shares/${shareId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+    await fetchShares()
+  }
+
+  async function handleSearchUsers(query: string): Promise<SearchUser[]> {
+    const supabase = createBrowserSupabaseClient()
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return []
+    const res = await fetch(`/api/team/search?q=${encodeURIComponent(query)}`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+    if (res.ok) {
+      const d = await res.json()
+      return d.users ?? []
+    }
+    return []
+  }
+
+  // -------------------------------------------------------------------------
   // Build sections: grouped + ungrouped
   // -------------------------------------------------------------------------
 
@@ -413,20 +572,47 @@ function BoardPageInner() {
   // -------------------------------------------------------------------------
 
   const sections = buildSections()
-  const { w: worldW, h: worldH } = calcWorldSize(sections)
+
+  // --- Search + filter ---
+  const isFiltering = debouncedQuery.length > 0 || activeFilters.groups.length > 0 || activeFilters.tags.length > 0 || activeFilters.statuses.length > 0
+
+  const filteredSections = sections.map((section) => {
+    if (activeFilters.groups.length > 0 && !activeFilters.groups.includes(section.name)) {
+      return { ...section, slides: [] as Slide[] }
+    }
+    const filteredSlides = section.slides.filter((slide) => {
+      if (debouncedQuery) {
+        const q = debouncedQuery.toLowerCase()
+        if (!slide.title.toLowerCase().includes(q) && !(slide.tags ?? []).some((t) => t.toLowerCase().includes(q))) return false
+      }
+      if (activeFilters.tags.length > 0 && !(slide.tags ?? []).some((t) => activeFilters.tags.includes(t))) return false
+      if (activeFilters.statuses.length > 0 && !activeFilters.statuses.includes(slide.status)) return false
+      return true
+    })
+    return { ...section, slides: filteredSlides }
+  })
+
+  const displaySections = isFiltering ? filteredSections.filter((s) => s.slides.length > 0) : sections
+  const totalCount = slides.length
+  const resultCount = filteredSections.reduce((acc, s) => acc + s.slides.length, 0)
+  const filterCount = activeFilters.groups.length + activeFilters.tags.length + activeFilters.statuses.length
+  const allTags = Array.from(new Set(slides.flatMap((s) => s.tags ?? []))).sort()
+  const allGroupNames = sections.map((s) => s.name)
+
+  const { w: worldW, h: worldH } = calcWorldSize(isFiltering ? displaySections : sections)
 
   // Resolve the slide being edited (for EditFieldsDialog)
   const editingSlide = editingInstance
     ? slideMap.get(trayItems.find((t) => t.id === editingInstance)?.slide_id ?? '')
     : undefined
 
-  // Compute Y positions for each section
+  // Compute Y positions for each display section
   const sectionYs: number[] = []
   let currentY = PADDING
-  for (let i = 0; i < sections.length; i++) {
+  for (let i = 0; i < displaySections.length; i++) {
     sectionYs.push(currentY)
-    currentY += calcGroupHeight(sections[i].slides.length)
-    if (i < sections.length - 1) currentY += BETWEEN_GROUPS
+    currentY += calcGroupHeight(displaySections[i].slides.length)
+    if (i < displaySections.length - 1) currentY += BETWEEN_GROUPS
   }
 
   return (
@@ -494,19 +680,82 @@ function BoardPageInner() {
                   </Button>
                 )}
               </div>
+            ) : isFiltering && resultCount === 0 ? (
+              <div
+                style={{ width: worldW, height: worldH }}
+                className="flex flex-col items-center justify-center gap-2"
+              >
+                <p className="text-sm font-medium text-muted-foreground">No slides match your search.</p>
+                <p className="text-xs text-muted-foreground">Try different keywords or clear the filters.</p>
+              </div>
             ) : (
-              sections.map((section, i) => (
+              displaySections.map((section, i) => (
                 <GroupSection
                   key={section.name + i}
                   name={section.name}
                   slides={section.slides}
                   x={PADDING}
                   y={sectionYs[i]}
-                  onAddToTray={projectId ? addToTray : undefined}
+                  onAddToTray={projectId && canEdit ? addToTray : undefined}
                 />
               ))
             )}
           </div>
+
+          {/* Search + filter bar */}
+          {!loading && slides.length > 0 && (
+            <div data-no-pan className="absolute top-4 left-4 z-10">
+              <SearchFilterBar
+                searchQuery={searchInput}
+                onSearchChange={setSearchInput}
+                filterCount={filterCount}
+                filterOpen={filterOpen}
+                onToggleFilter={() => setFilterOpen((o) => !o)}
+                resultCount={resultCount}
+                totalCount={totalCount}
+                onClearAll={() => {
+                  setSearchInput('')
+                  setDebouncedQuery('')
+                  setActiveFilters({ groups: [], tags: [], statuses: [] })
+                  setFilterOpen(false)
+                }}
+              />
+              {filterOpen && (
+                <div className="mt-2">
+                  <FilterPanel
+                    groups={allGroupNames}
+                    tags={allTags}
+                    filters={activeFilters}
+                    onFiltersChange={setActiveFilters}
+                    onClearFilters={() => setActiveFilters({ groups: [], tags: [], statuses: [] })}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Top-right toolbar: share button + shared badge */}
+          {projectId && (
+            <div data-no-pan className="absolute top-4 right-4 z-10 flex items-center gap-2">
+              {!isProjectOwner && (
+                <Badge variant="outline" className="gap-1 bg-background/80 backdrop-blur-sm">
+                  <Users className="h-3 w-3" />
+                  Shared
+                </Badge>
+              )}
+              {isProjectOwner && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 bg-background/80 backdrop-blur-sm"
+                  onClick={handleOpenSharePanel}
+                >
+                  <Share2 className="h-3.5 w-3.5" />
+                  Share
+                </Button>
+              )}
+            </div>
+          )}
 
           {/* Zoom controls */}
           <div data-no-pan className="absolute bottom-4 right-4 z-10">
@@ -523,6 +772,7 @@ function BoardPageInner() {
         <TrayPanel
           projectId={projectId}
           projectName={project?.name ?? ''}
+          projectUpdatedAt={project?.updated_at}
           trayItems={trayItems}
           slideMap={slideMap}
           textEdits={textEdits}
@@ -530,11 +780,11 @@ function BoardPageInner() {
           collapsed={trayCollapsed}
           deprecatedError={deprecatedError}
           onCollapse={() => setTrayCollapsed((c) => !c)}
-          onReorder={reorderTray}
-          onRemove={removeFromTray}
-          onEditFields={projectId ? (instanceId) => setEditingInstance(instanceId) : undefined}
-          onExport={projectId ? handleExport : undefined}
-          onPdfExport={projectId ? handlePdfExport : undefined}
+          onReorder={canEdit ? reorderTray : undefined}
+          onRemove={canEdit ? removeFromTray : undefined}
+          onEditFields={projectId && canEdit ? (instanceId) => setEditingInstance(instanceId) : undefined}
+          onExport={projectId && canEdit ? handleExport : undefined}
+          onPdfExport={projectId && canEdit ? handlePdfExport : undefined}
           onPresent={projectId ? handlePresent : undefined}
         />
       </div>
@@ -581,6 +831,21 @@ function BoardPageInner() {
         <PresentationMode
           slides={presentationSlides}
           onExit={() => setPresentationMode(false)}
+        />
+      )}
+
+      {/* Share panel (owner only) */}
+      {isProjectOwner && (
+        <SharePanel
+          open={sharePanelOpen}
+          onClose={() => setSharePanelOpen(false)}
+          projectName={project?.name ?? ''}
+          ownerName={displayName ?? 'You'}
+          shares={shares}
+          onAddShare={handleAddShare}
+          onUpdatePermission={handleUpdatePermission}
+          onRemoveShare={handleRemoveShare}
+          onSearchUsers={handleSearchUsers}
         />
       )}
     </>

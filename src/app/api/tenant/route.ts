@@ -36,7 +36,13 @@ export async function GET(request: NextRequest) {
         crm_provider,
         setup_complete,
         setup_step,
-        created_at
+        created_at,
+        billing_company_name,
+        billing_address_street,
+        billing_address_city,
+        billing_address_postal_code,
+        billing_address_country,
+        billing_vat_id
       )
     `
     )

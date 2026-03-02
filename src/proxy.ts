@@ -133,36 +133,61 @@ export async function proxy(request: NextRequest) {
   }
 
   // ---------------------------------------------------------------------------
-  // Subscription status check (authenticated, non-exempt routes only)
+  // Authenticated user checks (is_active, last_active_at, subscription)
   // ---------------------------------------------------------------------------
-  if (user && !isPublicRoute(pathname) && !isSubscriptionExempt(pathname)) {
-    const tenantId = user.app_metadata?.tenant_id
-
-    if (!tenantId) {
-      // No tenant associated — redirect to blocked page
-      const url = request.nextUrl.clone()
-      url.pathname = '/subscription/blocked'
-      url.searchParams.set('reason', 'no-tenant')
-      return NextResponse.redirect(url)
-    }
-
-    // Query subscription status using service role to bypass RLS
-    // (middleware is server-side only — service key is never exposed to browser)
+  if (user && !isPublicRoute(pathname)) {
     const adminClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       { auth: { persistSession: false, autoRefreshToken: false } }
     )
-    const { data: subscription } = await adminClient
-      .from('subscriptions')
-      .select('status, trial_ends_at')
-      .eq('tenant_id', tenantId)
+
+    // BUG-5 fix: Check if user is deactivated (removed from team)
+    const { data: userRecord } = await adminClient
+      .from('users')
+      .select('is_active')
+      .eq('id', user.id)
       .single()
 
-    if (isSubscriptionBlocked(subscription)) {
+    if (userRecord?.is_active === false) {
+      await supabase.auth.signOut()
       const url = request.nextUrl.clone()
-      url.pathname = '/subscription/blocked'
+      url.pathname = '/login'
+      url.searchParams.set('reason', 'account-deactivated')
       return NextResponse.redirect(url)
+    }
+
+    // Fire-and-forget last_active_at update
+    adminClient
+      .from('users')
+      .update({ last_active_at: new Date().toISOString() })
+      .eq('id', user.id)
+      .then(() => {
+        // intentionally empty — best effort
+      })
+
+    // Subscription status check (non-exempt routes only)
+    if (!isSubscriptionExempt(pathname)) {
+      const tenantId = user.app_metadata?.tenant_id
+
+      if (!tenantId) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/subscription/blocked'
+        url.searchParams.set('reason', 'no-tenant')
+        return NextResponse.redirect(url)
+      }
+
+      const { data: subscription } = await adminClient
+        .from('subscriptions')
+        .select('status, trial_ends_at')
+        .eq('tenant_id', tenantId)
+        .single()
+
+      if (isSubscriptionBlocked(subscription)) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/subscription/blocked'
+        return NextResponse.redirect(url)
+      }
     }
   }
 

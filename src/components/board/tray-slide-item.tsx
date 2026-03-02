@@ -11,7 +11,8 @@ interface TraySlideItemProps {
   slide: Slide
   isMandatory: boolean
   instanceEdits: Record<string, string>
-  onRemove: (instanceId: string) => void
+  projectUpdatedAt?: string | null
+  onRemove?: (instanceId: string) => void
   onEditFields?: () => void
 }
 
@@ -42,9 +43,14 @@ export function TraySlideItem({
   slide,
   isMandatory,
   instanceEdits,
+  projectUpdatedAt,
   onRemove,
   onEditFields,
 }: TraySlideItemProps) {
+  const isUpdated =
+    !!slide.pptx_updated_at &&
+    !!projectUpdatedAt &&
+    new Date(slide.pptx_updated_at) > new Date(projectUpdatedAt)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: instanceId })
 
@@ -60,8 +66,10 @@ export function TraySlideItem({
       }}
       className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5 group"
     >
-      {/* Drag handle — hidden for mandatory */}
-      {isMandatory ? (
+      {/* Drag handle — hidden for mandatory and view-only */}
+      {!onRemove ? (
+        <div className="h-3.5 w-3.5 shrink-0" />
+      ) : isMandatory ? (
         <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
       ) : (
         <button
@@ -85,13 +93,20 @@ export function TraySlideItem({
       </div>
 
       {/* Title + fill indicator */}
-      <div className="flex flex-1 min-w-0 items-center gap-1.5">
-        <span className="flex-1 truncate text-xs leading-tight" title={slide.title}>
+      <div className="flex flex-1 min-w-0 flex-col gap-0.5">
+        <span className="truncate text-xs leading-tight" title={slide.title}>
           {slide.title}
         </span>
-        {hasEditableFields && (
-          <FillDot slide={slide} instanceEdits={instanceEdits} />
-        )}
+        <div className="flex items-center gap-1">
+          {isUpdated && (
+            <span className="inline-block rounded-full bg-blue-100 px-1.5 text-[9px] font-semibold text-blue-700 leading-4 dark:bg-blue-900/40 dark:text-blue-300">
+              Updated
+            </span>
+          )}
+          {hasEditableFields && (
+            <FillDot slide={slide} instanceEdits={instanceEdits} />
+          )}
+        </div>
       </div>
 
       {/* Edit fields button */}
@@ -107,8 +122,8 @@ export function TraySlideItem({
         </Button>
       )}
 
-      {/* Remove button — hidden for mandatory */}
-      {!isMandatory && (
+      {/* Remove button — hidden for mandatory and view-only */}
+      {!isMandatory && onRemove && (
         <Button
           variant="ghost"
           size="icon"

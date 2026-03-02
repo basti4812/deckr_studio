@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedUser, getUserProfile } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase'
+import { checkRateLimit } from '@/lib/rate-limit'
 import JSZip from 'jszip'
 
 type Params = Promise<{ id: string }>
@@ -35,21 +36,36 @@ export async function POST(
   const user = await getAuthenticatedUser(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const limited = await checkRateLimit(user.id, 'project-export-pptx', 10, 300_000)
+  if (limited) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+
   const profile = await getUserProfile(user.id)
   if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
 
   const { id } = await params
   const supabase = createServiceClient()
 
-  // Load project + verify ownership
+  // Load project
   const { data: project } = await supabase
     .from('projects')
-    .select('id, name, slide_order, text_edits')
+    .select('id, name, owner_id, slide_order, text_edits')
     .eq('id', id)
-    .eq('owner_id', user.id)
     .single()
 
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+
+  // Verify access: owner or shared user with 'edit' permission
+  if (project.owner_id !== user.id) {
+    const { data: share } = await supabase
+      .from('project_shares')
+      .select('permission')
+      .eq('project_id', id)
+      .eq('user_id', user.id)
+      .single()
+    if (!share || share.permission !== 'edit') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+  }
 
   const trayItems: TrayItem[] = Array.isArray(project.slide_order) ? project.slide_order : []
   if (trayItems.length === 0) {

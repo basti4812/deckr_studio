@@ -20,25 +20,25 @@
 | PROJ-6 | Admin Setup Wizard | P0 | Deployed | [PROJ-6](PROJ-6-admin-setup-wizard.md) | 2026-02-25 |
 | PROJ-7 | Public Interactive Demo | P1 | Planned | [PROJ-7](PROJ-7-public-interactive-demo.md) | 2026-02-25 |
 | PROJ-8 | User Profile & Account Settings | P1 | Deployed | [PROJ-8](PROJ-8-user-profile-account-settings.md) | 2026-02-25 |
-| PROJ-9 | Team Management (Admin) | P1 | In Progress | [PROJ-9](PROJ-9-team-management-admin.md) | 2026-02-25 |
-| PROJ-10 | Billing Portal (Admin) | P1 | Planned | [PROJ-10](PROJ-10-billing-portal-admin.md) | 2026-02-25 |
-| PROJ-11 | Stripe Webhook Endpoints & Payment Integration Points | P1 | Planned | [PROJ-11](PROJ-11-stripe-webhook-endpoints.md) | 2026-02-25 |
+| PROJ-9 | Team Management (Admin) | P1 | Deployed | [PROJ-9](PROJ-9-team-management-admin.md) | 2026-02-25 |
+| PROJ-10 | Billing Portal (Admin) | P1 | In Review | [PROJ-10](PROJ-10-billing-portal-admin.md) | 2026-02-25 |
+| PROJ-11 | Stripe Webhook Endpoints & Payment Integration Points | P1 | Deployed | [PROJ-11](PROJ-11-stripe-webhook-endpoints.md) | 2026-02-25 |
 | PROJ-12 | Legal Pages & Cookie Consent | P2 | Planned | [PROJ-12](PROJ-12-legal-pages-cookie-consent.md) | 2026-02-25 |
 | PROJ-13 | In-app Notifications | P1 | Planned | [PROJ-13](PROJ-13-inapp-notifications.md) | 2026-02-25 |
 | PROJ-14 | Email Notifications | P1 | Planned | [PROJ-14](PROJ-14-email-notifications.md) | 2026-02-25 |
 | PROJ-15 | Slide Library Management (Admin) | P0 | Deployed | [PROJ-15](PROJ-15-slide-library-management-admin.md) | 2026-02-25 |
-| PROJ-16 | Slide Tags & Search/Filter | P1 | Planned | [PROJ-16](PROJ-16-slide-tags-search-filter.md) | 2026-02-25 |
-| PROJ-17 | Automatic Slide Updates across Projects | P1 | Planned | [PROJ-17](PROJ-17-automatic-slide-updates.md) | 2026-02-25 |
+| PROJ-16 | Slide Tags & Search/Filter | P1 | Deployed | [PROJ-16](PROJ-16-slide-tags-search-filter.md) | 2026-02-25 |
+| PROJ-17 | Automatic Slide Updates across Projects | P1 | In Review | [PROJ-17](PROJ-17-automatic-slide-updates.md) | 2026-02-25 |
 | PROJ-18 | Board Canvas | P0 | Deployed | [PROJ-18](PROJ-18-board-canvas.md) | 2026-02-25 |
 | PROJ-19 | Slide Groups & Admin Board Layout | P0 | Deployed | [PROJ-19](PROJ-19-slide-groups-admin-board-layout.md) | 2026-02-25 |
 | PROJ-20 | User Canvas Layout (Personal) | P1 | Planned | [PROJ-20](PROJ-20-user-canvas-layout.md) | 2026-02-25 |
 | PROJ-21 | Project Tray & Drag-and-Drop Assembly | P0 | Deployed | [PROJ-21](PROJ-21-project-tray-drag-and-drop.md) | 2026-02-25 |
-| PROJ-22 | Template Set Management (Admin) | P1 | Planned | [PROJ-22](PROJ-22-template-set-management-admin.md) | 2026-02-25 |
-| PROJ-23 | Template Set Picker | P1 | Planned | [PROJ-23](PROJ-23-template-set-picker.md) | 2026-02-25 |
+| PROJ-22 | Template Set Management (Admin) | P1 | Deployed | [PROJ-22](PROJ-22-template-set-management-admin.md) | 2026-02-25 |
+| PROJ-23 | Template Set Picker | P1 | Deployed | [PROJ-23](PROJ-23-template-set-picker.md) | 2026-02-25 |
 | PROJ-24 | Project Creation & Management | P0 | Deployed | [PROJ-24](PROJ-24-project-creation-management.md) | 2026-02-25 |
-| PROJ-25 | Project Sharing (within tenant) | P1 | Planned | [PROJ-25](PROJ-25-project-sharing.md) | 2026-02-25 |
-| PROJ-26 | Project Duplication | P1 | Planned | [PROJ-26](PROJ-26-project-duplication.md) | 2026-02-25 |
-| PROJ-27 | Project Archive | P1 | Planned | [PROJ-27](PROJ-27-project-archive.md) | 2026-02-25 |
+| PROJ-25 | Project Sharing (within tenant) | P1 | Deployed | [PROJ-25](PROJ-25-project-sharing.md) | 2026-02-25 |
+| PROJ-26 | Project Duplication | P1 | Deployed | [PROJ-26](PROJ-26-project-duplication.md) | 2026-02-25 |
+| PROJ-27 | Project Archive | P1 | Deployed | [PROJ-27](PROJ-27-project-archive.md) | 2026-02-25 |
 | PROJ-28 | CRM Fields & Integration Hook Points | P2 | Planned | [PROJ-28](PROJ-28-crm-fields-integration-hooks.md) | 2026-02-25 |
 | PROJ-29 | Text Editing & Fill Warnings | P0 | Deployed | [PROJ-29](PROJ-29-text-editing-fill-warnings.md) | 2026-02-25 |
 | PROJ-30 | Slide Comments (Threaded) | P1 | Planned | [PROJ-30](PROJ-30-slide-comments.md) | 2026-02-25 |

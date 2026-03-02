@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Plus, RefreshCw, Trash2, Upload, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -34,18 +34,51 @@ interface EditSlideDialogProps {
 export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProps) {
   const [title, setTitle] = useState('')
   const [status, setStatus] = useState<Slide['status']>('standard')
+  const [tags, setTags] = useState<string[]>([])
+  const [tagInput, setTagInput] = useState('')
   const [fields, setFields] = useState<EditableField[]>([])
+  const [replacementFile, setReplacementFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const tagInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (slide) {
       setTitle(slide.title)
       setStatus(slide.status)
+      setTags(slide.tags ?? [])
+      setTagInput('')
       setFields(slide.editable_fields ?? [])
+      setReplacementFile(null)
       setError(null)
     }
   }, [slide])
+
+  function commitTagInput() {
+    const trimmed = tagInput.trim().toLowerCase()
+    if (!trimmed || trimmed.length > 50 || tags.includes(trimmed) || tags.length >= 20) {
+      setTagInput('')
+      return
+    }
+    setTags((prev) => [...prev, trimmed])
+    setTagInput('')
+  }
+
+  function removeTag(tag: string) {
+    setTags((prev) => prev.filter((t) => t !== tag))
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = e.target.files?.[0] ?? null
+    if (!selected) return
+    if (!selected.name.endsWith('.pptx')) {
+      setError('Only .pptx files are accepted')
+      return
+    }
+    setError(null)
+    setReplacementFile(selected)
+  }
 
   function addField() {
     setFields((prev) => [
@@ -82,17 +115,40 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('Not authenticated')
 
+      // If a replacement PPTX was selected, upload it first
+      let newPptxUrl: string | undefined
+      if (replacementFile) {
+        const storagePath = `${slide.tenant_id}/${slide.id}/original.pptx`
+        const { error: storageError } = await supabase.storage
+          .from('slides')
+          .upload(storagePath, replacementFile, {
+            contentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            upsert: true,
+          })
+        if (storageError) throw new Error(storageError.message)
+
+        const { data: urlData } = await supabase.storage
+          .from('slides')
+          .createSignedUrl(storagePath, 60 * 60 * 24 * 365)
+
+        newPptxUrl = urlData?.signedUrl ?? undefined
+      }
+
+      const patchBody: Record<string, unknown> = {
+        title: title.trim(),
+        status,
+        tags,
+        editable_fields: fields,
+      }
+      if (newPptxUrl) patchBody.pptx_url = newPptxUrl
+
       const res = await fetch(`/api/slides/${slide.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({
-          title: title.trim(),
-          status,
-          editable_fields: fields,
-        }),
+        body: JSON.stringify(patchBody),
       })
 
       if (!res.ok) {
@@ -144,6 +200,77 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
                 <SelectItem value="deprecated">Deprecated — hidden from new projects</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Tags */}
+          <div className="space-y-2">
+            <Label>Tags</Label>
+            <div className="flex flex-wrap gap-1.5 min-h-[2rem] rounded-md border px-2 py-1.5 bg-background focus-within:ring-1 focus-within:ring-ring cursor-text" onClick={() => tagInputRef.current?.focus()}>
+              {tags.map((tag) => (
+                <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium">
+                  {tag}
+                  <button type="button" onClick={(e) => { e.stopPropagation(); removeTag(tag) }} className="text-muted-foreground hover:text-foreground">
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+              <input
+                ref={tagInputRef}
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); commitTagInput() }
+                  if (e.key === 'Backspace' && !tagInput && tags.length > 0) {
+                    setTags((prev) => prev.slice(0, -1))
+                  }
+                }}
+                onBlur={commitTagInput}
+                placeholder={tags.length === 0 ? 'Type a tag and press Enter…' : ''}
+                className="flex-1 min-w-[120px] bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+                disabled={tags.length >= 20}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">Press Enter or comma to add. Max 20 tags.</p>
+          </div>
+
+          <Separator />
+
+          {/* Replace PPTX */}
+          <div className="space-y-2">
+            <Label>PowerPoint file</Label>
+            {replacementFile ? (
+              <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40 px-3 py-2">
+                <RefreshCw className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                <span className="flex-1 truncate text-sm text-blue-700 dark:text-blue-300">{replacementFile.name}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 shrink-0"
+                  onClick={() => setReplacementFile(null)}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            ) : (
+              <div
+                className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-4 w-4 shrink-0" />
+                Replace PPTX file…
+              </div>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <p className="text-xs text-muted-foreground">
+              Uploading a new file will update all projects using this slide.
+            </p>
           </div>
 
           <Separator />

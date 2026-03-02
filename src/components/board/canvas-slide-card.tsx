@@ -89,6 +89,20 @@ export const CanvasSlideCard = memo(function CanvasSlideCard({
           {slide.title}
         </p>
         <StatusBadge status={slide.status} />
+        {slide.tags && slide.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 pt-0.5">
+            {slide.tags.slice(0, 3).map((tag) => (
+              <span key={tag} className="inline-block rounded-full bg-secondary px-1.5 py-0 text-[10px] font-medium text-secondary-foreground leading-5">
+                {tag}
+              </span>
+            ))}
+            {slide.tags.length > 3 && (
+              <span className="inline-block rounded-full bg-secondary px-1.5 py-0 text-[10px] font-medium text-secondary-foreground leading-5">
+                +{slide.tags.length - 3}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

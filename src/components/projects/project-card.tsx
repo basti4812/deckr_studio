@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { MoreVertical, Pencil, Trash2 } from 'lucide-react'
+import { Archive, ArchiveRestore, Copy, Loader2, LogOut, MoreVertical, Pencil, Trash2, Users } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,8 +35,15 @@ export interface Project {
 
 interface ProjectCardProps {
   project: Project
-  onRename: (id: string, name: string) => Promise<void>
-  onDelete: (id: string) => Promise<void>
+  variant?: 'active' | 'archived'
+  isOwner?: boolean
+  onRename?: (id: string, name: string) => Promise<void>
+  onDelete?: (id: string) => Promise<void>
+  onLeave?: (id: string) => Promise<void>
+  onDuplicate?: (id: string) => Promise<void>
+  onArchive?: (id: string) => Promise<void>
+  onRestore?: (id: string) => Promise<void>
+  onDeletePermanently?: (id: string) => Promise<void>
 }
 
 function timeAgo(dateStr: string): string {
@@ -53,14 +60,32 @@ function timeAgo(dateStr: string): string {
   return `${months} months ago`
 }
 
-export function ProjectCard({ project, onRename, onDelete }: ProjectCardProps) {
+export function ProjectCard({
+  project,
+  variant = 'active',
+  isOwner = true,
+  onRename,
+  onDelete,
+  onLeave,
+  onDuplicate,
+  onArchive,
+  onRestore,
+  onDeletePermanently,
+}: ProjectCardProps) {
   const router = useRouter()
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(project.name)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmDeletePermanently, setConfirmDeletePermanently] = useState(false)
+  const [confirmLeave, setConfirmLeave] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [leaving, setLeaving] = useState(false)
+  const [duplicating, setDuplicating] = useState(false)
+  const [archiving, setArchiving] = useState(false)
+  const [restoring, setRestoring] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const slideCount = project.slide_order.length
+  const isArchived = variant === 'archived'
 
   useEffect(() => {
     if (editing) inputRef.current?.focus()
@@ -68,7 +93,7 @@ export function ProjectCard({ project, onRename, onDelete }: ProjectCardProps) {
 
   async function commitRename() {
     const trimmed = name.trim()
-    if (!trimmed || trimmed === project.name) {
+    if (!trimmed || trimmed === project.name || !onRename) {
       setEditing(false)
       setName(project.name)
       return
@@ -78,14 +103,61 @@ export function ProjectCard({ project, onRename, onDelete }: ProjectCardProps) {
   }
 
   async function handleDelete() {
+    if (!onDelete) return
     setDeleting(true)
     await onDelete(project.id)
     setDeleting(false)
     setConfirmDelete(false)
   }
 
+  async function handleDeletePermanently() {
+    if (!onDeletePermanently) return
+    setDeleting(true)
+    await onDeletePermanently(project.id)
+    setDeleting(false)
+    setConfirmDeletePermanently(false)
+  }
+
+  async function handleLeave() {
+    if (!onLeave) return
+    setLeaving(true)
+    await onLeave(project.id)
+    setLeaving(false)
+    setConfirmLeave(false)
+  }
+
+  async function handleDuplicate() {
+    if (!onDuplicate || duplicating) return
+    setDuplicating(true)
+    try {
+      await onDuplicate(project.id)
+    } finally {
+      setDuplicating(false)
+    }
+  }
+
+  async function handleArchive() {
+    if (!onArchive || archiving) return
+    setArchiving(true)
+    try {
+      await onArchive(project.id)
+    } finally {
+      setArchiving(false)
+    }
+  }
+
+  async function handleRestore() {
+    if (!onRestore || restoring) return
+    setRestoring(true)
+    try {
+      await onRestore(project.id)
+    } finally {
+      setRestoring(false)
+    }
+  }
+
   function handleCardClick(e: React.MouseEvent) {
-    if (editing) return
+    if (editing || isArchived) return
     const target = e.target as HTMLElement
     if (target.closest('[data-no-nav]')) return
     router.push(`/board?project=${project.id}`)
@@ -95,7 +167,11 @@ export function ProjectCard({ project, onRename, onDelete }: ProjectCardProps) {
     <>
       <div
         onClick={handleCardClick}
-        className="group relative flex flex-col gap-3 rounded-lg border bg-background p-4 shadow-sm hover:shadow-md hover:border-primary/40 transition-all cursor-pointer"
+        className={`group relative flex flex-col gap-3 rounded-lg border bg-background p-4 shadow-sm transition-all ${
+          isArchived
+            ? 'opacity-75 hover:opacity-100'
+            : 'hover:shadow-md hover:border-primary/40 cursor-pointer'
+        }`}
       >
         {/* Header row */}
         <div className="flex items-start justify-between gap-2">
@@ -130,31 +206,118 @@ export function ProjectCard({ project, onRename, onDelete }: ProjectCardProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditing(true) }}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Rename
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={(e) => { e.stopPropagation(); setConfirmDelete(true) }}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
+              {/* Active project actions */}
+              {!isArchived && isOwner && onRename && (
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditing(true) }}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Rename
+                </DropdownMenuItem>
+              )}
+              {!isArchived && onDuplicate && (
+                <DropdownMenuItem
+                  disabled={duplicating}
+                  onClick={(e) => { e.stopPropagation(); handleDuplicate() }}
+                >
+                  {duplicating ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Copy className="mr-2 h-4 w-4" />
+                  )}
+                  {duplicating ? 'Duplicating...' : 'Duplicate'}
+                </DropdownMenuItem>
+              )}
+              {!isArchived && isOwner && onArchive && (
+                <DropdownMenuItem
+                  disabled={archiving}
+                  onClick={(e) => { e.stopPropagation(); handleArchive() }}
+                >
+                  {archiving ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Archive className="mr-2 h-4 w-4" />
+                  )}
+                  {archiving ? 'Archiving...' : 'Archive'}
+                </DropdownMenuItem>
+              )}
+              {!isArchived && isOwner && onDelete && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={(e) => { e.stopPropagation(); setConfirmDelete(true) }}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </>
+              )}
+              {!isArchived && !isOwner && onLeave && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={(e) => { e.stopPropagation(); setConfirmLeave(true) }}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Leave project
+                  </DropdownMenuItem>
+                </>
+              )}
+
+              {/* Archived project actions */}
+              {isArchived && onRestore && (
+                <DropdownMenuItem
+                  disabled={restoring}
+                  onClick={(e) => { e.stopPropagation(); handleRestore() }}
+                >
+                  {restoring ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <ArchiveRestore className="mr-2 h-4 w-4" />
+                  )}
+                  {restoring ? 'Restoring...' : 'Restore'}
+                </DropdownMenuItem>
+              )}
+              {isArchived && onDeletePermanently && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={(e) => { e.stopPropagation(); setConfirmDeletePermanently(true) }}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete permanently
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
 
         {/* Footer row */}
         <div className="flex items-center justify-between">
-          <Badge variant="secondary" className="text-xs">
-            {slideCount} slide{slideCount !== 1 ? 's' : ''}
-          </Badge>
+          <div className="flex items-center gap-1.5">
+            <Badge variant="secondary" className="text-xs">
+              {slideCount} slide{slideCount !== 1 ? 's' : ''}
+            </Badge>
+            {isArchived && (
+              <Badge variant="outline" className="text-xs gap-1">
+                <Archive className="h-3 w-3" />
+                Archived
+              </Badge>
+            )}
+            {!isOwner && !isArchived && (
+              <Badge variant="outline" className="text-xs gap-1">
+                <Users className="h-3 w-3" />
+                Shared
+              </Badge>
+            )}
+          </div>
           <span className="text-xs text-muted-foreground">{timeAgo(project.updated_at)}</span>
         </div>
       </div>
 
+      {/* Delete confirmation (active owner only) */}
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -171,6 +334,50 @@ export function ProjectCard({ project, onRename, onDelete }: ProjectCardProps) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting ? 'Deleting…' : 'Delete project'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete permanently confirmation (archived only) */}
+      <AlertDialog open={confirmDeletePermanently} onOpenChange={setConfirmDeletePermanently}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete permanently?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{project.name}</strong> and all associated data will be permanently deleted. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeletePermanently}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Deleting…' : 'Delete permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Leave confirmation (shared user only) */}
+      <AlertDialog open={confirmLeave} onOpenChange={setConfirmLeave}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Leave project?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You will lose access to <strong>{project.name}</strong>. The owner can re-share it with you later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={leaving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleLeave}
+              disabled={leaving}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {leaving ? 'Leaving…' : 'Leave project'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

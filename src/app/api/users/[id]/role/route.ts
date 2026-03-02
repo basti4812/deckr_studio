@@ -86,6 +86,7 @@ export async function PATCH(
       .select('id', { count: 'exact', head: true })
       .eq('tenant_id', callerProfile.tenant_id)
       .eq('role', 'admin')
+      .eq('is_active', true)
 
     if (countError) {
       return NextResponse.json(

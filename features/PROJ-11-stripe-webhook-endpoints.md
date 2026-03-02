@@ -1,8 +1,8 @@
 # PROJ-11: Stripe Webhook Endpoints & Payment Integration Points
 
-## Status: Planned
+## Status: Deployed
 **Created:** 2026-02-25
-**Last Updated:** 2026-02-25
+**Last Updated:** 2026-02-28
 
 ## Dependencies
 - Requires: PROJ-4 (Subscription Data Model & Access Control)
@@ -44,7 +44,25 @@
 _To be added by /architecture_
 
 ## QA Test Results
-_To be added by /qa_
+
+All acceptance criteria verified against existing implementation (built in initial application):
+
+| Criterion | Status |
+|-----------|--------|
+| POST /api/webhooks/subscription-created — returns 200 | ✅ |
+| POST /api/webhooks/subscription-updated — returns 200 | ✅ |
+| POST /api/webhooks/subscription-cancelled — returns 200 | ✅ |
+| POST /api/webhooks/payment-succeeded — returns 200 | ✅ |
+| POST /api/webhooks/payment-failed — returns 200 | ✅ |
+| Malformed body handled gracefully (try/catch → null, still returns 200) | ✅ |
+| Stripe signature verification TODO comment in each handler | ✅ |
+| Subscription update TODO comment in each handler | ✅ |
+| Webhook routes bypass Supabase Auth (under /api/ public prefix in proxy) | ✅ |
+| Shared secret auth via WEBHOOK_SECRET env var (timing-safe) | ✅ |
+| subscriptions.payment_provider_customer_id column exists | ✅ |
+| subscriptions.payment_provider_price_id column exists | ✅ |
+| invoices table exists (created in PROJ-10) | ✅ |
+| WEBHOOK_SECRET documented in .env.local.example | ✅ (added 2026-02-28) |
 
 ## Deployment
 _To be added by /deploy_

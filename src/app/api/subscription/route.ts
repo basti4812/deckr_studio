@@ -35,12 +35,9 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // Fetch current seat usage (active users in tenant)
-  const { count: seatCount, error: countError } = await supabaseAdmin
-    .from('users')
-    .select('id', { count: 'exact', head: true })
-    .eq('tenant_id', profile.tenant_id)
-    .eq('is_active', true)
+  // Fetch current seat usage (confirmed active users only — excludes pending invites)
+  const { data: seatCount, error: countError } = await supabaseAdmin
+    .rpc('count_confirmed_active_users', { p_tenant_id: profile.tenant_id })
 
   if (countError) {
     return NextResponse.json(

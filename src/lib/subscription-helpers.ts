@@ -14,6 +14,7 @@ export interface Subscription {
   trial_ends_at: string | null
   next_renewal_date: string | null
   payment_provider_customer_id: string | null
+  price_per_user_cents: number | null
   payment_provider_price_id: string | null
   created_at: string
   updated_at: string

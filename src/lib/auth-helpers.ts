@@ -103,6 +103,10 @@ export async function requireAdmin(request: NextRequest): Promise<
     return { error: 'User profile not found', status: 404 }
   }
 
+  if (!profile.is_active) {
+    return { error: 'Account has been deactivated', status: 403 }
+  }
+
   if (profile.role !== 'admin') {
     return { error: 'Forbidden: admin access required', status: 403 }
   }

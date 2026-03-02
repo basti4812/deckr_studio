@@ -93,6 +93,7 @@ export async function POST(request: NextRequest) {
   const { error: userError } = await supabaseAdmin.from('users').insert({
     id: userId,
     tenant_id: tenant.id,
+    email,
     role: 'admin',
     display_name: displayName,
     preferred_language: preferredLanguage,

@@ -21,9 +21,11 @@ export interface Slide {
   tenant_id: string
   title: string
   status: 'standard' | 'mandatory' | 'deprecated'
+  tags: string[]
   pptx_url: string | null
   thumbnail_url: string | null
   editable_fields: EditableField[]
+  pptx_updated_at: string | null
   created_at: string
   updated_at: string
   created_by: string | null

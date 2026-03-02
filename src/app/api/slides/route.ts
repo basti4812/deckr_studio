@@ -6,6 +6,7 @@ import { createServiceClient } from '@/lib/supabase'
 const CreateSlideSchema = z.object({
   title: z.string().min(1, 'title is required').max(255),
   status: z.enum(['standard', 'mandatory', 'deprecated']).default('standard'),
+  tags: z.array(z.string().trim().min(1).max(50)).max(20).default([]),
   pptx_url: z.string().url().optional().nullable(),
   thumbnail_url: z.string().url().optional().nullable(),
   editable_fields: z.array(z.unknown()).default([]),
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const { title, status, pptx_url, thumbnail_url, editable_fields } = parsed.data
+  const { title, status, tags, pptx_url, thumbnail_url, editable_fields } = parsed.data
 
   const supabase = createServiceClient()
   const { data, error } = await supabase
@@ -72,6 +73,7 @@ export async function POST(request: NextRequest) {
       tenant_id: auth.profile.tenant_id,
       title: title.trim(),
       status,
+      tags,
       pptx_url: pptx_url ?? null,
       thumbnail_url: thumbnail_url ?? null,
       editable_fields,

@@ -36,6 +36,7 @@ export interface TrayItem {
 interface TrayPanelProps {
   projectId: string | null
   projectName: string
+  projectUpdatedAt?: string | null
   trayItems: TrayItem[]
   slideMap: Map<string, Slide>
   textEdits: Record<string, Record<string, string>>
@@ -43,8 +44,8 @@ interface TrayPanelProps {
   collapsed: boolean
   deprecatedError: string
   onCollapse: () => void
-  onReorder: (items: TrayItem[]) => void
-  onRemove: (instanceId: string) => void
+  onReorder?: (items: TrayItem[]) => void
+  onRemove?: (instanceId: string) => void
   onEditFields?: (instanceId: string) => void
   onExport?: () => void
   onPdfExport?: () => void
@@ -54,6 +55,7 @@ interface TrayPanelProps {
 export function TrayPanel({
   projectId,
   projectName,
+  projectUpdatedAt,
   trayItems,
   slideMap,
   textEdits,
@@ -74,6 +76,7 @@ export function TrayPanel({
   )
 
   function handleDragEnd(event: DragEndEvent) {
+    if (!onReorder) return
     const { active, over } = event
     if (!over || active.id === over.id) return
     const oldIndex = trayItems.findIndex((t) => t.id === active.id)
@@ -221,6 +224,7 @@ export function TrayPanel({
                       slide={slide}
                       isMandatory={isMandatory}
                       instanceEdits={textEdits[item.id] ?? {}}
+                      projectUpdatedAt={projectUpdatedAt}
                       onRemove={onRemove}
                       onEditFields={onEditFields ? () => onEditFields(item.id) : undefined}
                     />
