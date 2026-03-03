@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase'
+import { logActivity } from '@/lib/activity-log'
 
 // ---------------------------------------------------------------------------
 // Input validation
@@ -56,7 +57,7 @@ export async function PATCH(
   // 4. Verify the target user exists and belongs to the same tenant
   const { data: targetUser, error: targetError } = await supabaseAdmin
     .from('users')
-    .select('id, tenant_id, role')
+    .select('id, tenant_id, role, display_name, email')
     .eq('id', targetUserId)
     .single()
 
@@ -134,6 +135,16 @@ export async function PATCH(
       metaError.message
     )
   }
+
+  logActivity({
+    tenantId: callerProfile.tenant_id,
+    actorId: auth.user.id,
+    eventType: 'user.role_changed',
+    resourceType: 'user',
+    resourceId: targetUserId,
+    resourceName: targetUser.display_name ?? targetUser.email ?? targetUserId,
+    metadata: { old_role: targetUser.role, new_role: newRole },
+  })
 
   return NextResponse.json(
     {

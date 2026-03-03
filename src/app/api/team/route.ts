@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { logActivity } from '@/lib/activity-log'
 import { createNotifications } from '@/lib/notifications'
 
 // ---------------------------------------------------------------------------
@@ -220,6 +221,15 @@ async function handleInvite(
     app_metadata: { tenant_id: tenantId, role: 'employee' },
   })
 
+  logActivity({
+    tenantId,
+    actorId: adminUserId,
+    eventType: 'user.invited',
+    resourceType: 'user',
+    resourceId: invitedUserId,
+    resourceName: email,
+  })
+
   return NextResponse.json(
     {
       message: 'Invitation sent successfully',
@@ -356,6 +366,16 @@ async function handleCreateUser(
       })),
     ).catch(() => {})
   }
+
+  logActivity({
+    tenantId,
+    actorId: adminUserId,
+    eventType: 'user.invited',
+    resourceType: 'user',
+    resourceId: newUserId,
+    resourceName: display_name,
+    metadata: { email, role },
+  })
 
   return NextResponse.json(
     {

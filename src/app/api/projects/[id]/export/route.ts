@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedUser, getUserProfile } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { logActivity } from '@/lib/activity-log'
 import JSZip from 'jszip'
 
 type Params = Promise<{ id: string }>
@@ -213,6 +214,15 @@ export async function POST(
       is_auto: true,
     })
     .then(() => {}, (err: unknown) => { console.error('[export] auto-snapshot failed', err) })
+
+  logActivity({
+    tenantId: profile.tenant_id,
+    actorId: user.id,
+    eventType: 'project.exported',
+    resourceType: 'project',
+    resourceId: id,
+    resourceName: project.name as string,
+  })
 
   const safeName = (project.name as string)
     .replace(/[^\w\s-]/g, '')

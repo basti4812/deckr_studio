@@ -50,7 +50,7 @@
 | PROJ-36 | Share Link Tracking | P1 | Deployed | [PROJ-36](PROJ-36-share-link-tracking.md) | 2026-02-25 |
 | PROJ-37 | Fullscreen Presentation Mode | P0 | Deployed | [PROJ-37](PROJ-37-fullscreen-presentation-mode.md) | 2026-02-25 |
 | PROJ-38 | Version History & Named Snapshots | P1 | Deployed | [PROJ-38](PROJ-38-version-history-snapshots.md) | 2026-02-25 |
-| PROJ-39 | Activity Log (Admin) | P2 | Planned | [PROJ-39](PROJ-39-activity-log-admin.md) | 2026-02-25 |
+| PROJ-39 | Activity Log (Admin) | P2 | Deployed | [PROJ-39](PROJ-39-activity-log-admin.md) | 2026-02-25 |
 | PROJ-40 | Analytics Dashboard (Admin) | P2 | Planned | [PROJ-40](PROJ-40-analytics-dashboard-admin.md) | 2026-02-25 |
 | PROJ-41 | German/English Internationalisation | P1 | Deployed | [PROJ-41](PROJ-41-internationalisation.md) | 2026-02-25 |
 | PROJ-42 | Mobile View & Responsive Layout | P1 | Deployed | [PROJ-42](PROJ-42-mobile-view-responsive-layout.md) | 2026-02-25 |

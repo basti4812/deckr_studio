@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedUser, getUserProfile, requireAdmin } from '@/lib/auth-helpers'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { createServiceClient } from '@/lib/supabase'
+import { logActivity } from '@/lib/activity-log'
 
 // ---------------------------------------------------------------------------
 // GET /api/template-sets — list all for tenant with slide count + first thumbnail
@@ -106,5 +107,15 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  logActivity({
+    tenantId: auth.profile.tenant_id,
+    actorId: auth.user.id,
+    eventType: 'template_set.created',
+    resourceType: 'template_set',
+    resourceId: data.id,
+    resourceName: data.name,
+  })
+
   return NextResponse.json({ templateSet: data }, { status: 201 })
 }

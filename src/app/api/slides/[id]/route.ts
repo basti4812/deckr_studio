@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/auth-helpers'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { createServiceClient } from '@/lib/supabase'
 import { createNotifications } from '@/lib/notifications'
+import { logActivity } from '@/lib/activity-log'
 
 const EditableFieldSchema = z.object({
   id: z.string().min(1),
@@ -98,9 +99,18 @@ export async function PATCH(
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  // When the PPTX content changes, notify affected project owners (in-app + email via PROJ-13/14)
-  // TODO(PROJ-39): Log this update in the activity log when that feature is built.
+  // When the PPTX content changes, log activity + notify affected project owners
   if (pptx_url !== undefined) {
+    logActivity({
+      tenantId: auth.profile.tenant_id,
+      actorId: auth.user.id,
+      eventType: 'slide.uploaded',
+      resourceType: 'slide',
+      resourceId: data.id,
+      resourceName: data.title,
+      metadata: { update: true },
+    })
+
     const { data: affectedProjects } = await supabase
       .from('projects')
       .select('id, owner_id, name')
@@ -132,8 +142,17 @@ export async function PATCH(
     }
   }
 
-  // When status changes to deprecated, notify affected project owners
+  // When status changes to deprecated, log activity + notify affected project owners
   if (status === 'deprecated') {
+    logActivity({
+      tenantId: auth.profile.tenant_id,
+      actorId: auth.user.id,
+      eventType: 'slide.deprecated',
+      resourceType: 'slide',
+      resourceId: data.id,
+      resourceName: data.title,
+    })
+
     const { data: affectedProjects } = await supabase
       .from('projects')
       .select('id, owner_id, name')

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getAuthenticatedUser, getUserProfile, requireAdmin } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase'
+import { logActivity } from '@/lib/activity-log'
 
 const CreateSlideSchema = z.object({
   title: z.string().min(1, 'title is required').max(255),
@@ -85,6 +86,15 @@ export async function POST(request: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  logActivity({
+    tenantId: auth.profile.tenant_id,
+    actorId: auth.user.id,
+    eventType: 'slide.uploaded',
+    resourceType: 'slide',
+    resourceId: data.id,
+    resourceName: data.title,
+  })
 
   return NextResponse.json({ slide: data }, { status: 201 })
 }

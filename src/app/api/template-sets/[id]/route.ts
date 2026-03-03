@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { createServiceClient } from '@/lib/supabase'
+import { logActivity } from '@/lib/activity-log'
 
 // ---------------------------------------------------------------------------
 // PATCH /api/template-sets/[id] — update metadata
@@ -73,6 +74,16 @@ export async function PATCH(
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  logActivity({
+    tenantId: auth.profile.tenant_id,
+    actorId: auth.user.id,
+    eventType: 'template_set.updated',
+    resourceType: 'template_set',
+    resourceId: data.id,
+    resourceName: data.name,
+  })
+
   return NextResponse.json({ templateSet: data })
 }
 

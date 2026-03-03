@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { getAuthenticatedUser, getUserProfile } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { logActivity } from '@/lib/activity-log'
 
 type Params = Promise<{ id: string }>
 
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest, { params }: { params: Params })
   // Verify ownership or edit permission
   const { data: project } = await supabase
     .from('projects')
-    .select('id, owner_id, tenant_id')
+    .select('id, name, owner_id, tenant_id')
     .eq('id', id)
     .single()
 
@@ -138,6 +139,15 @@ export async function POST(request: NextRequest, { params }: { params: Params })
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  logActivity({
+    tenantId: project.tenant_id,
+    actorId: user.id,
+    eventType: 'share_link.created',
+    resourceType: 'project',
+    resourceId: id,
+    resourceName: project.name ?? id,
+  })
 
   return NextResponse.json({
     link: { ...link, status: 'active' as const },

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { logActivity } from '@/lib/activity-log'
 
 // ---------------------------------------------------------------------------
 // DELETE /api/team/[id] — Remove a user (soft-delete + project transfer)
@@ -110,6 +111,15 @@ export async function DELETE(
     console.error('Failed to ban user:', err)
     // Non-fatal: user record is already inactive, proxy will block them
   }
+
+  logActivity({
+    tenantId: adminProfile.tenant_id,
+    actorId: adminUser.id,
+    eventType: 'user.removed',
+    resourceType: 'user',
+    resourceId: targetUserId,
+    resourceName: targetUser.display_name ?? targetUser.id,
+  })
 
   return NextResponse.json({
     message: 'User removed successfully',
