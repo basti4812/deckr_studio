@@ -124,6 +124,7 @@ export async function POST(request: NextRequest) {
       owner_id: user.id,
       name,
       slide_order: slideOrder,
+      template_set_id: parsed.data.templateSetId ?? null,
     })
     .select()
     .single()
