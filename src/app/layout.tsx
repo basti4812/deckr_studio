@@ -18,8 +18,8 @@ export default function RootLayout({
       <body className="antialiased">
         <I18nProvider>
           {children}
+          <CookieConsent />
         </I18nProvider>
-        <CookieConsent />
       </body>
     </html>
   );

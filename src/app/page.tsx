@@ -408,6 +408,22 @@ export default function LandingPage() {
               <Link href="/terms" className="hover:text-gray-300 transition-colors">
                 {t('landing.terms')}
               </Link>
+              <Link href="/cookies" className="hover:text-gray-300 transition-colors">
+                {t('landing.cookies_link')}
+              </Link>
+              <Link href="/dpa" className="hover:text-gray-300 transition-colors">
+                {t('landing.dpa')}
+              </Link>
+              <Separator orientation="vertical" className="h-3 bg-gray-700" />
+              <button
+                className="hover:text-gray-300 transition-colors"
+                onClick={() => {
+                  localStorage.removeItem('deckr_cookie_consent')
+                  window.location.reload()
+                }}
+              >
+                {t('cookies.settings_link')}
+              </button>
             </nav>
           </div>
 

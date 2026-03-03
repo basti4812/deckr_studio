@@ -1,0 +1,48 @@
+DATA PROCESSING AGREEMENT (DPA) / AUFTRAGSVERARBEITUNGSVERTRAG (AVV)
+
+TEMPLATE — Replace all [PLACEHOLDER] markers before use.
+
+Between:
+  Controller: _______________
+  Address: _______________
+
+And:
+  Processor: [COMPANY NAME]
+  Address: [ADDRESS], [POSTAL CODE] [CITY]
+
+1. SUBJECT MATTER AND SCOPE
+   The Processor processes personal data on behalf of the Controller as part of providing
+   the deckr Studio presentation management platform.
+
+2. TYPES OF DATA PROCESSED
+   - User account data (name, email, profile information)
+   - Presentation content uploaded by users
+   - Usage and access logs
+   - Payment-related data (if applicable)
+
+3. CATEGORIES OF DATA SUBJECTS
+   Employees and contractors of the Controller authorised to use the Service.
+
+4. TECHNICAL AND ORGANISATIONAL MEASURES (TOMs)
+   - Encryption in transit (TLS 1.2+) and at rest (AES-256)
+   - Role-based access control with multi-tenancy data isolation
+   - Secure password hashing and session management
+   - Daily automated backups with point-in-time recovery
+   - Continuous system monitoring and alerting
+   - Incident response with notification within 72 hours
+   - Regular data protection training for all staff
+
+5. SUB-PROCESSORS
+   - Supabase Inc. (San Francisco, USA) — Database, authentication, storage
+   - Vercel Inc. (San Francisco, USA) — Application hosting, CDN
+   - [PAYMENT PROVIDER] — Payment processing
+   - [EMAIL SERVICE PROVIDER] — Transactional emails
+
+6. GOVERNING LAW
+   This agreement is governed by the laws of the Federal Republic of Germany.
+
+Signed:
+
+Controller: _______________  Date: _______________
+
+Processor: _______________   Date: _______________

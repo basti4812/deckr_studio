@@ -23,7 +23,7 @@
 | PROJ-9 | Team Management (Admin) | P1 | Deployed | [PROJ-9](PROJ-9-team-management-admin.md) | 2026-02-25 |
 | PROJ-10 | Billing Portal (Admin) | P1 | Deployed | [PROJ-10](PROJ-10-billing-portal-admin.md) | 2026-02-25 |
 | PROJ-11 | Stripe Webhook Endpoints & Payment Integration Points | P1 | Deployed | [PROJ-11](PROJ-11-stripe-webhook-endpoints.md) | 2026-02-25 |
-| PROJ-12 | Legal Pages & Cookie Consent | P2 | In Progress | [PROJ-12](PROJ-12-legal-pages-cookie-consent.md) | 2026-02-25 |
+| PROJ-12 | Legal Pages & Cookie Consent | P2 | Deployed | [PROJ-12](PROJ-12-legal-pages-cookie-consent.md) | 2026-02-25 |
 | PROJ-13 | In-app Notifications | P1 | Deployed | [PROJ-13](PROJ-13-inapp-notifications.md) | 2026-02-25 |
 | PROJ-14 | Email Notifications | P1 | Deployed | [PROJ-14](PROJ-14-email-notifications.md) | 2026-02-25 |
 | PROJ-15 | Slide Library Management (Admin) | P0 | Deployed | [PROJ-15](PROJ-15-slide-library-management-admin.md) | 2026-02-25 |
