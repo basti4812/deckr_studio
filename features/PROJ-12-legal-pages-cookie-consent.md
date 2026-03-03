@@ -1,8 +1,8 @@
 # PROJ-12: Legal Pages & Cookie Consent
 
-## Status: Planned
+## Status: In Progress
 **Created:** 2026-02-25
-**Last Updated:** 2026-02-25
+**Last Updated:** 2026-03-03
 
 ## Dependencies
 - Requires: PROJ-5 (Landing Page) — pages linked from footer
@@ -45,7 +45,63 @@
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
-_To be added by /architecture_
+
+### What exists already
+- `CookieConsent` component at `src/components/cookie-consent.tsx` — basic Accept/Decline, already mounted in root layout
+- Landing page footer already links to `/impressum`, `/privacy`, `/terms`
+- Translation keys `landing.impressum`, `landing.privacy`, `landing.terms` exist
+- No legal page routes exist yet — all six URLs return 404
+
+### Component Structure
+
+```
+src/app/(legal)/             ← new route group, no auth required
+├── layout.tsx               ← shared: LandingNav + legal footer + cookie settings link
+├── impressum/page.tsx       → /impressum
+├── privacy/page.tsx         → /privacy
+├── terms/page.tsx           → /terms
+├── cookies/page.tsx         → /cookies
+├── dpa/page.tsx             → /dpa (inline view + download button)
+└── cancellation/page.tsx    → /cancellation
+
+src/components/legal/
+├── legal-page.tsx           ← shared wrapper: page title + section renderer
+└── legal-section.tsx        ← heading + body paragraphs + placeholder highlights
+
+src/components/cookie-consent.tsx (UPGRADED)
+├── Banner:  Accept All | Reject All | Configure
+└── CookieConfigDialog (Dialog)
+    ├── Necessary  (toggle — always on, disabled)
+    ├── Functional (toggle — optional)
+    ├── Analytics  (toggle — optional)
+    └── Marketing  (toggle — optional, not pre-checked)
+
+public/legal/
+└── dpa-template.docx        ← static placeholder with [PLACEHOLDER] markers
+```
+
+### Data Model
+
+**Cookie consent** stored in `localStorage` under key `deckr_cookie_consent`:
+- `version: "1"`, `necessary: true` (always), `functional`, `analytics`, `marketing` (booleans)
+- Banner reappears if key is absent (cleared storage). No server-side storage.
+
+**Legal content** in i18n JSON files (`en.json` / `de.json`) under `legal.*` namespace.
+Placeholder markers (`[COMPANY NAME]`, `[ADDRESS]`, `[VAT ID]`, `[EMAIL]`, `[DATE]`) highlighted visually in yellow.
+
+### Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| `(legal)` route group | Shared LandingNav + footer layout without touching `(app)` or `(auth)` groups |
+| Static pages, no backend | Legal content is identical for all users; no dynamic data needed |
+| i18n JSON for content | Consistent with how all other text is handled; German/English via existing `useTranslation()` |
+| Upgrade existing CookieConsent | Already mounted in root layout; extending avoids duplicate mounting |
+| localStorage for consent | Device-specific per spec; no cross-device sync needed |
+| Static `.docx` in `/public/legal/` | DPA as downloadable template; no PDF generation required at launch |
+
+### Dependencies
+No new packages required — uses existing Next.js, shadcn/ui (Dialog, Switch, Separator), react-i18next.
 
 ## QA Test Results
 _To be added by /qa_
