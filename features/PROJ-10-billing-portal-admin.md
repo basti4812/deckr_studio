@@ -1,6 +1,6 @@
 # PROJ-10: Billing Portal (Admin)
 
-## Status: In Review
+## Status: Deployed
 **Created:** 2026-02-25
 **Last Updated:** 2026-02-28
 
@@ -388,45 +388,12 @@ Every required component is already installed: Card, Progress, Badge, Table, Dia
 
 ### New Bugs Found (Round 2)
 
-#### NEW-BUG-1: No maxLength Attribute on Client-Side Billing Contact Inputs
-- **Severity:** Low
-- **Steps to Reproduce:**
-  1. Navigate to `/admin/billing`
-  2. Paste a 10,000 character string into the Company name field
-  3. Submit the form
-  4. Expected: Input rejects characters beyond the server-side limit (255) at the UI level, or the server returns a clear validation error
-  5. Actual: The input accepts any length. The server-side Zod schema does enforce `.max(255)` and returns a 400 error, but the user sees "Failed to save billing contact" without knowing why. The form inputs at lines 789-882 have no `maxLength` prop.
-- **Impact:** Poor UX -- users can type very long values that silently fail on save. The server does reject the input, so there is no data integrity risk.
-- **Priority:** Nice to have
-
-#### NEW-BUG-2: No CHECK Constraint on invoices.status Column
-- **Severity:** Low
-- **Steps to Reproduce:**
-  1. Review migration file `20260228000004_proj10_billing_portal.sql`
-  2. The `status` column is `TEXT NOT NULL DEFAULT 'pending'` with no CHECK constraint
-  3. Expected: Column should have `CHECK (status IN ('paid', 'pending', 'failed'))` to enforce valid values at the database level
-  4. Actual: Any arbitrary text value can be inserted (by service role / webhook handler)
-- **Impact:** If a webhook handler has a bug and writes an invalid status like "unknown", the UI's `InvoiceStatusBadge` component falls through to the default case and renders a plain badge. No crash, but data integrity is weaker than it could be.
-- **Priority:** Nice to have (defense-in-depth)
-
-#### NEW-BUG-3: pdf_url Rendered in href Without URL Validation (Defense-in-Depth)
-- **Severity:** Low
-- **Steps to Reproduce:**
-  1. If an attacker could somehow insert a `javascript:alert(1)` value into the `pdf_url` column of the `invoices` table
-  2. The billing page at line 708 renders `<a href={invoice.pdf_url}>` without validating that the URL starts with `https://`
-  3. React does NOT protect against `javascript:` protocol in `<a href>` attributes
-- **Impact:** In practice, the risk is very low because: (a) the `invoices` table has RLS with no INSERT/UPDATE policies -- only the service role can write, (b) Stripe webhook handlers (PROJ-11) will validate URLs from Stripe's API, (c) an attacker would need service role access to exploit this. However, as defense-in-depth, the client should validate that `pdf_url` starts with `https://` before rendering it in an anchor tag.
-- **Priority:** Nice to have (defense-in-depth for future-proofing)
-
-#### NEW-BUG-4: Invoice Table Missing Horizontal Scroll on Mobile
-- **Severity:** Low
-- **Steps to Reproduce:**
-  1. View `/admin/billing` at 375px viewport width
-  2. If invoices exist, the table has 4 columns (Date, Amount, Status, Download)
-  3. Expected: Table has a horizontal scroll container for small viewports
-  4. Actual: The table is wrapped in a `rounded-lg border` div (line 673) but has no `overflow-x-auto` class. On narrow screens, the table could overflow the card boundary.
-- **Impact:** Cosmetic -- table columns may be clipped on very narrow screens. Since the invoices table is currently empty (no invoices until PROJ-11 connects Stripe), this is not user-facing yet.
-- **Priority:** Fix in next sprint
+| Bug | Severity | Status |
+|-----|----------|--------|
+| NEW-BUG-1: No maxLength on inputs | Low | FIXED — all 6 inputs now have `maxLength` attributes |
+| NEW-BUG-2: No CHECK on invoices.status | Low | FIXED — CHECK constraint present in migration |
+| NEW-BUG-3: pdf_url no URL validation | Low | FIXED — `/^https?:\/\//` regex validates before rendering |
+| NEW-BUG-4: Invoice table no overflow-x-auto | Low | FIXED — `overflow-x-auto` class added to wrapper |
 
 ### Cross-Browser Testing Notes
 - All UI built with shadcn/ui components (Card, Badge, Progress, Table, AlertDialog, Input, Label, Tooltip, Button, Skeleton, Separator) -- cross-browser tested by the component library
@@ -453,11 +420,10 @@ Every required component is already installed: Card, Progress, Badge, Table, Dia
 - **Acceptance Criteria:** 24/24 passed
 - **Edge Cases:** 8/8 passed
 - **Round 1 Bugs:** 7/7 actionable bugs fixed (1 informational item remains documented)
-- **New Bugs Found:** 4 total (0 Critical, 0 High, 0 Medium, 4 Low)
-- **Security Audit:** Authentication, authorization, rate limiting, input validation, data isolation, and RLS all solid. 4 low-severity defense-in-depth findings.
+- **New Bugs Found (Round 2):** 4 total — all 4 fixed
+- **Security Audit:** Authentication, authorization, rate limiting, input validation, data isolation, and RLS all solid.
 - **Build:** Passes clean
 - **Production Ready:** YES
-- **Recommendation:** All critical, high, and medium bugs from Round 1 have been fixed. The 4 new low-severity findings are defense-in-depth improvements that can be addressed in a future sprint. The feature is ready for deployment.
 
 ## Deployment
 _To be added by /deploy_

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ChevronLeft, ChevronRight, LayoutTemplate, X } from 'lucide-react'
 
 export interface PresentationSlide {
@@ -14,6 +15,7 @@ interface PresentationModeProps {
 }
 
 export function PresentationMode({ slides, onExit }: PresentationModeProps) {
+  const { t } = useTranslation()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showUI, setShowUI] = useState(true)
   const [laserPos, setLaserPos] = useState<{ x: number; y: number } | null>(null)
@@ -21,6 +23,7 @@ export function PresentationMode({ slides, onExit }: PresentationModeProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onExitRef = useRef(onExit)
+  const touchStartXRef = useRef<number | null>(null)
   useEffect(() => { onExitRef.current = onExit }, [onExit])
 
   // Enter fullscreen on mount; exit on unmount
@@ -99,6 +102,22 @@ export function PresentationMode({ slides, onExit }: PresentationModeProps) {
     setCurrentIndex((i) => Math.min(i + 1, slides.length - 1))
   }
 
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStartXRef.current = e.touches[0].clientX
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (touchStartXRef.current === null) return
+    const delta = e.changedTouches[0].clientX - touchStartXRef.current
+    touchStartXRef.current = null
+    if (Math.abs(delta) < 50) return
+    if (delta < 0) {
+      setCurrentIndex((i) => Math.min(i + 1, slides.length - 1))
+    } else {
+      setCurrentIndex((i) => Math.max(i - 1, 0))
+    }
+  }
+
   const slide = slides[currentIndex]
 
   return (
@@ -107,6 +126,8 @@ export function PresentationMode({ slides, onExit }: PresentationModeProps) {
       className="fixed inset-0 z-50 bg-black flex items-center justify-center"
       onMouseMove={handleMouseMove}
       onClick={advance}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
       {/* Current slide */}
       {slide.thumbnail_url ? (
@@ -143,10 +164,10 @@ export function PresentationMode({ slides, onExit }: PresentationModeProps) {
           <button
             className="flex items-center gap-2 rounded-lg bg-black/60 px-3 py-2 text-sm text-white backdrop-blur-sm hover:bg-black/80 transition-colors"
             onClick={(e) => { e.stopPropagation(); handleExit() }}
-            title="Exit presentation (Esc)"
+            title={t('presentation.exit_tooltip')}
           >
             <X className="h-4 w-4" />
-            Exit
+            {t('presentation.exit')}
           </button>
           <span className="rounded-lg bg-black/60 px-3 py-2 text-sm text-white tabular-nums backdrop-blur-sm">
             {currentIndex + 1} / {slides.length}
@@ -173,17 +194,19 @@ export function PresentationMode({ slides, onExit }: PresentationModeProps) {
           </button>
         )}
 
-        {/* Progress dots — shown for ≤20 slides */}
+        {/* Progress dots — shown for ≤20 slides, 44px touch targets */}
         {slides.length <= 20 && (
-          <div className="pointer-events-auto absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
+          <div className="pointer-events-auto absolute bottom-4 left-1/2 -translate-x-1/2 flex">
             {slides.map((_, i) => (
               <button
                 key={i}
                 onClick={(e) => { e.stopPropagation(); setCurrentIndex(i) }}
-                className={`h-1.5 rounded-full transition-all ${
+                className="flex items-center justify-center min-w-[44px] min-h-[44px] p-0"
+              >
+                <span className={`block h-1.5 rounded-full transition-all ${
                   i === currentIndex ? 'w-5 bg-white' : 'w-1.5 bg-white/40 hover:bg-white/70'
-                }`}
-              />
+                }`} />
+              </button>
             ))}
           </div>
         )}

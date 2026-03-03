@@ -1,3 +1,6 @@
+'use client'
+
+import { useTranslation } from 'react-i18next'
 import { Minus, Plus, Shrink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -10,6 +13,7 @@ interface ZoomControlsProps {
 }
 
 export function ZoomControls({ zoom, onZoomIn, onZoomOut, onFit }: ZoomControlsProps) {
+  const { t } = useTranslation()
   return (
     <div
       data-no-pan
@@ -20,7 +24,7 @@ export function ZoomControls({ zoom, onZoomIn, onZoomOut, onFit }: ZoomControlsP
         size="icon"
         className="h-7 w-7"
         onClick={onZoomOut}
-        title="Zoom out"
+        title={t('board.zoom_out')}
       >
         <Minus className="h-3.5 w-3.5" />
       </Button>
@@ -34,7 +38,7 @@ export function ZoomControls({ zoom, onZoomIn, onZoomOut, onFit }: ZoomControlsP
         size="icon"
         className="h-7 w-7"
         onClick={onZoomIn}
-        title="Zoom in"
+        title={t('board.zoom_in')}
       >
         <Plus className="h-3.5 w-3.5" />
       </Button>
@@ -46,7 +50,7 @@ export function ZoomControls({ zoom, onZoomIn, onZoomOut, onFit }: ZoomControlsP
         size="icon"
         className="h-7 w-7"
         onClick={onFit}
-        title="Fit to screen"
+        title={t('board.fit_to_screen')}
       >
         <Shrink className="h-3.5 w-3.5" />
       </Button>

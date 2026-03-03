@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
@@ -27,6 +28,7 @@ export function EditFieldsDialog({
   values,
   onChange,
 }: EditFieldsDialogProps) {
+  const { t } = useTranslation()
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent className="max-w-md">
@@ -35,7 +37,7 @@ export function EditFieldsDialog({
         </DialogHeader>
 
         {slide.editable_fields.length === 0 ? (
-          <p className="text-sm text-muted-foreground">This slide has no editable fields.</p>
+          <p className="text-sm text-muted-foreground">{t('edit_fields.no_editable_fields')}</p>
         ) : (
           <div className="space-y-4">
             {slide.editable_fields.map((field) => (
@@ -47,7 +49,7 @@ export function EditFieldsDialog({
                   </Label>
                   {field.required && (
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 text-muted-foreground">
-                      Required
+                      {t('edit_fields.required')}
                     </Badge>
                   )}
                 </div>

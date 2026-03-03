@@ -12,6 +12,25 @@ const PatchProfileSchema = z.object({
 })
 
 // ---------------------------------------------------------------------------
+// GET /api/profile — fetch current user profile including notification prefs
+// ---------------------------------------------------------------------------
+
+export async function GET(request: NextRequest) {
+  const user = await getAuthenticatedUser(request)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const supabase = createServiceClient()
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, display_name, preferred_language, avatar_url, notification_preferences')
+    .eq('id', user.id)
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ user: data })
+}
+
+// ---------------------------------------------------------------------------
 // PATCH /api/profile — update display_name and/or preferred_language
 // ---------------------------------------------------------------------------
 

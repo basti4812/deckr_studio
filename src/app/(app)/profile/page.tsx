@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Camera, Trash2 } from 'lucide-react'
+import { Camera, Lock, Trash2 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -16,6 +16,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
+import { Switch } from '@/components/ui/switch'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { supabase } from '@/lib/supabase'
 
@@ -33,8 +35,27 @@ async function getToken(): Promise<string | null> {
 // Page
 // ---------------------------------------------------------------------------
 
+type NotificationPreferences = Partial<Record<string, boolean>>
+
 export default function ProfilePage() {
   const { displayName, avatarUrl, preferredLanguage, refresh } = useCurrentUser()
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences | null>(null)
+
+  // Load notification preferences on mount
+  useEffect(() => {
+    async function loadPrefs() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+      const res = await fetch('/api/profile', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      if (res.ok) {
+        const d = await res.json()
+        setNotificationPreferences(d.user?.notification_preferences ?? {})
+      }
+    }
+    loadPrefs()
+  }, [])
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-6">
@@ -49,6 +70,10 @@ export default function ProfilePage() {
       <AvatarCard displayName={displayName} avatarUrl={avatarUrl} refresh={refresh} />
       <LanguageCard preferredLanguage={preferredLanguage} refresh={refresh} />
       <PasswordCard />
+      <EmailNotificationsCard
+        preferences={notificationPreferences}
+        onUpdate={(prefs) => setNotificationPreferences(prefs)}
+      />
     </div>
   )
 }
@@ -305,6 +330,143 @@ function LanguageCard({
         <Button onClick={handleSave} disabled={loading} size="sm">
           {loading ? 'Saving…' : 'Save'}
         </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Card 4 — Password
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Card 5 — Email Notifications
+// ---------------------------------------------------------------------------
+
+const NOTIFICATION_TYPES = [
+  {
+    key: 'project_shared',
+    label: 'Project shared with you',
+    description: 'When someone in your team shares a project with you',
+    mandatory: false,
+  },
+  {
+    key: 'team_member_joined',
+    label: 'New team member joined',
+    description: 'When a new user is added to your team',
+    mandatory: false,
+  },
+  {
+    key: 'slide_deprecated',
+    label: 'Slide deprecated in project',
+    description: 'When a slide you are using is marked as deprecated by an admin',
+    mandatory: false,
+  },
+  {
+    key: 'slide_updated',
+    label: 'Slide updated in project',
+    description: "When a slide in one of your projects is updated by an admin",
+    mandatory: false,
+  },
+  {
+    key: 'payment_failed',
+    label: 'Payment failed',
+    description: 'Critical: when a payment for your subscription fails',
+    mandatory: true,
+  },
+  {
+    key: 'trial_ending_7d',
+    label: 'Trial ending in 7 days',
+    description: 'Critical: reminder when your free trial is about to expire',
+    mandatory: true,
+  },
+  {
+    key: 'trial_ending_1d',
+    label: 'Trial ending tomorrow',
+    description: 'Critical: final reminder before your free trial expires',
+    mandatory: true,
+  },
+] as const
+
+function EmailNotificationsCard({
+  preferences,
+  onUpdate,
+}: {
+  preferences: Partial<Record<string, boolean>> | null
+  onUpdate: (prefs: Partial<Record<string, boolean>>) => void
+}) {
+  const [saving, setSaving] = useState<string | null>(null)
+
+  async function handleToggle(key: string, value: boolean) {
+    setSaving(key)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+
+      const res = await fetch('/api/profile/notification-preferences', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ [key]: value }),
+      })
+
+      if (!res.ok) {
+        const d = await res.json()
+        toast.error(d.error ?? 'Failed to update preference')
+        return
+      }
+
+      const d = await res.json()
+      onUpdate(d.notification_preferences ?? {})
+      toast.success(value ? 'Email notifications enabled' : 'Email notifications disabled')
+    } finally {
+      setSaving(null)
+    }
+  }
+
+  function isEnabled(key: string, mandatory: boolean): boolean {
+    if (mandatory) return true
+    if (!preferences) return true // default: all on
+    return preferences[key] !== false
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Email Notifications</CardTitle>
+        <CardDescription>Choose which events send you an email notification.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-1">
+        <TooltipProvider>
+          {NOTIFICATION_TYPES.map(({ key, label, description, mandatory }) => (
+            <div key={key} className="flex items-center justify-between py-3 border-b last:border-0">
+              <div className="flex-1 mr-4">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-medium">{label}</span>
+                  {mandatory && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Lock className="h-3 w-3 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>This notification cannot be disabled</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+              </div>
+              <Switch
+                checked={isEnabled(key, mandatory)}
+                onCheckedChange={(checked) => handleToggle(key, checked)}
+                disabled={mandatory || saving === key}
+                aria-label={`Toggle ${label} email`}
+              />
+            </div>
+          ))}
+        </TooltipProvider>
       </CardContent>
     </Card>
   )

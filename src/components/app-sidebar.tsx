@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from 'react-i18next'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -21,6 +22,7 @@ import {
 
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
+import { NotificationPanel } from '@/components/notifications/notification-panel'
 import {
   Sidebar,
   SidebarContent,
@@ -48,7 +50,7 @@ import { Badge } from '@/components/ui/badge'
 // ---------------------------------------------------------------------------
 
 interface NavItem {
-  label: string
+  labelKey: string
   href: string
   icon: React.ElementType
 }
@@ -58,21 +60,21 @@ interface NavItem {
 // ---------------------------------------------------------------------------
 
 const adminNavItems: NavItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Slide Library', href: '/admin/slides', icon: Image },
-  { label: 'Template Sets', href: '/admin/templates', icon: Layers },
-  { label: 'Board Configuration', href: '/admin/board-config', icon: LayoutGrid },
-  { label: 'Team Management', href: '/admin/team', icon: Users },
-  { label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
-  { label: 'Activity Log', href: '/admin/activity', icon: Activity },
-  { label: 'Billing', href: '/admin/billing', icon: CreditCard },
+  { labelKey: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { labelKey: 'nav.slide_library', href: '/admin/slides', icon: Image },
+  { labelKey: 'nav.template_sets', href: '/admin/templates', icon: Layers },
+  { labelKey: 'nav.board_config', href: '/admin/board-config', icon: LayoutGrid },
+  { labelKey: 'nav.team_management', href: '/admin/team', icon: Users },
+  { labelKey: 'nav.analytics', href: '/admin/analytics', icon: BarChart3 },
+  { labelKey: 'nav.activity_log', href: '/admin/activity', icon: Activity },
+  { labelKey: 'nav.billing', href: '/admin/billing', icon: CreditCard },
 ]
 
 const personalNavItems: NavItem[] = [
-  { label: 'Home', href: '/home', icon: Home },
-  { label: 'Board', href: '/board', icon: LayoutGrid },
-  { label: 'Projects', href: '/projects', icon: FolderOpen },
-  { label: 'Profile', href: '/profile', icon: User },
+  { labelKey: 'nav.home', href: '/home', icon: Home },
+  { labelKey: 'nav.board', href: '/board', icon: LayoutGrid },
+  { labelKey: 'nav.projects', href: '/projects', icon: FolderOpen },
+  { labelKey: 'nav.profile', href: '/profile', icon: User },
 ]
 
 // ---------------------------------------------------------------------------
@@ -98,9 +100,10 @@ function isAdminWorkspace(pathname: string): boolean {
 // ---------------------------------------------------------------------------
 
 export function AppSidebar() {
+  const { t } = useTranslation()
   const pathname = usePathname()
   const router = useRouter()
-  const { isAdmin, displayName, avatarUrl, role } = useCurrentUser()
+  const { isAdmin, displayName, avatarUrl, role, userId } = useCurrentUser()
   const { state } = useSidebar()
   const isCollapsed = state === 'collapsed'
 
@@ -139,7 +142,7 @@ export function AppSidebar() {
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              Admin
+              {t('nav.admin')}
             </button>
             <button
               onClick={() => router.push('/home')}
@@ -149,7 +152,7 @@ export function AppSidebar() {
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              Personal
+              {t('nav.employee')}
             </button>
           </div>
         )}
@@ -160,12 +163,13 @@ export function AppSidebar() {
         <SidebarGroup>
           {!isCollapsed && (
             <SidebarGroupLabel>
-              {inAdminWorkspace ? 'Administration' : 'Workspace'}
+              {inAdminWorkspace ? t('nav.administration') : t('nav.workspace')}
             </SidebarGroupLabel>
           )}
           <SidebarMenu>
             {navItems.map((item) => {
               const Icon = item.icon
+              const label = t(item.labelKey)
               const isActive =
                 item.href === '/'
                   ? pathname === '/'
@@ -176,11 +180,11 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     asChild
                     isActive={isActive}
-                    tooltip={item.label}
+                    tooltip={label}
                   >
                     <Link href={item.href}>
                       <Icon className="h-4 w-4" />
-                      <span>{item.label}</span>
+                      <span>{label}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -189,18 +193,19 @@ export function AppSidebar() {
           </SidebarMenu>
         </SidebarGroup>
 
-        {/* Settings shortcut */}
+        {/* Notifications + Settings */}
         <SidebarGroup className="mt-auto">
           <SidebarMenu>
+            <NotificationPanel userId={userId} />
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
                 isActive={pathname === '/profile'}
-                tooltip="Profile & Settings"
+                tooltip={t('nav.profile_and_settings')}
               >
                 <Link href="/profile">
                   <Settings className="h-4 w-4" />
-                  <span>Settings</span>
+                  <span>{t('nav.settings')}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -251,7 +256,7 @@ export function AppSidebar() {
                       variant={role === 'admin' ? 'default' : 'secondary'}
                       className="text-xs px-1.5 py-0"
                     >
-                      {role === 'admin' ? 'Admin' : 'Employee'}
+                      {role === 'admin' ? t('nav.admin') : t('nav.employee')}
                     </Badge>
                   </div>
                 </div>
@@ -259,7 +264,7 @@ export function AppSidebar() {
                 <DropdownMenuItem asChild>
                   <Link href="/profile">
                     <User className="mr-2 h-4 w-4" />
-                    Profile & Settings
+                    {t('nav.profile_and_settings')}
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -268,7 +273,7 @@ export function AppSidebar() {
                   className="text-destructive focus:text-destructive"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  Log out
+                  {t('nav.log_out')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

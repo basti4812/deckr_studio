@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import Link from 'next/link'
 import {
   AlertTriangle,
@@ -214,6 +215,7 @@ function InvoiceStatusBadge({
 // ---------------------------------------------------------------------------
 
 export default function BillingPage() {
+  const { t } = useTranslation()
   const { toast } = useToast()
 
   // Data state

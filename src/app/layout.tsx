@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { CookieConsent } from "@/components/cookie-consent";
+import { I18nProvider } from "@/providers/i18n-provider";
 
 export const metadata: Metadata = {
   title: "deckr – Presentation Management",
@@ -15,7 +16,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        {children}
+        <I18nProvider>
+          {children}
+        </I18nProvider>
         <CookieConsent />
       </body>
     </html>

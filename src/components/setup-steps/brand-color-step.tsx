@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Check } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -27,6 +28,7 @@ interface BrandColorStepProps {
 }
 
 export function BrandColorStep({ initialColor, onNext, onBack, onSkip }: BrandColorStepProps) {
+  const { t } = useTranslation()
   const [selected, setSelected] = useState(initialColor || '#2B4EFF')
   const [customHex, setCustomHex] = useState('')
   const [loading, setLoading] = useState(false)
@@ -36,7 +38,7 @@ export function BrandColorStep({ initialColor, onNext, onBack, onSkip }: BrandCo
 
   async function handleNext() {
     if (!HEX_REGEX.test(activeColor)) {
-      setError('Please enter a valid hex color (e.g. #2B4EFF)')
+      setError(t('setup.invalid_hex'))
       return
     }
     setError(null)
@@ -53,7 +55,7 @@ export function BrandColorStep({ initialColor, onNext, onBack, onSkip }: BrandCo
   return (
     <div className="space-y-6">
       <div className="space-y-3">
-        <Label>Choose your primary brand color</Label>
+        <Label>{t('setup.choose_primary_color')}</Label>
         <div className="grid grid-cols-4 gap-3">
           {PRESET_COLORS.map((color) => (
             <button
@@ -73,7 +75,7 @@ export function BrandColorStep({ initialColor, onNext, onBack, onSkip }: BrandCo
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="custom-hex">Or enter a custom hex color</Label>
+        <Label htmlFor="custom-hex">{t('setup.custom_hex')}</Label>
         <div className="flex items-center gap-3">
           <div
             className="h-9 w-9 shrink-0 rounded-md border"
@@ -94,14 +96,14 @@ export function BrandColorStep({ initialColor, onNext, onBack, onSkip }: BrandCo
       <div className="flex justify-between">
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={onBack}>
-            Back
+            {t('setup.back')}
           </Button>
           <Button variant="ghost" size="sm" onClick={onSkip}>
-            Skip
+            {t('setup.skip')}
           </Button>
         </div>
         <Button onClick={handleNext} disabled={loading}>
-          {loading ? 'Saving…' : 'Next'}
+          {loading ? t('setup.saving') : t('setup.next')}
         </Button>
       </div>
     </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Mail,
   MoreHorizontal,
@@ -140,6 +141,7 @@ async function getAccessToken(): Promise<string | null> {
 // ---------------------------------------------------------------------------
 
 export default function TeamManagementPage() {
+  const { t } = useTranslation()
   const { userId, loading: userLoading } = useCurrentUser()
   const { toast } = useToast()
 
@@ -285,8 +287,8 @@ export default function TeamManagementPage() {
       }))
 
       toast({
-        title: 'User removed',
-        description: `${removeTarget.display_name ?? removeTarget.email} has been removed from the team.`,
+        title: t('admin.user_removed'),
+        description: t('admin.user_removed_message', { name: removeTarget.display_name ?? removeTarget.email }),
       })
     } catch (err) {
       toast({
@@ -329,8 +331,8 @@ export default function TeamManagementPage() {
       )
 
       toast({
-        title: 'Invitation cancelled',
-        description: `Invitation to ${cancelInviteTarget.email} has been cancelled.`,
+        title: t('admin.invitation_cancelled'),
+        description: t('admin.invitation_cancelled', { email: cancelInviteTarget.email }),
       })
     } catch (err) {
       toast({
@@ -372,8 +374,8 @@ export default function TeamManagementPage() {
       }
 
       toast({
-        title: 'Invitation resent',
-        description: `A new invitation has been sent to ${member.email}.`,
+        title: t('admin.invitation_sent'),
+        description: t('admin.invitation_sent_to', { email: member.email }),
       })
     } catch (err) {
       toast({
@@ -395,11 +397,10 @@ export default function TeamManagementPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
-            Team Management
+            {t('admin.team_management')}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Invite team members, manage roles, and control access for your
-            organization.
+            {t('admin.team_management_description')}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -407,17 +408,11 @@ export default function TeamManagementPage() {
           <div className="text-sm text-muted-foreground">
             {seats.total !== null ? (
               <span>
-                <span className="font-medium text-foreground">
-                  {seats.used}
-                </span>{' '}
-                / {seats.total} seats used
+                {t('admin.seats_used', { used: seats.used, total: seats.total })}
               </span>
             ) : (
               <span>
-                <span className="font-medium text-foreground">
-                  {seats.used}
-                </span>{' '}
-                seats used
+                {t('admin.seats_used', { used: seats.used, total: null })}
               </span>
             )}
           </div>
@@ -428,11 +423,11 @@ export default function TeamManagementPage() {
             disabled={loading}
           >
             <Mail className="mr-2 h-4 w-4" />
-            Invite member
+            {t('admin.invite_member')}
           </Button>
           <Button onClick={() => setCreateOpen(true)} disabled={loading}>
             <UserPlus className="mr-2 h-4 w-4" />
-            Create user
+            {t('admin.create_user')}
           </Button>
         </div>
       </div>
@@ -458,12 +453,12 @@ export default function TeamManagementPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[280px]">Member</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead className="w-[140px]">Role</TableHead>
-                <TableHead className="w-[100px]">Status</TableHead>
-                <TableHead className="w-[120px]">Last active</TableHead>
-                <TableHead className="w-[120px]">Since</TableHead>
+                <TableHead className="w-[280px]">{t('admin.member')}</TableHead>
+                <TableHead>{t('admin.email')}</TableHead>
+                <TableHead className="w-[140px]">{t('admin.role')}</TableHead>
+                <TableHead className="w-[100px]">{t('admin.status')}</TableHead>
+                <TableHead className="w-[120px]">{t('admin.last_active')}</TableHead>
+                <TableHead className="w-[120px]">{t('admin.since')}</TableHead>
                 <TableHead className="w-[60px]" />
               </TableRow>
             </TableHeader>
@@ -504,10 +499,10 @@ export default function TeamManagementPage() {
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
           <UserPlus className="h-8 w-8 text-muted-foreground/50" />
           <p className="mt-3 text-sm font-medium text-muted-foreground">
-            No team members yet
+            {t('admin.no_team_members_yet')}
           </p>
           <p className="mt-1 text-xs text-muted-foreground/70">
-            Invite your first team member to get started.
+            {t('admin.invite_first_member')}
           </p>
           <Button
             variant="outline"
@@ -516,7 +511,7 @@ export default function TeamManagementPage() {
             onClick={() => setInviteOpen(true)}
           >
             <Mail className="mr-2 h-4 w-4" />
-            Invite member
+            {t('admin.invite_member')}
           </Button>
         </div>
       ) : (
@@ -525,14 +520,14 @@ export default function TeamManagementPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[280px]">Member</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead className="w-[140px]">Role</TableHead>
-                <TableHead className="w-[100px]">Status</TableHead>
-                <TableHead className="w-[120px]">Last active</TableHead>
-                <TableHead className="w-[120px]">Since</TableHead>
+                <TableHead className="w-[280px]">{t('admin.member')}</TableHead>
+                <TableHead>{t('admin.email')}</TableHead>
+                <TableHead className="w-[140px]">{t('admin.role')}</TableHead>
+                <TableHead className="w-[100px]">{t('admin.status')}</TableHead>
+                <TableHead className="w-[120px]">{t('admin.last_active')}</TableHead>
+                <TableHead className="w-[120px]">{t('admin.since')}</TableHead>
                 <TableHead className="w-[60px]">
-                  <span className="sr-only">Actions</span>
+                  <span className="sr-only">{t('admin.actions')}</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -595,13 +590,10 @@ export default function TeamManagementPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Remove{' '}
-              {removeTarget?.display_name ?? removeTarget?.email} from your
-              team?
+              {t('admin.remove_from_team', { name: removeTarget?.display_name ?? removeTarget?.email })}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This user will immediately lose access. Their projects will be
-              transferred to you. This action cannot be undone.
+              {t('admin.remove_user_message')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -611,7 +603,7 @@ export default function TeamManagementPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              Remove user
+              {t('admin.remove_user_button')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -625,21 +617,20 @@ export default function TeamManagementPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Cancel invite for {cancelInviteTarget?.email}?
+              {t('admin.cancel_invite_for', { email: cancelInviteTarget?.email })}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              The invitation link will be invalidated and the user will not
-              be able to join your team using it.
+              {t('admin.cancel_invite_message')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep invite</AlertDialogCancel>
+            <AlertDialogCancel>{t('admin.keep_invite')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleCancelInvite}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               <XCircle className="mr-2 h-4 w-4" />
-              Cancel invite
+              {t('admin.cancel_invite_button')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -671,6 +662,7 @@ function TeamMemberRow({
   onResendInvite,
   onCancelInvite,
 }: TeamMemberRowProps) {
+  const { t } = useTranslation()
   const isOwnRow = member.id === currentUserId
   const roleDisabled = isOwnRow || (isLastAdmin && member.role === 'admin') || member.is_pending
 
@@ -695,7 +687,7 @@ function TeamMemberRow({
               {member.display_name ?? '---'}
             </p>
             {isOwnRow && (
-              <span className="text-xs text-muted-foreground">(you)</span>
+              <span className="text-xs text-muted-foreground">({t('admin.you')})</span>
             )}
           </div>
         </div>
@@ -709,7 +701,7 @@ function TeamMemberRow({
       {/* Role dropdown */}
       <TableCell>
         {member.is_pending ? (
-          <span className="text-sm text-muted-foreground">Employee</span>
+          <span className="text-sm text-muted-foreground">{t('nav.employee')}</span>
         ) : roleDisabled ? (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -726,8 +718,8 @@ function TeamMemberRow({
             </TooltipTrigger>
             <TooltipContent>
               {isOwnRow
-                ? 'You cannot change your own role'
-                : 'At least one admin must remain in the team'}
+                ? t('admin.cannot_change_own_role')
+                : t('admin.at_least_one_admin')}
             </TooltipContent>
           </Tooltip>
         ) : (
@@ -744,8 +736,8 @@ function TeamMemberRow({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="admin">Admin</SelectItem>
-              <SelectItem value="employee">Employee</SelectItem>
+              <SelectItem value="admin">{t('nav.admin')}</SelectItem>
+              <SelectItem value="employee">{t('nav.employee')}</SelectItem>
             </SelectContent>
           </Select>
         )}
@@ -758,14 +750,14 @@ function TeamMemberRow({
             variant="outline"
             className="border-amber-500/50 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
           >
-            Pending
+            {t('admin.pending')}
           </Badge>
         ) : (
           <Badge
             variant="outline"
             className="border-green-500/50 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400"
           >
-            Active
+            {t('admin.active')}
           </Badge>
         )}
       </TableCell>
@@ -801,14 +793,14 @@ function TeamMemberRow({
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => onResendInvite(member)}>
                 <RefreshCw className="mr-2 h-4 w-4" />
-                Resend invite
+                {t('admin.resend_invite')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => onCancelInvite(member)}
                 className="text-destructive focus:text-destructive"
               >
                 <XCircle className="mr-2 h-4 w-4" />
-                Cancel invite
+                {t('admin.cancel_invite')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -830,7 +822,7 @@ function TeamMemberRow({
                 className="text-destructive focus:text-destructive"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                Remove from team
+                {t('admin.remove_from_team')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -857,6 +849,7 @@ function InviteDialog({
   seatLimitReached,
   onInvited,
 }: InviteDialogProps) {
+  const { t } = useTranslation()
   const { toast } = useToast()
   const [email, setEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -903,8 +896,8 @@ function InviteDialog({
       }
 
       toast({
-        title: 'Invitation sent',
-        description: `An invitation email has been sent to ${email}.`,
+        title: t('admin.invitation_sent'),
+        description: t('admin.invitation_sent_to', { email }),
       })
 
       onInvited(data.member)
@@ -920,29 +913,28 @@ function InviteDialog({
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Invite team member</DialogTitle>
+          <DialogTitle>{t('admin.invite_team_member')}</DialogTitle>
           <DialogDescription>
-            Send an email invitation. The user will receive a link to set up
-            their account.
+            {t('admin.invite_description')}
           </DialogDescription>
         </DialogHeader>
 
         {seatLimitReached ? (
           <div className="rounded-lg border border-amber-500/50 bg-amber-50 p-4 text-sm text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
-            <p className="font-medium">Seat limit reached</p>
+            <p className="font-medium">{t('admin.seat_limit_reached')}</p>
             <p className="mt-1">
-              Upgrade your plan to invite more team members.
+              {t('admin.upgrade_to_invite_more')}
             </p>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="invite-email">Email address</Label>
+                <Label htmlFor="invite-email">{t('admin.email_address')}</Label>
                 <Input
                   id="invite-email"
                   type="email"
-                  placeholder="colleague@company.com"
+                  placeholder={t('admin.colleague_email_placeholder')}
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value)
@@ -1003,6 +995,7 @@ function CreateUserDialog({
   seatLimitReached,
   onCreated,
 }: CreateUserDialogProps) {
+  const { t } = useTranslation()
   const { toast } = useToast()
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
@@ -1025,15 +1018,15 @@ function CreateUserDialog({
     setFieldError(null)
 
     if (!displayName.trim()) {
-      setFieldError('Display name is required')
+      setFieldError(t('admin.display_name') + ' is required')
       return
     }
     if (!email.trim()) {
-      setFieldError('Email is required')
+      setFieldError(t('admin.email_address') + ' is required')
       return
     }
     if (password.length < 8) {
-      setFieldError('Password must be at least 8 characters')
+      setFieldError(t('admin.password_must_be_8'))
       return
     }
 
@@ -1069,8 +1062,8 @@ function CreateUserDialog({
       }
 
       toast({
-        title: 'User created',
-        description: `${displayName} has been added to the team.`,
+        title: t('admin.user_created'),
+        description: t('admin.user_created_message', { name: displayName }),
       })
 
       onCreated(data.member)
@@ -1086,29 +1079,28 @@ function CreateUserDialog({
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Create user account</DialogTitle>
+          <DialogTitle>{t('admin.create_user_account')}</DialogTitle>
           <DialogDescription>
-            Create a user account directly with a temporary password. The user
-            will receive an email to confirm their account.
+            {t('admin.create_user_description')}
           </DialogDescription>
         </DialogHeader>
 
         {seatLimitReached ? (
           <div className="rounded-lg border border-amber-500/50 bg-amber-50 p-4 text-sm text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
-            <p className="font-medium">Seat limit reached</p>
+            <p className="font-medium">{t('admin.seat_limit_reached')}</p>
             <p className="mt-1">
-              Upgrade your plan to add more team members.
+              {t('admin.upgrade_to_add_more')}
             </p>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="create-name">Display name</Label>
+                <Label htmlFor="create-name">{t('admin.display_name')}</Label>
                 <Input
                   id="create-name"
                   type="text"
-                  placeholder="Jane Smith"
+                  placeholder={t('admin.display_name_placeholder')}
                   value={displayName}
                   onChange={(e) => {
                     setDisplayName(e.target.value)
@@ -1119,11 +1111,11 @@ function CreateUserDialog({
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="create-email">Email address</Label>
+                <Label htmlFor="create-email">{t('admin.email_address')}</Label>
                 <Input
                   id="create-email"
                   type="email"
-                  placeholder="jane@company.com"
+                  placeholder={t('admin.email_placeholder')}
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value)
@@ -1133,11 +1125,11 @@ function CreateUserDialog({
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="create-password">Temporary password</Label>
+                <Label htmlFor="create-password">{t('admin.temporary_password')}</Label>
                 <Input
                   id="create-password"
                   type="password"
-                  placeholder="Min. 8 characters"
+                  placeholder={t('admin.password_min_8_chars')}
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value)
@@ -1147,7 +1139,7 @@ function CreateUserDialog({
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="create-role">Role</Label>
+                <Label htmlFor="create-role">{t('admin.role')}</Label>
                 <Select
                   value={role}
                   onValueChange={(v) => setRole(v as 'admin' | 'employee')}
@@ -1157,8 +1149,8 @@ function CreateUserDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="employee">Employee</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="employee">{t('nav.employee')}</SelectItem>
+                    <SelectItem value="admin">{t('nav.admin')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1179,12 +1171,12 @@ function CreateUserDialog({
                 {submitting ? (
                   <>
                     <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
+                    {t('admin.creating')}
                   </>
                 ) : (
                   <>
                     <UserPlus className="mr-2 h-4 w-4" />
-                    Create account
+                    {t('admin.create_account')}
                   </>
                 )}
               </Button>

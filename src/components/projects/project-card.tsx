@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from 'react-i18next'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Archive, ArchiveRestore, Copy, Loader2, LogOut, MoreVertical, Pencil, Trash2, Users } from 'lucide-react'
@@ -46,18 +47,18 @@ interface ProjectCardProps {
   onDeletePermanently?: (id: string) => Promise<void>
 }
 
-function timeAgo(dateStr: string): string {
+function timeAgo(dateStr: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
   const diff = Date.now() - new Date(dateStr).getTime()
   const days = Math.floor(diff / 86_400_000)
-  if (days === 0) return 'Today'
-  if (days === 1) return 'Yesterday'
-  if (days < 7) return `${days} days ago`
+  if (days === 0) return t('project_card.today')
+  if (days === 1) return t('project_card.yesterday')
+  if (days < 7) return t('project_card.days_ago', { count: days })
   const weeks = Math.floor(days / 7)
-  if (weeks === 1) return '1 week ago'
-  if (weeks < 5) return `${weeks} weeks ago`
+  if (weeks === 1) return t('project_card.week_ago')
+  if (weeks < 5) return t('project_card.weeks_ago', { count: weeks })
   const months = Math.floor(days / 30)
-  if (months === 1) return '1 month ago'
-  return `${months} months ago`
+  if (months === 1) return t('project_card.month_ago')
+  return t('project_card.months_ago', { count: months })
 }
 
 export function ProjectCard({
@@ -72,6 +73,7 @@ export function ProjectCard({
   onRestore,
   onDeletePermanently,
 }: ProjectCardProps) {
+  const { t } = useTranslation()
   const router = useRouter()
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(project.name)
@@ -210,7 +212,7 @@ export function ProjectCard({
               {!isArchived && isOwner && onRename && (
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditing(true) }}>
                   <Pencil className="mr-2 h-4 w-4" />
-                  Rename
+                  {t('project_card.rename')}
                 </DropdownMenuItem>
               )}
               {!isArchived && onDuplicate && (
@@ -223,7 +225,7 @@ export function ProjectCard({
                   ) : (
                     <Copy className="mr-2 h-4 w-4" />
                   )}
-                  {duplicating ? 'Duplicating...' : 'Duplicate'}
+                  {duplicating ? t('project_card.duplicating') : t('project_card.duplicate')}
                 </DropdownMenuItem>
               )}
               {!isArchived && isOwner && onArchive && (
@@ -236,7 +238,7 @@ export function ProjectCard({
                   ) : (
                     <Archive className="mr-2 h-4 w-4" />
                   )}
-                  {archiving ? 'Archiving...' : 'Archive'}
+                  {archiving ? t('project_card.archiving') : t('project_card.archive')}
                 </DropdownMenuItem>
               )}
               {!isArchived && isOwner && onDelete && (
@@ -247,7 +249,7 @@ export function ProjectCard({
                     onClick={(e) => { e.stopPropagation(); setConfirmDelete(true) }}
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
+                    {t('project_card.delete')}
                   </DropdownMenuItem>
                 </>
               )}
@@ -259,7 +261,7 @@ export function ProjectCard({
                     onClick={(e) => { e.stopPropagation(); setConfirmLeave(true) }}
                   >
                     <LogOut className="mr-2 h-4 w-4" />
-                    Leave project
+                    {t('project_card.leave_project')}
                   </DropdownMenuItem>
                 </>
               )}
@@ -275,7 +277,7 @@ export function ProjectCard({
                   ) : (
                     <ArchiveRestore className="mr-2 h-4 w-4" />
                   )}
-                  {restoring ? 'Restoring...' : 'Restore'}
+                  {restoring ? t('project_card.restoring') : t('project_card.restore')}
                 </DropdownMenuItem>
               )}
               {isArchived && onDeletePermanently && (
@@ -286,7 +288,7 @@ export function ProjectCard({
                     onClick={(e) => { e.stopPropagation(); setConfirmDeletePermanently(true) }}
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
-                    Delete permanently
+                    {t('project_card.delete_permanently')}
                   </DropdownMenuItem>
                 </>
               )}
@@ -298,22 +300,22 @@ export function ProjectCard({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <Badge variant="secondary" className="text-xs">
-              {slideCount} slide{slideCount !== 1 ? 's' : ''}
+              {t('project_card.slides', { count: slideCount })}
             </Badge>
             {isArchived && (
               <Badge variant="outline" className="text-xs gap-1">
                 <Archive className="h-3 w-3" />
-                Archived
+                {t('project_card.archived_badge')}
               </Badge>
             )}
             {!isOwner && !isArchived && (
               <Badge variant="outline" className="text-xs gap-1">
                 <Users className="h-3 w-3" />
-                Shared
+                {t('project_card.shared_badge')}
               </Badge>
             )}
           </div>
-          <span className="text-xs text-muted-foreground">{timeAgo(project.updated_at)}</span>
+          <span className="text-xs text-muted-foreground">{timeAgo(project.updated_at, t)}</span>
         </div>
       </div>
 
@@ -321,19 +323,19 @@ export function ProjectCard({
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete project?</AlertDialogTitle>
+            <AlertDialogTitle>{t('project_card.delete_confirm')}</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>{project.name}</strong> will be permanently deleted. This cannot be undone.
+              {t('project_card.delete_confirm_message', { name: project.name })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{t('create_project.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting ? 'Deleting…' : 'Delete project'}
+              {deleting ? t('project_card.deleting') : t('project_card.delete_confirm_button')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -343,19 +345,19 @@ export function ProjectCard({
       <AlertDialog open={confirmDeletePermanently} onOpenChange={setConfirmDeletePermanently}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete permanently?</AlertDialogTitle>
+            <AlertDialogTitle>{t('project_card.delete_permanently_confirm')}</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>{project.name}</strong> and all associated data will be permanently deleted. This cannot be undone.
+              {t('project_card.delete_permanently_message', { name: project.name })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{t('create_project.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeletePermanently}
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting ? 'Deleting…' : 'Delete permanently'}
+              {deleting ? t('project_card.deleting') : t('project_card.delete_permanently_button')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -365,19 +367,19 @@ export function ProjectCard({
       <AlertDialog open={confirmLeave} onOpenChange={setConfirmLeave}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Leave project?</AlertDialogTitle>
+            <AlertDialogTitle>{t('project_card.leave_confirm')}</AlertDialogTitle>
             <AlertDialogDescription>
-              You will lose access to <strong>{project.name}</strong>. The owner can re-share it with you later.
+              {t('project_card.leave_confirm_message', { name: project.name })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={leaving}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={leaving}>{t('create_project.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleLeave}
               disabled={leaving}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {leaving ? 'Leaving…' : 'Leave project'}
+              {leaving ? t('project_card.deleting') : t('project_card.leave_confirm_button')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

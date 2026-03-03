@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
@@ -45,6 +46,7 @@ type LoginValues = z.infer<typeof LoginSchema>
 // ---------------------------------------------------------------------------
 
 function LoginForm() {
+  const { t } = useTranslation()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirect') ?? ''
 
@@ -76,7 +78,7 @@ function LoginForm() {
       } else if (
         error.message.toLowerCase().includes('invalid login credentials')
       ) {
-        setServerError('Incorrect email or password. Please try again.')
+        setServerError(t('auth.incorrect_credentials'))
       } else {
         setServerError(error.message)
       }
@@ -84,7 +86,7 @@ function LoginForm() {
     }
 
     if (!data.session) {
-      setServerError('Login failed. Please try again.')
+      setServerError(t('auth.login_failed'))
       return
     }
 
@@ -108,18 +110,18 @@ function LoginForm() {
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <CardTitle>Welcome back</CardTitle>
-        <CardDescription>Sign in to your deckr Studio account</CardDescription>
+        <CardTitle>{t('auth.welcome_back')}</CardTitle>
+        <CardDescription>{t('auth.sign_in_to_account')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Email not confirmed state */}
         {emailNotConfirmed && (
           <Alert>
             <AlertDescription className="space-y-2">
-              <p>Please confirm your email address before signing in.</p>
+              <p>{t('auth.email_not_confirmed')}</p>
               {resendSuccess ? (
                 <p className="text-sm text-muted-foreground">
-                  Confirmation email sent. Please check your inbox.
+                  {t('auth.confirmation_email_sent')}
                 </p>
               ) : (
                 <Button
@@ -132,7 +134,7 @@ function LoginForm() {
                   {resendLoading && (
                     <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                   )}
-                  Resend confirmation email
+                  {t('auth.resend_confirmation_email')}
                 </Button>
               )}
             </AlertDescription>
@@ -153,11 +155,11 @@ function LoginForm() {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>{t('auth.email')}</FormLabel>
                   <FormControl>
                     <Input
                       type="email"
-                      placeholder="you@company.com"
+                      placeholder={t('auth.email_placeholder')}
                       autoComplete="email"
                       {...field}
                     />
@@ -173,12 +175,12 @@ function LoginForm() {
               render={({ field }) => (
                 <FormItem>
                   <div className="flex items-center justify-between">
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>{t('auth.password')}</FormLabel>
                     <Link
                       href="/forgot-password"
                       className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      Forgot password?
+                      {t('auth.forgot_password')}
                     </Link>
                   </div>
                   <FormControl>
@@ -197,7 +199,7 @@ function LoginForm() {
               {isSubmitting && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Sign in
+              {isSubmitting ? t('auth.signing_in') : t('auth.sign_in')}
             </Button>
           </form>
         </Form>
@@ -206,7 +208,7 @@ function LoginForm() {
         <div className="relative">
           <Separator />
           <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
-            or
+            {t('auth.or')}
           </span>
         </div>
 
@@ -214,21 +216,21 @@ function LoginForm() {
           variant="outline"
           className="w-full text-muted-foreground"
           disabled
-          title="Contact your admin to enable SSO for your organization"
+          title={t('auth.sso_contact_admin')}
         >
-          SSO Login
+          {t('auth.sso_login')}
           <span className="ml-2 rounded bg-muted px-1 py-0.5 text-[10px] font-medium uppercase tracking-wide">
-            Coming soon
+            {t('auth.coming_soon')}
           </span>
         </Button>
 
         <p className="text-center text-sm text-muted-foreground">
-          Don&apos;t have an account?{' '}
+          {t('auth.dont_have_account')}{' '}
           <Link
             href="/register"
             className="font-medium text-foreground hover:underline"
           >
-            Create one
+            {t('auth.create_one')}
           </Link>
         </p>
       </CardContent>

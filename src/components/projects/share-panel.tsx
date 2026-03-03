@@ -21,6 +21,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ShareLinksTab } from '@/components/projects/share-links-tab'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -43,6 +45,7 @@ export interface SearchUser {
 interface SharePanelProps {
   open: boolean
   onClose: () => void
+  projectId: string
   projectName: string
   ownerName: string
   shares: ShareRecord[]
@@ -59,6 +62,7 @@ interface SharePanelProps {
 export function SharePanel({
   open,
   onClose,
+  projectId,
   projectName,
   ownerName,
   shares,
@@ -148,9 +152,17 @@ export function SharePanel({
         <SheetHeader>
           <SheetTitle>Share &ldquo;{projectName}&rdquo;</SheetTitle>
           <SheetDescription>
-            Manage who has access to this project.
+            Manage access and external share links.
           </SheetDescription>
         </SheetHeader>
+
+        <Tabs defaultValue="people" className="mt-4 flex-1 flex flex-col overflow-hidden">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="people">People</TabsTrigger>
+            <TabsTrigger value="links">Share Links</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="people" className="flex-1 flex flex-col overflow-hidden">
 
         {/* ----- Add people section ----- */}
         <div className="mt-4 space-y-3">
@@ -296,6 +308,13 @@ export function SharePanel({
             </p>
           )}
         </div>
+
+          </TabsContent>
+
+          <TabsContent value="links" className="flex-1 overflow-y-auto">
+            <ShareLinksTab projectId={projectId} />
+          </TabsContent>
+        </Tabs>
       </SheetContent>
     </Sheet>
   )

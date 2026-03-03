@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { ArrowLeft, CheckCircle, Loader2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -43,6 +44,7 @@ const RESEND_COOLDOWN_SECONDS = 60
 // ---------------------------------------------------------------------------
 
 export default function ForgotPasswordPage() {
+  const { t } = useTranslation()
   const [sent, setSent] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
   const [cooldown, setCooldown] = useState(0)
@@ -87,13 +89,13 @@ export default function ForgotPasswordPage() {
           <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <CheckCircle className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle>Check your email</CardTitle>
+          <CardTitle>{t('auth.check_email')}</CardTitle>
           <CardDescription>
-            If an account exists for{' '}
+            {t('auth.reset_link_sent')}{' '}
             <span className="font-medium text-foreground">
               {form.getValues('email')}
             </span>
-            , you&apos;ll receive a password reset link shortly.
+            {t('auth.reset_link_sent_suffix')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -105,13 +107,13 @@ export default function ForgotPasswordPage() {
           >
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {cooldown > 0
-              ? `Resend in ${cooldown}s`
-              : 'Resend reset email'}
+              ? t('auth.resend_in', { count: cooldown })
+              : t('auth.resend_reset_email')}
           </Button>
           <Button variant="ghost" asChild className="w-full">
             <Link href="/login">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to sign in
+              {t('auth.back_to_sign_in')}
             </Link>
           </Button>
         </CardContent>
@@ -122,10 +124,9 @@ export default function ForgotPasswordPage() {
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <CardTitle>Reset your password</CardTitle>
+        <CardTitle>{t('auth.reset_password')}</CardTitle>
         <CardDescription>
-          Enter your email address and we&apos;ll send you a link to reset your
-          password.
+          {t('auth.reset_password_description')}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -142,11 +143,11 @@ export default function ForgotPasswordPage() {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>{t('auth.email')}</FormLabel>
                   <FormControl>
                     <Input
                       type="email"
-                      placeholder="you@company.com"
+                      placeholder={t('auth.email_placeholder')}
                       autoComplete="email"
                       {...field}
                     />
@@ -160,7 +161,7 @@ export default function ForgotPasswordPage() {
               {isSubmitting && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Send reset link
+              {isSubmitting ? t('auth.sending_reset_link') : t('auth.send_reset_link')}
             </Button>
           </form>
         </Form>
@@ -168,7 +169,7 @@ export default function ForgotPasswordPage() {
         <Button variant="ghost" asChild className="w-full">
           <Link href="/login">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to sign in
+            {t('auth.back_to_sign_in')}
           </Link>
         </Button>
       </CardContent>

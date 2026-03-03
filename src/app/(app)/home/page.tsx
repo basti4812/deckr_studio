@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from 'react-i18next'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight, Plus } from 'lucide-react'
@@ -11,6 +12,7 @@ import { ProjectCard, type Project } from '@/components/projects/project-card'
 import { CreateProjectDialog } from '@/components/projects/create-project-dialog'
 
 export default function HomePage() {
+  const { t } = useTranslation()
   const { loading: userLoading } = useCurrentUser()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
@@ -65,25 +67,25 @@ export default function HomePage() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Home</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('home.title')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Your workspace — recent projects and quick actions.
+            {t('home.description')}
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          New project
+          {t('home.new_project')}
         </Button>
       </div>
 
       {/* Recent projects section */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold">Recent projects</h2>
+          <h2 className="text-base font-semibold">{t('home.recent_projects')}</h2>
           {projects.length > 0 && (
             <Button variant="ghost" size="sm" asChild>
               <Link href="/projects" className="gap-1.5">
-                View all
+                {t('home.view_all')}
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </Button>
@@ -98,13 +100,13 @@ export default function HomePage() {
           </div>
         ) : projects.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
-            <p className="text-sm font-medium text-muted-foreground">No projects yet.</p>
+            <p className="text-sm font-medium text-muted-foreground">{t('home.no_projects_yet')}</p>
             <p className="mt-1 text-xs text-muted-foreground max-w-xs">
-              Create your first project and start assembling a presentation from the slide library.
+              {t('home.no_projects_description')}
             </p>
             <Button variant="outline" size="sm" className="mt-4" onClick={() => setCreateOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
-              New project
+              {t('home.new_project')}
             </Button>
           </div>
         ) : (

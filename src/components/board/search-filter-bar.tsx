@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from 'react-i18next'
 import { Filter, Search, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -26,6 +27,7 @@ export function SearchFilterBar({
   totalCount,
   onClearAll,
 }: SearchFilterBarProps) {
+  const { t } = useTranslation()
   const isFiltering = searchQuery.length > 0 || filterCount > 0
 
   return (
@@ -36,7 +38,7 @@ export function SearchFilterBar({
         <Input
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search slides…"
+          placeholder={t('board.search_slides')}
           className="pl-8 pr-8 h-9"
         />
         {searchQuery && (
@@ -57,7 +59,7 @@ export function SearchFilterBar({
         className="gap-1.5 h-9"
       >
         <Filter className="h-3.5 w-3.5" />
-        Filters
+        {t('board.filters')}
         {filterCount > 0 && (
           <Badge variant="secondary" className="ml-0.5 h-4 min-w-4 px-1 text-[10px]">
             {filterCount}
@@ -68,14 +70,14 @@ export function SearchFilterBar({
       {/* Result count */}
       {isFiltering && (
         <span className="text-sm text-muted-foreground whitespace-nowrap">
-          {resultCount} of {totalCount} slides
+          {t('board.showing_slides', { shown: resultCount, total: totalCount })}
         </span>
       )}
 
       {/* Clear all */}
       {isFiltering && (
         <Button variant="ghost" size="sm" onClick={onClearAll} className="text-muted-foreground h-9">
-          Clear all
+          {t('board.clear_all')}
         </Button>
       )}
     </div>

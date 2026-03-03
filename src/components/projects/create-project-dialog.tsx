@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from 'react-i18next'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, FileStack, LayoutTemplate } from 'lucide-react'
@@ -60,6 +61,7 @@ interface CreateProjectDialogProps {
 // ---------------------------------------------------------------------------
 
 export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogProps) {
+  const { t } = useTranslation()
   const router = useRouter()
 
   // Shared state
@@ -162,8 +164,8 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
 
   function handleNext() {
     const trimmed = name.trim()
-    if (!trimmed) { setError('Please enter a project name.'); return }
-    if (trimmed.length > 120) { setError('Name must be 120 characters or fewer.'); return }
+    if (!trimmed) { setError(t('create_project.project_name_error')); return }
+    if (trimmed.length > 120) { setError(t('create_project.project_name_too_long')); return }
     setError('')
     setView('picker')
   }
@@ -244,17 +246,17 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
         {view === 'name' && (
           <>
             <DialogHeader>
-              <DialogTitle>New project</DialogTitle>
+              <DialogTitle>{t('create_project.title')}</DialogTitle>
               <DialogDescription>
-                Give your presentation project a name to get started.
+                {t('create_project.description')}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-2 py-2">
-              <Label htmlFor="project-name">Project name</Label>
+              <Label htmlFor="project-name">{t('create_project.project_name')}</Label>
               <Input
                 id="project-name"
-                placeholder="e.g. Pitch for Müller GmbH"
+                placeholder={t('create_project.project_name_placeholder')}
                 value={name}
                 onChange={(e) => { setName(e.target.value); setError('') }}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleNext() }}
@@ -266,10 +268,10 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
 
             <DialogFooter>
               <Button variant="outline" onClick={() => handleOpenChange(false)}>
-                Cancel
+                {t('create_project.cancel')}
               </Button>
               <Button onClick={handleNext} disabled={!name.trim()}>
-                Next
+                {t('create_project.next')}
               </Button>
             </DialogFooter>
           </>

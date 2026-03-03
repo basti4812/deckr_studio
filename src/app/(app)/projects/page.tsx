@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from 'react-i18next'
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Archive, ChevronDown, Plus, Users } from 'lucide-react'
@@ -14,6 +15,7 @@ import { ProjectCard, type Project } from '@/components/projects/project-card'
 import { CreateProjectDialog } from '@/components/projects/create-project-dialog'
 
 export default function ProjectsPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const { loading: userLoading } = useCurrentUser()
   const [projects, setProjects] = useState<Project[]>([])
@@ -109,11 +111,11 @@ export default function ProjectsPage() {
     })
     if (res.ok) {
       const d = await res.json()
-      toast.success('Project duplicated')
+      toast.success(t('projects.project_duplicated'))
       router.push(`/board?project=${d.project.id}`)
     } else {
-      const d = await res.json().catch(() => ({ error: 'Failed to duplicate project' }))
-      toast.error(d.error ?? 'Failed to duplicate project')
+      const d = await res.json().catch(() => ({ error: t('projects.failed_duplicate') }))
+      toast.error(d.error ?? t('projects.failed_duplicate'))
     }
   }
 
@@ -128,10 +130,10 @@ export default function ProjectsPage() {
       const d = await res.json()
       setProjects((prev) => prev.filter((p) => p.id !== id))
       setArchivedProjects((prev) => [d.project, ...prev])
-      toast.success('Project archived')
+      toast.success(t('projects.project_archived'))
     } else {
-      const d = await res.json().catch(() => ({ error: 'Failed to archive project' }))
-      toast.error(d.error ?? 'Failed to archive project')
+      const d = await res.json().catch(() => ({ error: t('projects.failed_archive') }))
+      toast.error(d.error ?? t('projects.failed_archive'))
     }
   }
 
@@ -146,10 +148,10 @@ export default function ProjectsPage() {
       const d = await res.json()
       setArchivedProjects((prev) => prev.filter((p) => p.id !== id))
       setProjects((prev) => [d.project, ...prev])
-      toast.success('Project restored')
+      toast.success(t('projects.project_restored'))
     } else {
-      const d = await res.json().catch(() => ({ error: 'Failed to restore project' }))
-      toast.error(d.error ?? 'Failed to restore project')
+      const d = await res.json().catch(() => ({ error: t('projects.failed_restore') }))
+      toast.error(d.error ?? t('projects.failed_restore'))
     }
   }
 
@@ -161,10 +163,10 @@ export default function ProjectsPage() {
     })
     if (res.ok) {
       setArchivedProjects((prev) => prev.filter((p) => p.id !== id))
-      toast.success('Project permanently deleted')
+      toast.success(t('projects.permanently_deleted'))
     } else {
-      const d = await res.json().catch(() => ({ error: 'Failed to delete project' }))
-      toast.error(d.error ?? 'Failed to delete project')
+      const d = await res.json().catch(() => ({ error: t('projects.failed_delete') }))
+      toast.error(d.error ?? t('projects.failed_delete'))
     }
   }
 
@@ -176,14 +178,14 @@ export default function ProjectsPage() {
     <>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('projects.title')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            All your presentation projects — create, manage, and export.
+            {t('projects.description')}
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          New project
+          {t('home.new_project')}
         </Button>
       </div>
 
@@ -196,13 +198,13 @@ export default function ProjectsPage() {
         </div>
       ) : projects.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-20 text-center">
-          <p className="text-sm font-medium text-muted-foreground">No projects yet.</p>
+          <p className="text-sm font-medium text-muted-foreground">{t('projects.no_projects_yet')}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Create your first project to start assembling presentations.
+            {t('projects.create_first_project')}
           </p>
           <Button variant="outline" size="sm" className="mt-4" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            New project
+            {t('home.new_project')}
           </Button>
         </div>
       ) : (
@@ -226,7 +228,7 @@ export default function ProjectsPage() {
         <div className="mt-10">
           <div className="flex items-center gap-2 mb-4">
             <Users className="h-5 w-5 text-muted-foreground" />
-            <h2 className="text-lg font-semibold tracking-tight">Shared with me</h2>
+            <h2 className="text-lg font-semibold tracking-tight">{t('projects.shared_with_me')}</h2>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {sharedProjects.map((project) => (
@@ -248,7 +250,7 @@ export default function ProjectsPage() {
           <CollapsibleTrigger asChild>
             <button className="flex items-center gap-2 mb-4 group cursor-pointer">
               <Archive className="h-5 w-5 text-muted-foreground" />
-              <h2 className="text-lg font-semibold tracking-tight">Archived</h2>
+              <h2 className="text-lg font-semibold tracking-tight">{t('projects.archived')}</h2>
               <Badge variant="secondary" className="text-xs">
                 {archivedProjects.length}
               </Badge>

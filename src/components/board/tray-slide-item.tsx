@@ -1,6 +1,7 @@
 'use client'
 
-import { GripVertical, LayoutTemplate, Lock, Pencil, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { GripVertical, LayoutTemplate, Lock, MessageSquare, Pencil, StickyNote, X } from 'lucide-react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Button } from '@/components/ui/button'
@@ -12,11 +13,16 @@ interface TraySlideItemProps {
   isMandatory: boolean
   instanceEdits: Record<string, string>
   projectUpdatedAt?: string | null
+  commentCount?: number
+  hasNote?: boolean
   onRemove?: (instanceId: string) => void
   onEditFields?: () => void
+  onComment?: () => void
+  onNote?: () => void
 }
 
 function FillDot({ slide, instanceEdits }: { slide: Slide; instanceEdits: Record<string, string> }) {
+  const { t } = useTranslation()
   const required = slide.editable_fields.filter((f) => f.required)
   if (required.length === 0) return null
 
@@ -30,8 +36,8 @@ function FillDot({ slide, instanceEdits }: { slide: Slide; instanceEdits: Record
       }`}
       title={
         allFilled
-          ? 'All required fields filled'
-          : `${required.length - filled} required field${required.length - filled !== 1 ? 's' : ''} empty`
+          ? t('board.all_fields_filled')
+          : t('board.fields_empty', { count: required.length - filled })
       }
       aria-hidden
     />
@@ -44,9 +50,14 @@ export function TraySlideItem({
   isMandatory,
   instanceEdits,
   projectUpdatedAt,
+  commentCount = 0,
+  hasNote = false,
   onRemove,
   onEditFields,
+  onComment,
+  onNote,
 }: TraySlideItemProps) {
+  const { t } = useTranslation()
   const isUpdated =
     !!slide.pptx_updated_at &&
     !!projectUpdatedAt &&
@@ -76,7 +87,7 @@ export function TraySlideItem({
           {...attributes}
           {...listeners}
           className="cursor-grab touch-none text-muted-foreground hover:text-foreground"
-          aria-label="Drag to reorder"
+          aria-label={t('board.drag_to_reorder')}
         >
           <GripVertical className="h-3.5 w-3.5" />
         </button>
@@ -100,7 +111,7 @@ export function TraySlideItem({
         <div className="flex items-center gap-1">
           {isUpdated && (
             <span className="inline-block rounded-full bg-blue-100 px-1.5 text-[9px] font-semibold text-blue-700 leading-4 dark:bg-blue-900/40 dark:text-blue-300">
-              Updated
+              {t('board.updated')}
             </span>
           )}
           {hasEditableFields && (
@@ -116,9 +127,43 @@ export function TraySlideItem({
           size="icon"
           className="h-5 w-5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground transition-opacity"
           onClick={onEditFields}
-          title="Edit text fields"
+          title={t('board.edit_text_fields')}
         >
           <Pencil className="h-3 w-3" />
+        </Button>
+      )}
+
+      {/* Comment button */}
+      {onComment && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className={`h-5 w-5 shrink-0 transition-opacity ${
+            commentCount > 0
+              ? 'text-yellow-600 dark:text-yellow-400 opacity-100'
+              : 'text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground'
+          }`}
+          onClick={onComment}
+          title={commentCount > 0 ? t('board.comments', { count: commentCount }) : t('board.add_comment')}
+        >
+          <MessageSquare className="h-3 w-3" />
+        </Button>
+      )}
+
+      {/* Note button */}
+      {onNote && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className={`h-5 w-5 shrink-0 transition-opacity ${
+            hasNote
+              ? 'text-yellow-600 dark:text-yellow-400 opacity-100'
+              : 'text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground'
+          }`}
+          onClick={onNote}
+          title={hasNote ? t('board.view_note') : t('board.add_note')}
+        >
+          <StickyNote className="h-3 w-3" />
         </Button>
       )}
 
@@ -129,7 +174,7 @@ export function TraySlideItem({
           size="icon"
           className="h-5 w-5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
           onClick={() => onRemove(instanceId)}
-          title="Remove from project"
+          title={t('board.remove_from_project')}
         >
           <X className="h-3 w-3" />
         </Button>

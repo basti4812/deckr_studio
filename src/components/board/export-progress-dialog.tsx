@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from 'react-i18next'
 import { AlertTriangle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,6 +23,7 @@ export function ExportProgressDialog({
   onRetry,
   error,
 }: ExportProgressDialogProps) {
+  const { t } = useTranslation()
   return (
     <Dialog
       open={open}
@@ -35,7 +37,7 @@ export function ExportProgressDialog({
       }}>
         <DialogHeader>
           <DialogTitle>
-            {error !== null ? 'Export failed' : 'Exporting…'}
+            {error !== null ? t('export_dialog.export_failed') : t('export_dialog.exporting')}
           </DialogTitle>
         </DialogHeader>
 
@@ -43,7 +45,7 @@ export function ExportProgressDialog({
           <div className="flex flex-col items-center gap-4 py-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="text-sm text-muted-foreground text-center">
-              Generating your presentation. This may take a moment…
+              {t('export_dialog.generating_presentation')}
             </p>
           </div>
         ) : (
@@ -54,10 +56,10 @@ export function ExportProgressDialog({
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="ghost" size="sm" onClick={onClose}>
-                Close
+                {t('export_dialog.close')}
               </Button>
               <Button size="sm" onClick={onRetry}>
-                Try again
+                {t('export_dialog.try_again')}
               </Button>
             </div>
           </div>

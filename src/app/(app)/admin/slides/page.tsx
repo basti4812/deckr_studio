@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Upload } from 'lucide-react'
 import {
   AlertDialog,
@@ -25,6 +26,7 @@ import type { Slide } from '@/components/slides/slide-card'
 type StatusFilter = 'all' | 'standard' | 'mandatory' | 'deprecated'
 
 export default function SlideLibraryPage() {
+  const { t } = useTranslation()
   const { tenantId, loading: userLoading } = useCurrentUser()
   const [slides, setSlides] = useState<Slide[]>([])
   const [loading, setLoading] = useState(true)
@@ -93,24 +95,24 @@ export default function SlideLibraryPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Slide Library</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('admin.slide_library')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage your company&apos;s approved slides. Employees use these to assemble presentations.
+            {t('admin.slide_library_description')}
           </p>
         </div>
         <Button onClick={() => setUploadOpen(true)}>
           <Upload className="mr-2 h-4 w-4" />
-          Upload slide
+          {t('admin.upload_slide')}
         </Button>
       </div>
 
       {/* Filter tabs */}
       <Tabs value={filter} onValueChange={(v) => setFilter(v as StatusFilter)}>
         <TabsList>
-          <TabsTrigger value="all">All ({counts.all})</TabsTrigger>
-          <TabsTrigger value="standard">Standard ({counts.standard})</TabsTrigger>
-          <TabsTrigger value="mandatory">Mandatory ({counts.mandatory})</TabsTrigger>
-          <TabsTrigger value="deprecated">Deprecated ({counts.deprecated})</TabsTrigger>
+          <TabsTrigger value="all">{t('admin.all')} ({counts.all})</TabsTrigger>
+          <TabsTrigger value="standard">{t('admin.standard')} ({counts.standard})</TabsTrigger>
+          <TabsTrigger value="mandatory">{t('admin.mandatory')} ({counts.mandatory})</TabsTrigger>
+          <TabsTrigger value="deprecated">{t('admin.deprecated')} ({counts.deprecated})</TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -130,17 +132,17 @@ export default function SlideLibraryPage() {
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
           <p className="text-sm font-medium text-muted-foreground">
-            {filter === 'all' ? 'No slides yet' : `No ${filter} slides`}
+            {filter === 'all' ? t('admin.no_slides_yet') : t('admin.no_filtered_slides', { filter })}
           </p>
           {filter === 'all' && (
             <p className="mt-1 text-xs text-muted-foreground">
-              Upload your first .pptx file to get started.
+              {t('admin.upload_first_pptx')}
             </p>
           )}
           {filter === 'all' && (
             <Button variant="outline" size="sm" className="mt-4" onClick={() => setUploadOpen(true)}>
               <Upload className="mr-2 h-4 w-4" />
-              Upload slide
+              {t('admin.upload_slide')}
             </Button>
           )}
         </div>
@@ -184,10 +186,9 @@ export default function SlideLibraryPage() {
       <AlertDialog open={!!deleteSlide} onOpenChange={(o) => !o && setDeleteSlide(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete slide?</AlertDialogTitle>
+            <AlertDialogTitle>{t('admin.delete_slide_confirm')}</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>{deleteSlide?.title}</strong> will be permanently removed from the library.
-              This action cannot be undone.
+              {t('admin.delete_slide_message', { title: deleteSlide?.title })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -197,7 +198,7 @@ export default function SlideLibraryPage() {
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting ? 'Deleting…' : 'Delete slide'}
+              {deleting ? t('admin.deleting') : t('admin.delete_slide_button')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

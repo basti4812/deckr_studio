@@ -1,3 +1,5 @@
+'use client'
+
 import Link from 'next/link'
 import {
   BookOpen,
@@ -7,6 +9,7 @@ import {
   ShieldCheck,
   Zap,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { LandingNav } from '@/components/landing-nav'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -24,124 +27,25 @@ import { Separator } from '@/components/ui/separator'
 // Data
 // ---------------------------------------------------------------------------
 
-const painPoints = [
-  {
-    icon: '😩',
-    title: 'Off-brand presentations',
-    description:
-      'Employees use outdated slides, wrong fonts, and inconsistent colors. Every presentation looks different.',
-  },
-  {
-    icon: '⏱️',
-    title: 'Wasted hours copying slides',
-    description:
-      "Assembling a presentation means digging through folders and copying between PowerPoint files. Every. Single. Time.",
-  },
-  {
-    icon: '🤷',
-    title: 'Nobody knows which version is current',
-    description:
-      'Multiple slide versions floating around in email threads, shared drives, and local folders.',
-  },
+const painPointIcons = ['😩', '⏱️', '🤷']
+const painPointKeys = [
+  { title: 'landing.offbrand_title', desc: 'landing.offbrand_desc' },
+  { title: 'landing.wasted_hours_title', desc: 'landing.wasted_hours_desc' },
+  { title: 'landing.version_confusion_title', desc: 'landing.version_confusion_desc' },
 ]
 
-const features = [
-  {
-    icon: BookOpen,
-    title: 'Centralized slide library',
-    description:
-      'One place for all approved slides. Admins manage the library — employees always use the latest, on-brand version.',
-  },
-  {
-    icon: LayoutDashboard,
-    title: 'Visual board canvas',
-    description:
-      'Drag and drop slides into your presentation on an intuitive Miro-style board. No PowerPoint required.',
-  },
-  {
-    icon: FileDown,
-    title: 'One-click export',
-    description:
-      'Export your assembled presentation as a fully formatted PowerPoint or PDF — fonts, colors, and layouts intact.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Corporate identity protection',
-    description:
-      'Users can only edit the fields admins unlock. Design, fonts, and layouts are always on-brand.',
-  },
+const featureIcons = [BookOpen, LayoutDashboard, FileDown, ShieldCheck]
+const featureKeys = [
+  { title: 'landing.feature_library', desc: 'landing.feature_library_desc' },
+  { title: 'landing.feature_board', desc: 'landing.feature_board_desc' },
+  { title: 'landing.feature_export', desc: 'landing.feature_export_desc' },
+  { title: 'landing.feature_ci', desc: 'landing.feature_ci_desc' },
 ]
 
-const steps = [
-  {
-    number: '1',
-    title: 'Admin builds the slide library',
-    description:
-      'Upload approved slides, organize them into groups, and define which fields employees can customize.',
-  },
-  {
-    number: '2',
-    title: 'Employees assemble presentations',
-    description:
-      'Drag slides onto the board, fill in customer-specific fields, and arrange the perfect presentation.',
-  },
-  {
-    number: '3',
-    title: 'Export or present — always on-brand',
-    description:
-      'Export as PowerPoint or PDF, or present directly from the browser. Every time, perfectly on-brand.',
-  },
-]
-
-const pricingTiers = [
-  {
-    name: 'Starter',
-    price: '9',
-    description: 'Perfect for small teams and growing companies.',
-    seats: '1–5 users',
-    features: [
-      'Unlimited slides',
-      'Unlimited projects',
-      'PowerPoint & PDF export',
-      'External share links',
-      'Email support',
-    ],
-    cta: 'Start free trial',
-    href: '/register',
-    highlighted: false,
-  },
-  {
-    name: 'Team',
-    price: '7',
-    description: 'For teams that present every day.',
-    seats: '6–20 users',
-    features: [
-      'Everything in Starter',
-      'Template sets',
-      'Version history',
-      'Slide comments',
-      'Priority support',
-    ],
-    cta: 'Start free trial',
-    href: '/register',
-    highlighted: true,
-  },
-  {
-    name: 'Enterprise',
-    price: null,
-    description: 'For large organizations with custom needs.',
-    seats: '21+ users',
-    features: [
-      'Everything in Team',
-      'SSO (Google, Microsoft)',
-      'Custom branding',
-      'Dedicated onboarding',
-      'SLA & invoicing',
-    ],
-    cta: 'Contact us',
-    href: 'mailto:hello@deckr.studio',
-    highlighted: false,
-  },
+const stepKeys = [
+  { title: 'landing.step1_title', desc: 'landing.step1_desc' },
+  { title: 'landing.step2_title', desc: 'landing.step2_desc' },
+  { title: 'landing.step3_title', desc: 'landing.step3_desc' },
 ]
 
 // ---------------------------------------------------------------------------
@@ -149,6 +53,59 @@ const pricingTiers = [
 // ---------------------------------------------------------------------------
 
 export default function LandingPage() {
+  const { t } = useTranslation()
+
+  const pricingTiers = [
+    {
+      name: t('landing.starter'),
+      price: '9',
+      description: t('landing.starter_desc'),
+      seats: t('landing.starter_seats'),
+      features: [
+        t('landing.unlimited_slides'),
+        t('landing.unlimited_projects'),
+        t('landing.pptx_pdf_export'),
+        t('landing.external_share_links'),
+        t('landing.email_support'),
+      ],
+      cta: t('landing.start_free_trial_btn'),
+      href: '/register',
+      highlighted: false,
+    },
+    {
+      name: t('landing.team'),
+      price: '7',
+      description: t('landing.team_desc'),
+      seats: t('landing.team_seats'),
+      features: [
+        t('landing.everything_in_starter'),
+        t('landing.template_sets'),
+        t('landing.version_history'),
+        t('landing.slide_comments'),
+        t('landing.priority_support'),
+      ],
+      cta: t('landing.start_free_trial_btn'),
+      href: '/register',
+      highlighted: true,
+    },
+    {
+      name: t('landing.enterprise'),
+      price: null,
+      description: t('landing.enterprise_desc'),
+      seats: t('landing.enterprise_seats'),
+      features: [
+        t('landing.everything_in_team'),
+        t('landing.sso'),
+        t('landing.custom_branding'),
+        t('landing.dedicated_onboarding'),
+        t('landing.sla_invoicing'),
+      ],
+      cta: t('landing.contact_us'),
+      href: 'mailto:hello@deckr.studio',
+      highlighted: false,
+    },
+  ]
+
   return (
     <div className="min-h-screen bg-white">
       <LandingNav />
@@ -171,27 +128,25 @@ export default function LandingPage() {
           </Badge>
 
           <h1 className="mx-auto max-w-3xl text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
-            Stop copying slides.
+            {t('landing.stop_copying_slides')}
             <br />
-            <span className="text-primary">Start presenting.</span>
+            <span className="text-primary">{t('landing.start_presenting')}</span>
           </h1>
 
           <p className="mx-auto mt-6 max-w-xl text-lg text-gray-400">
-            deckr gives your team a centralized, admin-controlled slide library
-            so everyone assembles on-brand presentations in minutes — without
-            ever opening PowerPoint.
+            {t('landing.main_headline')}
           </p>
 
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Button size="lg" asChild>
-              <Link href="/register">Start your free 14-day trial</Link>
+              <Link href="/register">{t('landing.start_free_trial')}</Link>
             </Button>
             <Button size="lg" variant="outline" asChild className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white">
-              <Link href="/demo">Try the demo</Link>
+              <Link href="/demo">{t('landing.try_the_demo')}</Link>
             </Button>
           </div>
 
-          <p className="mt-4 text-xs text-gray-500">No credit card required.</p>
+          <p className="mt-4 text-xs text-gray-500">{t('landing.no_credit_card')}</p>
 
           {/* App preview placeholder */}
           <div className="mx-auto mt-16 max-w-4xl overflow-hidden rounded-xl border border-white/10 bg-gray-900 shadow-2xl">
@@ -235,19 +190,19 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl px-6">
           <div className="mb-12 text-center">
             <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              The PowerPoint chaos ends here
+              {t('landing.powerpoint_chaos_title')}
             </h2>
             <p className="mt-4 text-lg text-gray-500">
-              Sound familiar? These are the problems deckr was built to solve.
+              {t('landing.pain_points_subtitle')}
             </p>
           </div>
 
           <div className="grid gap-8 sm:grid-cols-3">
-            {painPoints.map((point) => (
+            {painPointKeys.map((point, i) => (
               <div key={point.title} className="text-center">
-                <div className="mb-4 text-4xl">{point.icon}</div>
-                <h3 className="mb-2 font-semibold text-gray-900">{point.title}</h3>
-                <p className="text-sm text-gray-500">{point.description}</p>
+                <div className="mb-4 text-4xl">{painPointIcons[i]}</div>
+                <h3 className="mb-2 font-semibold text-gray-900">{t(point.title)}</h3>
+                <p className="text-sm text-gray-500">{t(point.desc)}</p>
               </div>
             ))}
           </div>
@@ -261,30 +216,32 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl px-6">
           <div className="mb-12 text-center">
             <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              Everything your team needs
+              {t('landing.everything_team_needs')}
             </h2>
             <p className="mt-4 text-lg text-gray-500">
-              A complete platform for presentation management — from slide
-              library to export.
+              {t('landing.features_subtitle')}
             </p>
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {features.map((feature) => (
-              <Card key={feature.title} className="border-gray-100">
-                <CardHeader className="pb-3">
-                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                    <feature.icon className="h-5 w-5 text-primary" />
-                  </div>
-                  <CardTitle className="text-base">{feature.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-sm leading-relaxed">
-                    {feature.description}
-                  </CardDescription>
-                </CardContent>
-              </Card>
-            ))}
+            {featureKeys.map((feature, i) => {
+              const Icon = featureIcons[i]
+              return (
+                <Card key={feature.title} className="border-gray-100">
+                  <CardHeader className="pb-3">
+                    <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                      <Icon className="h-5 w-5 text-primary" />
+                    </div>
+                    <CardTitle className="text-base">{t(feature.title)}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-sm leading-relaxed">
+                      {t(feature.desc)}
+                    </CardDescription>
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
         </div>
       </section>
@@ -296,27 +253,27 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl px-6">
           <div className="mb-12 text-center">
             <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              Three steps to on-brand presentations
+              {t('landing.three_steps')}
             </h2>
             <p className="mt-4 text-lg text-gray-500">
-              Get your team presenting correctly in under a day.
+              {t('landing.how_it_works_subtitle')}
             </p>
           </div>
 
           <div className="grid gap-8 sm:grid-cols-3">
-            {steps.map((step, index) => (
-              <div key={step.number} className="relative flex flex-col items-center text-center">
-                {index < steps.length - 1 && (
+            {stepKeys.map((step, index) => (
+              <div key={step.title} className="relative flex flex-col items-center text-center">
+                {index < stepKeys.length - 1 && (
                   <div
                     aria-hidden
                     className="absolute left-[calc(50%+2rem)] top-5 hidden h-px w-[calc(100%-4rem)] bg-gray-200 sm:block"
                   />
                 )}
                 <Badge className="mb-4 h-10 w-10 rounded-full p-0 flex items-center justify-center text-sm">
-                  {step.number}
+                  {index + 1}
                 </Badge>
-                <h3 className="mb-2 font-semibold text-gray-900">{step.title}</h3>
-                <p className="text-sm text-gray-500">{step.description}</p>
+                <h3 className="mb-2 font-semibold text-gray-900">{t(step.title)}</h3>
+                <p className="text-sm text-gray-500">{t(step.desc)}</p>
               </div>
             ))}
           </div>
@@ -330,10 +287,10 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl px-6">
           <div className="mb-12 text-center">
             <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              Simple, transparent pricing
+              {t('landing.pricing_title')}
             </h2>
             <p className="mt-4 text-lg text-gray-500">
-              Start with a 14-day free trial. No credit card required.
+              {t('landing.pricing_subtitle')}
             </p>
           </div>
 
@@ -349,7 +306,7 @@ export default function LandingPage() {
               >
                 {tier.highlighted && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge>Most popular</Badge>
+                    <Badge>{t('landing.most_popular')}</Badge>
                   </div>
                 )}
                 <CardHeader>
@@ -359,13 +316,13 @@ export default function LandingPage() {
                     {tier.price ? (
                       <div className="flex items-baseline gap-1">
                         <span className="text-3xl font-bold text-gray-900">
-                          €{tier.price}
+                          &euro;{tier.price}
                         </span>
-                        <span className="text-sm text-gray-500">/user/month</span>
+                        <span className="text-sm text-gray-500">{t('landing.per_user_month')}</span>
                       </div>
                     ) : (
                       <span className="text-2xl font-bold text-gray-900">
-                        Custom
+                        {t('landing.custom_pricing')}
                       </span>
                     )}
                     <p className="mt-1 text-xs text-gray-400">{tier.seats}</p>
@@ -403,18 +360,17 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl px-6 text-center">
           <Zap className="mx-auto mb-4 h-10 w-10 text-primary" />
           <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Ready to end the slide chaos?
+            {t('landing.ready_cta')}
           </h2>
           <p className="mx-auto mt-4 max-w-lg text-lg text-gray-400">
-            Join the teams that use deckr to create on-brand presentations in
-            minutes, not hours.
+            {t('landing.final_cta')}
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Button size="lg" asChild>
-              <Link href="/register">Start your free trial</Link>
+              <Link href="/register">{t('landing.start_trial_cta')}</Link>
             </Button>
             <Button size="lg" variant="outline" asChild className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white">
-              <Link href="/demo">See the demo first</Link>
+              <Link href="/demo">{t('landing.see_demo_first')}</Link>
             </Button>
           </div>
         </div>
@@ -437,26 +393,26 @@ export default function LandingPage() {
 
             <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-gray-500">
               <Link href="/login" className="hover:text-gray-300 transition-colors">
-                Log in
+                {t('landing.log_in')}
               </Link>
               <Link href="/register" className="hover:text-gray-300 transition-colors">
-                Start free trial
+                {t('landing.start_free_trial_btn')}
               </Link>
               <Separator orientation="vertical" className="h-3 bg-gray-700" />
               <Link href="/impressum" className="hover:text-gray-300 transition-colors">
-                Impressum
+                {t('landing.impressum')}
               </Link>
               <Link href="/privacy" className="hover:text-gray-300 transition-colors">
-                Privacy
+                {t('landing.privacy')}
               </Link>
               <Link href="/terms" className="hover:text-gray-300 transition-colors">
-                Terms
+                {t('landing.terms')}
               </Link>
             </nav>
           </div>
 
           <p className="mt-6 text-center text-xs text-gray-600">
-            © {new Date().getFullYear()} deckr Studio. All rights reserved.
+            {t('landing.footer_copyright', { year: new Date().getFullYear() })}
           </p>
         </div>
       </footer>

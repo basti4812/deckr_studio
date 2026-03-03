@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from 'react-i18next'
 import { AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -29,6 +30,7 @@ export function FillWarningDialog({
   onProceedAnyway,
   onGoToField,
 }: FillWarningDialogProps) {
+  const { t } = useTranslation()
   // Group issues by instanceId so we can display them slide by slide
   const grouped = issues.reduce<Map<string, UnfilledField[]>>((acc, issue) => {
     const key = issue.instanceId
@@ -43,13 +45,12 @@ export function FillWarningDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
-            Required fields are empty
+            {t('fill_warning.title')}
           </DialogTitle>
         </DialogHeader>
 
         <p className="text-sm text-muted-foreground">
-          The following required fields must be filled in before{' '}
-          {proceedLabel.toLowerCase()}. You can fill them in now or proceed anyway.
+          {t('fill_warning.description', { action: proceedLabel.toLowerCase() })}
         </p>
 
         <ScrollArea className="max-h-64">
@@ -61,13 +62,13 @@ export function FillWarningDialog({
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-xs font-semibold text-muted-foreground">
-                        Slide {first.trayPosition}
+                        {t('fill_warning.slide_position', { position: first.trayPosition })}
                       </p>
                       <p className="truncate text-sm font-medium">{first.slideTitle}</p>
                       <ul className="mt-1 space-y-0.5">
                         {fields.map((f) => (
                           <li key={f.fieldId} className="text-xs text-muted-foreground">
-                            • {f.fieldLabel} is required
+                            {t('fill_warning.field_required', { label: f.fieldLabel })}
                           </li>
                         ))}
                       </ul>
@@ -81,7 +82,7 @@ export function FillWarningDialog({
                         onGoToField(instanceId)
                       }}
                     >
-                      Fill in
+                      {t('fill_warning.fill_in')}
                     </Button>
                   </div>
                 </div>
@@ -99,7 +100,7 @@ export function FillWarningDialog({
               onProceedAnyway()
             }}
           >
-            {proceedLabel} anyway
+            {t('fill_warning.proceed_anyway', { action: proceedLabel })}
           </Button>
         </DialogFooter>
       </DialogContent>

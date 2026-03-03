@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { createNotifications } from '@/lib/notifications'
 
 // ---------------------------------------------------------------------------
 // GET /api/team — Fetch all team members (active + pending) for the admin's tenant
@@ -334,6 +335,26 @@ async function handleCreateUser(
       { error: 'Failed to create user record' },
       { status: 500 }
     )
+  }
+
+  // Notify all admins that a new member joined (fire-and-forget)
+  const { data: admins } = await supabase
+    .from('users')
+    .select('id')
+    .eq('tenant_id', tenantId)
+    .eq('role', 'admin')
+    .eq('is_active', true)
+    .neq('id', newUserId)
+    .limit(50)
+  if (admins && admins.length > 0) {
+    createNotifications(
+      admins.map((a) => ({
+        tenantId,
+        userId: a.id,
+        type: 'team_member_joined' as const,
+        message: `${display_name} joined your team`,
+      })),
+    ).catch(() => {})
   }
 
   return NextResponse.json(

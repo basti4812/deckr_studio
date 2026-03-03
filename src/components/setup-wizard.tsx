@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import { useState } from 'react'
@@ -17,26 +18,14 @@ import { SlidesStep } from '@/components/setup-steps/slides-step'
 import { InviteStep } from '@/components/setup-steps/invite-step'
 
 // ---------------------------------------------------------------------------
-// Step metadata
+// Step metadata keys
 // ---------------------------------------------------------------------------
 
-const STEPS = [
-  {
-    title: 'Set up your company',
-    description: 'Add your company name and logo so your team knows whose workspace this is.',
-  },
-  {
-    title: 'Choose your brand color',
-    description: 'Your primary color will be used throughout the app and in shared presentations.',
-  },
-  {
-    title: 'Upload your first slides',
-    description: 'Add approved slides to the library so your team can start assembling presentations.',
-  },
-  {
-    title: 'Invite your team',
-    description: 'Bring your colleagues on board so they can start using deckr right away.',
-  },
+const STEP_KEYS = [
+  { title: 'setup.setup_company', description: 'setup.setup_company_desc' },
+  { title: 'setup.choose_brand_color', description: 'setup.choose_brand_color_desc' },
+  { title: 'setup.upload_first_slides', description: 'setup.upload_first_slides_desc' },
+  { title: 'setup.invite_team', description: 'setup.invite_team_desc' },
 ]
 
 // ---------------------------------------------------------------------------
@@ -103,6 +92,7 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
 // ---------------------------------------------------------------------------
 
 export function SetupWizard() {
+  const { t } = useTranslation()
   const router = useRouter()
   const { tenantName, primaryColor, setupStep } = useCurrentUser()
   const [step, setStep] = useState(setupStep)
@@ -127,15 +117,15 @@ export function SetupWizard() {
     router.push('/dashboard')
   }
 
-  const currentStep = STEPS[step]
+  const currentStepKeys = STEP_KEYS[step]
 
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="pb-4">
-        <StepIndicator current={step} total={STEPS.length} />
+        <StepIndicator current={step} total={STEP_KEYS.length} />
         <div className="mt-4">
-          <CardTitle>{currentStep.title}</CardTitle>
-          <CardDescription className="mt-1">{currentStep.description}</CardDescription>
+          <CardTitle>{t(currentStepKeys.title)}</CardTitle>
+          <CardDescription className="mt-1">{t(currentStepKeys.description)}</CardDescription>
         </div>
       </CardHeader>
 

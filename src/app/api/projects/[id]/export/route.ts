@@ -9,6 +9,8 @@ type Params = Promise<{ id: string }>
 interface TrayItem {
   id: string
   slide_id: string
+  is_personal?: boolean
+  personal_slide_id?: string
 }
 
 interface EditableField {
@@ -77,26 +79,72 @@ export async function POST(
       ? (project.text_edits as Record<string, Record<string, string>>)
       : {}
 
-  // Load all referenced slides in one query (scoped to tenant)
-  const slideIds = [...new Set(trayItems.map((t) => t.slide_id))]
-  const { data: slidesData, error: slidesError } = await supabase
-    .from('slides')
-    .select('id, title, pptx_url, editable_fields')
-    .in('id', slideIds)
-    .eq('tenant_id', profile.tenant_id)
+  // Load all referenced library slides in one query (scoped to tenant)
+  const libraryItems = trayItems.filter((t) => !t.is_personal)
+  const slideIds = [...new Set(libraryItems.map((t) => t.slide_id).filter(Boolean))]
+  const slideMap = new Map<string, SlideRecord>()
 
-  if (slidesError || !slidesData) {
-    return NextResponse.json({ error: 'Failed to load slides' }, { status: 500 })
+  if (slideIds.length > 0) {
+    const { data: slidesData, error: slidesError } = await supabase
+      .from('slides')
+      .select('id, title, pptx_url, editable_fields')
+      .in('id', slideIds)
+      .eq('tenant_id', profile.tenant_id)
+
+    if (slidesError || !slidesData) {
+      return NextResponse.json({ error: 'Failed to load slides' }, { status: 500 })
+    }
+    for (const s of slidesData) slideMap.set(s.id, s as SlideRecord)
   }
 
-  const slideMap = new Map<string, SlideRecord>(
-    slidesData.map((s) => [s.id, s as SlideRecord])
-  )
+  // Load personal slides referenced in this project (PROJ-32)
+  const personalItems = trayItems.filter((t) => t.is_personal && t.personal_slide_id)
+  const personalSlideIds = [...new Set(personalItems.map((t) => t.personal_slide_id!))]
+  const personalSlideMap = new Map<string, { id: string; title: string; pptx_storage_path: string }>()
+
+  if (personalSlideIds.length > 0) {
+    const { data: psData } = await supabase
+      .from('project_personal_slides')
+      .select('id, title, pptx_storage_path')
+      .in('id', personalSlideIds)
+      .eq('project_id', id)
+
+    if (psData) {
+      for (const ps of psData) personalSlideMap.set(ps.id, ps)
+    }
+  }
 
   // Download and process each slide in tray order
   const processedBuffers: Uint8Array[] = []
 
   for (const item of trayItems) {
+    // Personal slide: download from personal-slides bucket, no text edits
+    if (item.is_personal && item.personal_slide_id) {
+      const ps = personalSlideMap.get(item.personal_slide_id)
+      if (!ps) {
+        return NextResponse.json(
+          { error: `Personal slide not found` },
+          { status: 422 }
+        )
+      }
+
+      const { data: fileData, error: storageError } = await supabase.storage
+        .from('personal-slides')
+        .download(ps.pptx_storage_path)
+
+      if (storageError || !fileData) {
+        return NextResponse.json(
+          { error: `Could not download personal slide "${ps.title}". Please try again.` },
+          { status: 502 }
+        )
+      }
+
+      const buffer = await fileData.arrayBuffer()
+      processedBuffers.push(new Uint8Array(buffer))
+      continue
+    }
+
+    // Library slide
     const slide = slideMap.get(item.slide_id)
     if (!slide) {
       return NextResponse.json(
@@ -150,6 +198,21 @@ export async function POST(
       { status: 413 }
     )
   }
+
+  // Auto-snapshot (fire-and-forget — PROJ-38)
+  const autoLabel = `Export — ${new Date().toLocaleString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+  })}`
+  supabase
+    .from('project_versions')
+    .insert({
+      project_id: id,
+      label: autoLabel,
+      slide_order_snapshot: project.slide_order ?? [],
+      text_edits_snapshot: project.text_edits ?? {},
+      is_auto: true,
+    })
+    .then(() => {}, (err: unknown) => { console.error('[export] auto-snapshot failed', err) })
 
   const safeName = (project.name as string)
     .replace(/[^\w\s-]/g, '')

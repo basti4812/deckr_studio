@@ -87,5 +87,56 @@ export async function POST(request: NextRequest, { params }: { params: Params })
     )
   }
 
+  // Copy personal slides (PROJ-32) — create new records for the duplicate project
+  interface TrayItem { id: string; slide_id: string; is_personal?: boolean; personal_slide_id?: string }
+  const slideOrder: TrayItem[] = Array.isArray(original.slide_order) ? original.slide_order : []
+  const personalItems = slideOrder.filter((t: TrayItem) => t.is_personal && t.personal_slide_id)
+
+  if (personalItems.length > 0) {
+    const personalSlideIds = [...new Set(personalItems.map((t: TrayItem) => t.personal_slide_id!))]
+
+    const { data: originalPersonalSlides } = await supabase
+      .from('project_personal_slides')
+      .select('id, user_id, title, filename, pptx_storage_path, file_size_bytes')
+      .in('id', personalSlideIds)
+      .eq('project_id', id)
+
+    if (originalPersonalSlides && originalPersonalSlides.length > 0) {
+      // Create new records for the duplicate project and build ID mapping
+      const idMap = new Map<string, string>() // old ID → new ID
+
+      const newRecords = originalPersonalSlides.map((ps) => {
+        const newId = crypto.randomUUID()
+        idMap.set(ps.id, newId)
+        return {
+          id: newId,
+          project_id: duplicate.id,
+          user_id: ps.user_id,
+          title: ps.title,
+          filename: ps.filename,
+          pptx_storage_path: ps.pptx_storage_path, // shared file reference
+          file_size_bytes: ps.file_size_bytes,
+        }
+      })
+
+      await supabase.from('project_personal_slides').insert(newRecords)
+
+      // Update the duplicate's slide_order to reference the new personal slide IDs
+      const updatedSlideOrder = slideOrder.map((item: TrayItem) => {
+        if (item.is_personal && item.personal_slide_id && idMap.has(item.personal_slide_id)) {
+          return { ...item, id: crypto.randomUUID(), personal_slide_id: idMap.get(item.personal_slide_id)! }
+        }
+        return { ...item, id: crypto.randomUUID() }
+      })
+
+      await supabase
+        .from('projects')
+        .update({ slide_order: updatedSlideOrder })
+        .eq('id', duplicate.id)
+
+      duplicate.slide_order = updatedSlideOrder
+    }
+  }
+
   return NextResponse.json({ project: duplicate }, { status: 201 })
 }

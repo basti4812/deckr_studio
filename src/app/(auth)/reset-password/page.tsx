@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { CheckCircle, Loader2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -53,6 +54,7 @@ type ResetPasswordValues = z.infer<typeof ResetPasswordSchema>
 // ---------------------------------------------------------------------------
 
 function ResetPasswordForm() {
+  const { t } = useTranslation()
   const searchParams = useSearchParams()
   const code = searchParams.get('code') ?? ''
 
@@ -70,9 +72,7 @@ function ResetPasswordForm() {
     setServerError(null)
 
     if (!code) {
-      setServerError(
-        'Invalid or missing reset code. Please request a new reset link.'
-      )
+      setServerError(t('auth.invalid_or_missing_code'))
       return
     }
 
@@ -85,7 +85,7 @@ function ResetPasswordForm() {
     const data = await response.json()
 
     if (!response.ok) {
-      setServerError(data.error ?? 'Failed to reset password. Please try again.')
+      setServerError(data.error ?? t('auth.failed_reset_password'))
       return
     }
 
@@ -99,15 +99,14 @@ function ResetPasswordForm() {
           <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <CheckCircle className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle>Password updated</CardTitle>
+          <CardTitle>{t('auth.password_updated')}</CardTitle>
           <CardDescription>
-            Your password has been reset successfully. You can now sign in with
-            your new password.
+            {t('auth.password_reset_success')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Button asChild className="w-full">
-            <Link href="/login">Sign in</Link>
+            <Link href="/login">{t('auth.sign_in')}</Link>
           </Button>
         </CardContent>
       </Card>
@@ -118,14 +117,14 @@ function ResetPasswordForm() {
     return (
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <CardTitle>Invalid reset link</CardTitle>
+          <CardTitle>{t('auth.invalid_reset_link')}</CardTitle>
           <CardDescription>
-            This password reset link is invalid or has expired.
+            {t('auth.reset_link_expired')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Button asChild variant="outline" className="w-full">
-            <Link href="/forgot-password">Request a new link</Link>
+            <Link href="/forgot-password">{t('auth.request_new_link')}</Link>
           </Button>
         </CardContent>
       </Card>
@@ -135,9 +134,9 @@ function ResetPasswordForm() {
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <CardTitle>Set new password</CardTitle>
+        <CardTitle>{t('auth.set_new_password')}</CardTitle>
         <CardDescription>
-          Choose a strong password for your account.
+          {t('auth.choose_strong_password')}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -154,12 +153,12 @@ function ResetPasswordForm() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>New password</FormLabel>
+                  <FormLabel>{t('auth.new_password')}</FormLabel>
                   <FormControl>
                     <Input
                       type="password"
                       autoComplete="new-password"
-                      placeholder="At least 8 characters"
+                      placeholder={t('auth.password_placeholder')}
                       {...field}
                     />
                   </FormControl>
@@ -173,7 +172,7 @@ function ResetPasswordForm() {
               name="confirmPassword"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Confirm new password</FormLabel>
+                  <FormLabel>{t('auth.confirm_new_password')}</FormLabel>
                   <FormControl>
                     <Input
                       type="password"
@@ -190,7 +189,7 @@ function ResetPasswordForm() {
               {isSubmitting && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Update password
+              {isSubmitting ? t('auth.updating_password') : t('auth.update_password')}
             </Button>
           </form>
         </Form>

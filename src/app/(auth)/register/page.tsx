@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { CheckCircle, Loader2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -72,6 +73,7 @@ type RegisterValues = z.infer<typeof RegisterSchema>
 // ---------------------------------------------------------------------------
 
 export default function RegisterPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const [serverError, setServerError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -114,7 +116,7 @@ export default function RegisterPage() {
       }
 
       if (!response.ok) {
-        setServerError(data.error ?? 'Registration failed. Please try again.')
+        setServerError(data.error ?? t('auth.registration_failed'))
         return
       }
 
@@ -125,7 +127,7 @@ export default function RegisterPage() {
 
       setSuccess(true)
     } catch {
-      setServerError('Registration failed. Please try again.')
+      setServerError(t('auth.registration_failed'))
     }
   }
 
@@ -136,23 +138,23 @@ export default function RegisterPage() {
           <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <CheckCircle className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle>Check your email</CardTitle>
+          <CardTitle>{t('auth.check_email')}</CardTitle>
           <CardDescription>
-            We sent a confirmation link to{' '}
+            {t('auth.confirmation_link_sent')}{' '}
             <span className="font-medium text-foreground">
               {form.getValues('email')}
             </span>
-            . Click the link to activate your account.
+            . {t('auth.click_to_activate')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-center text-sm text-muted-foreground">
-            Already confirmed?{' '}
+            {t('auth.already_confirmed')}{' '}
             <Link
               href="/login"
               className="font-medium text-foreground hover:underline"
             >
-              Sign in
+              {t('auth.sign_in')}
             </Link>
           </p>
         </CardContent>
@@ -163,9 +165,9 @@ export default function RegisterPage() {
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <CardTitle>Create your workspace</CardTitle>
+        <CardTitle>{t('auth.register_title')}</CardTitle>
         <CardDescription>
-          Start your 14-day free trial — no credit card required
+          {t('auth.register_description')}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -182,10 +184,10 @@ export default function RegisterPage() {
               name="companyName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Company name</FormLabel>
+                  <FormLabel>{t('auth.company_name')}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Acme GmbH"
+                      placeholder={t('auth.company_name_placeholder')}
                       autoComplete="organization"
                       {...field}
                     />
@@ -200,10 +202,10 @@ export default function RegisterPage() {
               name="displayName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Your name</FormLabel>
+                  <FormLabel>{t('auth.your_name')}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Maria Müller"
+                      placeholder={t('auth.your_name_placeholder')}
                       autoComplete="name"
                       {...field}
                     />
@@ -218,11 +220,11 @@ export default function RegisterPage() {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Work email</FormLabel>
+                  <FormLabel>{t('auth.work_email')}</FormLabel>
                   <FormControl>
                     <Input
                       type="email"
-                      placeholder="maria@acme.de"
+                      placeholder={t('auth.work_email_placeholder')}
                       autoComplete="email"
                       {...field}
                     />
@@ -237,12 +239,12 @@ export default function RegisterPage() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <FormLabel>{t('auth.password_label')}</FormLabel>
                   <FormControl>
                     <Input
                       type="password"
                       autoComplete="new-password"
-                      placeholder="At least 8 characters"
+                      placeholder={t('auth.password_placeholder')}
                       {...field}
                     />
                   </FormControl>
@@ -256,7 +258,7 @@ export default function RegisterPage() {
               name="confirmPassword"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Confirm password</FormLabel>
+                  <FormLabel>{t('auth.confirm_password')}</FormLabel>
                   <FormControl>
                     <Input
                       type="password"
@@ -274,7 +276,7 @@ export default function RegisterPage() {
               name="preferredLanguage"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Preferred language</FormLabel>
+                  <FormLabel>{t('auth.preferred_language')}</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
@@ -285,8 +287,8 @@ export default function RegisterPage() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="en">English</SelectItem>
-                      <SelectItem value="de">Deutsch</SelectItem>
+                      <SelectItem value="en">{t('auth.english')}</SelectItem>
+                      <SelectItem value="de">{t('auth.deutsch')}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -298,18 +300,18 @@ export default function RegisterPage() {
               {isSubmitting && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Create workspace
+              {isSubmitting ? t('auth.creating_workspace') : t('auth.create_workspace')}
             </Button>
           </form>
         </Form>
 
         <p className="text-center text-sm text-muted-foreground">
-          Already have an account?{' '}
+          {t('auth.already_have_account')}{' '}
           <Link
             href="/login"
             className="font-medium text-foreground hover:underline"
           >
-            Sign in
+            {t('auth.sign_in')}
           </Link>
         </p>
       </CardContent>

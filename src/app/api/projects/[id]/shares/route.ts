@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { getAuthenticatedUser, getUserProfile } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { createNotification } from '@/lib/notifications'
 
 type Params = Promise<{ id: string }>
 
@@ -135,7 +136,19 @@ export async function POST(request: NextRequest, { params }: { params: Params })
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  // TODO: When PROJ-13 (notifications) is built, trigger a sharing notification here
+  // Notify the target user (fire-and-forget)
+  const ownerProfile = await getUserProfile(user.id)
+  const ownerName = ownerProfile?.display_name ?? 'Someone'
+  const { data: proj } = await supabase.from('projects').select('name').eq('id', id).single()
+  const projectName = proj?.name ?? 'a project'
+  createNotification({
+    tenantId: project.tenant_id,
+    userId: targetUserId,
+    type: 'project_shared',
+    message: `${ownerName} shared "${projectName}" with you`,
+    resourceType: 'project',
+    resourceId: id,
+  }).catch(() => {}) // non-blocking
 
   return NextResponse.json({ share }, { status: 201 })
 }

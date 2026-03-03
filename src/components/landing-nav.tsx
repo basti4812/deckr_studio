@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Menu } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,6 +13,7 @@ import {
 } from '@/components/ui/sheet'
 
 export function LandingNav() {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [loggedIn, setLoggedIn] = useState(false)
 
@@ -23,9 +25,9 @@ export function LandingNav() {
   }, [])
 
   const navLinks = [
-    { label: 'Features', href: '#features' },
-    { label: 'How it works', href: '#how-it-works' },
-    { label: 'Pricing', href: '#pricing' },
+    { label: t('landing.features_nav'), href: '#features' },
+    { label: t('landing.how_it_works_nav'), href: '#how-it-works' },
+    { label: t('landing.pricing_nav'), href: '#pricing' },
   ]
 
   return (
@@ -58,15 +60,15 @@ export function LandingNav() {
         <div className="hidden items-center gap-3 md:flex">
           {loggedIn ? (
             <Button size="sm" asChild>
-              <Link href="/home">Open App</Link>
+              <Link href="/home">{t('landing.open_app')}</Link>
             </Button>
           ) : (
             <>
               <Button variant="ghost" size="sm" asChild className="text-gray-300 hover:text-white hover:bg-white/10">
-                <Link href="/login">Log in</Link>
+                <Link href="/login">{t('landing.log_in')}</Link>
               </Button>
               <Button size="sm" asChild>
-                <Link href="/register">Start free trial</Link>
+                <Link href="/register">{t('landing.start_free_trial_btn')}</Link>
               </Button>
             </>
           )}
@@ -109,15 +111,15 @@ export function LandingNav() {
               <div className="flex flex-col gap-3 border-t border-white/10 pt-4">
                 {loggedIn ? (
                   <Button asChild>
-                    <Link href="/home" onClick={() => setOpen(false)}>Open App</Link>
+                    <Link href="/home" onClick={() => setOpen(false)}>{t('landing.open_app')}</Link>
                   </Button>
                 ) : (
                   <>
                     <Button variant="ghost" asChild className="justify-start text-gray-300 hover:text-white hover:bg-white/10">
-                      <Link href="/login" onClick={() => setOpen(false)}>Log in</Link>
+                      <Link href="/login" onClick={() => setOpen(false)}>{t('landing.log_in')}</Link>
                     </Button>
                     <Button asChild>
-                      <Link href="/register" onClick={() => setOpen(false)}>Start free trial</Link>
+                      <Link href="/register" onClick={() => setOpen(false)}>{t('landing.start_free_trial_btn')}</Link>
                     </Button>
                   </>
                 )}
