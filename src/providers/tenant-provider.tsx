@@ -44,6 +44,7 @@ interface TenantContextValue {
   logoUrl: string | null
   primaryColor: string | null
   defaultLanguage: string | null
+  crmProvider: string | null
   setupComplete: boolean
   setupStep: number
 
@@ -147,6 +148,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     logoUrl: userData?.tenant.logo_url ?? null,
     primaryColor: userData?.tenant.primary_color ?? null,
     defaultLanguage: userData?.tenant.default_language ?? null,
+    crmProvider: userData?.tenant.crm_provider ?? null,
     setupComplete: userData?.tenant.setup_complete ?? false,
     setupStep: userData?.tenant.setup_step ?? 0,
 

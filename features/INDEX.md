@@ -39,7 +39,7 @@
 | PROJ-25 | Project Sharing (within tenant) | P1 | Deployed | [PROJ-25](PROJ-25-project-sharing.md) | 2026-02-25 |
 | PROJ-26 | Project Duplication | P1 | Deployed | [PROJ-26](PROJ-26-project-duplication.md) | 2026-02-25 |
 | PROJ-27 | Project Archive | P1 | Deployed | [PROJ-27](PROJ-27-project-archive.md) | 2026-02-25 |
-| PROJ-28 | CRM Fields & Integration Hook Points | P2 | Planned | [PROJ-28](PROJ-28-crm-fields-integration-hooks.md) | 2026-02-25 |
+| PROJ-28 | CRM Fields & Integration Hook Points | P2 | Deployed | [PROJ-28](PROJ-28-crm-fields-integration-hooks.md) | 2026-02-25 |
 | PROJ-29 | Text Editing & Fill Warnings | P0 | Deployed | [PROJ-29](PROJ-29-text-editing-fill-warnings.md) | 2026-02-25 |
 | PROJ-30 | Slide Comments (Threaded) | P1 | Deployed | [PROJ-30](PROJ-30-slide-comments.md) | 2026-02-25 |
 | PROJ-31 | Slide Notes (Private) | P1 | Deployed | [PROJ-31](PROJ-31-slide-notes-private.md) | 2026-02-25 |

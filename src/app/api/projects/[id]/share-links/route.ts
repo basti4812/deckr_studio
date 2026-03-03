@@ -5,6 +5,7 @@ import { getAuthenticatedUser, getUserProfile } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { logActivity } from '@/lib/activity-log'
+import { onShareLinkGenerated } from '@/lib/crm-hooks'
 
 type Params = Promise<{ id: string }>
 
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest, { params }: { params: Params })
   // Verify ownership or edit permission
   const { data: project } = await supabase
     .from('projects')
-    .select('id, name, owner_id, tenant_id')
+    .select('id, name, owner_id, tenant_id, crm_customer_name, crm_company_name, crm_deal_id')
     .eq('id', id)
     .single()
 
@@ -148,6 +149,24 @@ export async function POST(request: NextRequest, { params }: { params: Params })
     resourceId: id,
     resourceName: project.name ?? id,
   })
+
+  // CRM_INTEGRATION: notify CRM about share link (fire-and-forget)
+  onShareLinkGenerated(
+    {
+      id: project.id,
+      name: project.name ?? id,
+      tenant_id: project.tenant_id,
+      crm_customer_name: project.crm_customer_name,
+      crm_company_name: project.crm_company_name,
+      crm_deal_id: project.crm_deal_id,
+    },
+    {
+      id: link.id,
+      token: link.token,
+      project_id: id,
+      expires_at: link.expires_at,
+    },
+  ).catch((err) => console.error('[crm-hooks] onShareLinkGenerated failed:', err))
 
   return NextResponse.json({
     link: { ...link, status: 'active' as const },

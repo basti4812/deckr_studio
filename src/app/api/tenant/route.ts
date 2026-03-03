@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase'
 import { getAuthenticatedUser } from '@/lib/auth-helpers'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 // ---------------------------------------------------------------------------
 // GET /api/tenant
@@ -84,12 +85,18 @@ const UpdateTenantSchema = z.object({
   default_language: z.enum(['de', 'en']).optional(),
   setup_complete: z.boolean().optional(),
   setup_step: z.number().int().min(0).max(10).optional(),
+  crm_provider: z.enum(['hubspot', 'salesforce', 'pipedrive']).nullable().optional(),
 })
 
 export async function PATCH(request: NextRequest) {
   const user = await getAuthenticatedUser(request)
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const limited = await checkRateLimit(user.id, 'tenant:patch', 10, 60_000)
+  if (limited) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
   }
 
   // Parse and validate body

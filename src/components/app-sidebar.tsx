@@ -15,6 +15,7 @@ import {
   LayoutGrid,
   Layers,
   LogOut,
+  Plug,
   Settings,
   User,
   Users,
@@ -67,6 +68,7 @@ const adminNavItems: NavItem[] = [
   { labelKey: 'nav.team_management', href: '/admin/team', icon: Users },
   { labelKey: 'nav.analytics', href: '/admin/analytics', icon: BarChart3 },
   { labelKey: 'nav.activity_log', href: '/admin/activity', icon: Activity },
+  { labelKey: 'nav.integrations', href: '/admin/integrations', icon: Plug },
   { labelKey: 'nav.billing', href: '/admin/billing', icon: CreditCard },
 ]
 

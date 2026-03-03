@@ -3,6 +3,7 @@ import { getAuthenticatedUser, getUserProfile } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { logActivity } from '@/lib/activity-log'
+import { onProjectExported } from '@/lib/crm-hooks'
 import JSZip from 'jszip'
 
 type Params = Promise<{ id: string }>
@@ -51,7 +52,7 @@ export async function POST(
   // Load project
   const { data: project } = await supabase
     .from('projects')
-    .select('id, name, owner_id, slide_order, text_edits')
+    .select('id, name, owner_id, tenant_id, slide_order, text_edits, crm_customer_name, crm_company_name, crm_deal_id')
     .eq('id', id)
     .single()
 
@@ -223,6 +224,16 @@ export async function POST(
     resourceId: id,
     resourceName: project.name as string,
   })
+
+  // CRM_INTEGRATION: notify CRM about export (fire-and-forget)
+  onProjectExported({
+    id: project.id,
+    name: project.name as string,
+    tenant_id: project.tenant_id,
+    crm_customer_name: project.crm_customer_name,
+    crm_company_name: project.crm_company_name,
+    crm_deal_id: project.crm_deal_id,
+  }).catch((err) => console.error('[crm-hooks] onProjectExported failed:', err))
 
   const safeName = (project.name as string)
     .replace(/[^\w\s-]/g, '')

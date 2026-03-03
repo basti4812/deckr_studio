@@ -94,7 +94,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Params }
   if (limited) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
 
   const { id } = await params
-  let body: { name?: string; slide_order?: unknown[]; text_edits?: unknown; status?: string } = {}
+  let body: {
+    name?: string
+    slide_order?: unknown[]
+    text_edits?: unknown
+    status?: string
+    crm_customer_name?: string
+    crm_company_name?: string
+    crm_deal_id?: string
+  } = {}
   try { body = await request.json() } catch { /* ok */ }
 
   const supabase = createServiceClient()
@@ -152,6 +160,21 @@ export async function PATCH(request: NextRequest, { params }: { params: Params }
     const parsed = z.enum(['active', 'archived']).safeParse(body.status)
     if (!parsed.success) return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
     updates.status = parsed.data
+  }
+  if (body.crm_customer_name !== undefined) {
+    const parsed = z.string().max(200).safeParse(body.crm_customer_name)
+    if (!parsed.success) return NextResponse.json({ error: 'crm_customer_name too long (max 200)' }, { status: 400 })
+    updates.crm_customer_name = parsed.data || null
+  }
+  if (body.crm_company_name !== undefined) {
+    const parsed = z.string().max(200).safeParse(body.crm_company_name)
+    if (!parsed.success) return NextResponse.json({ error: 'crm_company_name too long (max 200)' }, { status: 400 })
+    updates.crm_company_name = parsed.data || null
+  }
+  if (body.crm_deal_id !== undefined) {
+    const parsed = z.string().max(100).safeParse(body.crm_deal_id)
+    if (!parsed.success) return NextResponse.json({ error: 'crm_deal_id too long (max 100)' }, { status: 400 })
+    updates.crm_deal_id = parsed.data || null
   }
 
   if (!Object.keys(updates).length) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { getAuthenticatedUser, getUserProfile } from '@/lib/auth-helpers'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { createServiceClient } from '@/lib/supabase'
+import { onProjectCreated } from '@/lib/crm-hooks'
 
 // ---------------------------------------------------------------------------
 // GET /api/projects — list active projects owned by the caller, most recent first
@@ -37,6 +38,9 @@ export async function GET(request: NextRequest) {
 const CreateProjectSchema = z.object({
   name: z.string().min(1, 'name is required').max(120, 'name too long (max 120)'),
   templateSetId: z.string().uuid('templateSetId must be a valid UUID').optional(),
+  crmCustomerName: z.string().max(200).optional(),
+  crmCompanyName: z.string().max(200).optional(),
+  crmDealId: z.string().max(100).optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -125,10 +129,24 @@ export async function POST(request: NextRequest) {
       name,
       slide_order: slideOrder,
       template_set_id: parsed.data.templateSetId ?? null,
+      crm_customer_name: parsed.data.crmCustomerName ?? null,
+      crm_company_name: parsed.data.crmCompanyName ?? null,
+      crm_deal_id: parsed.data.crmDealId ?? null,
     })
     .select()
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // CRM_INTEGRATION: notify CRM about new project (fire-and-forget)
+  onProjectCreated({
+    id: data.id,
+    name: data.name,
+    tenant_id: data.tenant_id,
+    crm_customer_name: data.crm_customer_name,
+    crm_company_name: data.crm_company_name,
+    crm_deal_id: data.crm_deal_id,
+  }).catch((err) => console.error('[crm-hooks] onProjectCreated failed:', err))
+
   return NextResponse.json({ project: data }, { status: 201 })
 }

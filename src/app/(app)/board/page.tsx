@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslation } from 'react-i18next'
-import { Clock, Plus, RotateCcw, Share2, Users, X } from 'lucide-react'
+import { Briefcase, Clock, Plus, RotateCcw, Share2, Users, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,6 +22,7 @@ import { FillWarningDialog } from '@/components/board/fill-warning-dialog'
 import { ExportProgressDialog } from '@/components/board/export-progress-dialog'
 import { PresentationMode, type PresentationSlide } from '@/components/board/presentation-mode'
 import { SharePanel, type ShareRecord, type SearchUser } from '@/components/projects/share-panel'
+import { CrmDetailsDialog } from '@/components/projects/crm-details-dialog'
 import { CommentPanel } from '@/components/board/comment-panel'
 import { NotePanel } from '@/components/board/note-panel'
 import { UploadPersonalSlideDialog, type PersonalSlideRecord } from '@/components/board/upload-personal-slide-dialog'
@@ -87,6 +88,9 @@ interface Project {
   text_edits: Record<string, Record<string, string>>
   updated_at: string
   userPermission?: 'owner' | 'view' | 'edit'
+  crm_customer_name?: string | null
+  crm_company_name?: string | null
+  crm_deal_id?: string | null
 }
 
 interface PersonalGroup {
@@ -185,6 +189,9 @@ function BoardPageInner() {
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false)
   const [saveVersionOpen, setSaveVersionOpen] = useState(false)
   const [restoreVersion, setRestoreVersion] = useState<ProjectVersion | null>(null)
+
+  // CRM details state (PROJ-28)
+  const [crmDialogOpen, setCrmDialogOpen] = useState(false)
 
   // Search + filter state
   const [searchInput, setSearchInput] = useState('')
@@ -1326,15 +1333,26 @@ function BoardPageInner() {
               </Badge>
             )}
             {projectId && canEdit && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 bg-background/80 backdrop-blur-sm"
-                onClick={handleOpenSharePanel}
-              >
-                <Share2 className="h-3.5 w-3.5" />
-                {t('board.share')}
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 bg-background/80 backdrop-blur-sm"
+                  onClick={() => setCrmDialogOpen(true)}
+                >
+                  <Briefcase className="h-3.5 w-3.5" />
+                  {t('crm.button')}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 bg-background/80 backdrop-blur-sm"
+                  onClick={handleOpenSharePanel}
+                >
+                  <Share2 className="h-3.5 w-3.5" />
+                  {t('board.share')}
+                </Button>
+              </>
             )}
           </div>
 
@@ -1419,6 +1437,21 @@ function BoardPageInner() {
         <PresentationMode
           slides={presentationSlides}
           onExit={() => setPresentationMode(false)}
+        />
+      )}
+
+      {/* CRM details dialog (PROJ-28) */}
+      {projectId && canEdit && (
+        <CrmDetailsDialog
+          open={crmDialogOpen}
+          onClose={() => setCrmDialogOpen(false)}
+          projectId={projectId}
+          initialCustomerName={project?.crm_customer_name ?? ''}
+          initialCompanyName={project?.crm_company_name ?? ''}
+          initialDealId={project?.crm_deal_id ?? ''}
+          onSaved={(fields) => {
+            setProject((prev) => prev ? { ...prev, ...fields } : prev)
+          }}
         />
       )}
 
