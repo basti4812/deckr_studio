@@ -19,6 +19,7 @@ export function PresentationMode({ slides, onExit }: PresentationModeProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showUI, setShowUI] = useState(true)
   const [laserPos, setLaserPos] = useState<{ x: number; y: number } | null>(null)
+  const [failedImages, setFailedImages] = useState<Set<number>>(new Set())
 
   const containerRef = useRef<HTMLDivElement>(null)
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -130,13 +131,14 @@ export function PresentationMode({ slides, onExit }: PresentationModeProps) {
       onTouchEnd={handleTouchEnd}
     >
       {/* Current slide */}
-      {slide.thumbnail_url ? (
+      {slide.thumbnail_url && !failedImages.has(currentIndex) ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={slide.thumbnail_url}
           alt={slide.title}
           className="max-w-full max-h-full object-contain select-none"
           draggable={false}
+          onError={() => setFailedImages((prev) => new Set(prev).add(currentIndex))}
         />
       ) : (
         <div className="flex flex-col items-center gap-4 text-white/30">

@@ -30,18 +30,17 @@ interface UploadSlideDialogProps {
  * PPTX files contain ppt/slides/slide1.xml, slide2.xml, etc.
  */
 async function countPptxPages(file: File): Promise<number> {
-  try {
-    const zip = await JSZip.loadAsync(file)
-    let count = 0
-    zip.forEach((path) => {
-      if (/^ppt\/slides\/slide\d+\.xml$/i.test(path)) {
-        count++
-      }
-    })
-    return Math.max(count, 1)
-  } catch {
-    return 1 // fallback to 1 if we can't read the zip
+  const zip = await JSZip.loadAsync(file)
+  let count = 0
+  zip.forEach((path) => {
+    if (/^ppt\/slides\/slide\d+\.xml$/i.test(path)) {
+      count++
+    }
+  })
+  if (count === 0) {
+    throw new Error('No slides found in the file — is this a valid PowerPoint?')
   }
+  return count
 }
 
 export function UploadSlideDialog({
@@ -63,6 +62,11 @@ export function UploadSlideDialog({
     if (!selected) return
     if (!selected.name.endsWith('.pptx')) {
       setError('Only .pptx files are accepted')
+      return
+    }
+    const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
+    if (selected.size > MAX_FILE_SIZE) {
+      setError(`File exceeds 50 MB limit (${(selected.size / 1024 / 1024).toFixed(1)} MB)`)
       return
     }
     setFile(selected)
@@ -111,11 +115,14 @@ export function UploadSlideDialog({
       if (storageError) throw new Error(storageError.message)
 
       // Get signed URL for ConvertAPI to access
-      const { data: urlData } = await supabase.storage
+      const { data: urlData, error: signedUrlError } = await supabase.storage
         .from('slides')
         .createSignedUrl(storagePath, 60 * 60 * 24 * 365) // 1-year signed URL
 
-      const pptx_url = urlData?.signedUrl ?? null
+      if (signedUrlError || !urlData?.signedUrl) {
+        throw new Error('Failed to create signed URL for uploaded file')
+      }
+      const pptx_url = urlData.signedUrl
 
       // Create slide records — one per page
       const createdSlideIds: string[] = []
@@ -172,9 +179,13 @@ export function UploadSlideDialog({
           Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ slideIds: createdSlideIds }),
-      }).catch(() => {
-        // Thumbnails are non-blocking — slide records already created
       })
+        .then((res) => {
+          if (!res.ok) console.error('[upload] Thumbnail generation failed:', res.status)
+        })
+        .catch((err) => {
+          console.error('[upload] Thumbnail generation request failed:', err)
+        })
 
       handleClose()
     } catch (err) {

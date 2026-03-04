@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase'
+
+const UpdateGroupSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  position: z.number().int().min(0).optional(),
+  x: z.number().finite().min(-100000).max(100000).optional(),
+  y: z.number().finite().min(-100000).max(100000).optional(),
+})
 
 type Params = Promise<{ id: string }>
 
@@ -9,8 +17,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Params }
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const { id } = await params
-  let body: { name?: string; position?: number; x?: number; y?: number } = {}
-  try { body = await request.json() } catch { /* ok */ }
+  let rawBody: unknown
+  try { rawBody = await request.json() } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
+
+  const parsed = UpdateGroupSchema.safeParse(rawBody)
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid input' }, { status: 400 })
+  }
 
   const supabase = createServiceClient()
 
@@ -24,10 +39,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Params }
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const updates: Record<string, unknown> = {}
-  if (body.name !== undefined) updates.name = body.name.trim()
-  if (body.position !== undefined) updates.position = body.position
-  if (body.x !== undefined) updates.x = body.x
-  if (body.y !== undefined) updates.y = body.y
+  if (parsed.data.name !== undefined) updates.name = parsed.data.name.trim()
+  if (parsed.data.position !== undefined) updates.position = parsed.data.position
+  if (parsed.data.x !== undefined) updates.x = parsed.data.x
+  if (parsed.data.y !== undefined) updates.y = parsed.data.y
   if (!Object.keys(updates).length) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
 
   const { data, error } = await supabase.from('slide_groups').update(updates).eq('id', id).select().single()

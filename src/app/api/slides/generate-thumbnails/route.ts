@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireAdmin } from '@/lib/auth-helpers'
+import { checkRateLimit } from '@/lib/rate-limit'
 import { createServiceClient } from '@/lib/supabase'
 
 const RequestSchema = z.object({
@@ -18,6 +19,9 @@ const RequestSchema = z.object({
 export async function POST(request: NextRequest) {
   const auth = await requireAdmin(request)
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
+  const limited = await checkRateLimit(auth.user.id, 'slides:generate-thumbnails', 5, 60_000)
+  if (limited) return limited
 
   const secret = process.env.CONVERTAPI_SECRET
   if (!secret) {
@@ -87,8 +91,9 @@ export async function POST(request: NextRequest) {
 
       if (!convertRes.ok) {
         const errText = await convertRes.text()
+        console.error('[generate-thumbnails] ConvertAPI error:', convertRes.status, errText.slice(0, 500))
         for (const slide of groupSlides) {
-          results.push({ slideId: slide.id, thumbnailUrl: null, error: `ConvertAPI error: ${errText.slice(0, 200)}` })
+          results.push({ slideId: slide.id, thumbnailUrl: null, error: 'Thumbnail generation failed' })
         }
         continue
       }

@@ -12,27 +12,27 @@ const PersonalGroupSchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1).max(100),
   position: z.number().int().min(0),
-  x: z.number().optional(),
-  y: z.number().optional(),
+  x: z.number().finite().min(-100000).max(100000).optional(),
+  y: z.number().finite().min(-100000).max(100000).optional(),
 })
 
 const SlideOverrideSchema = z.object({
   groupId: z.string(),
   position: z.number().int().min(0),
   annotation: z.string().max(100).optional(),
-  x: z.number().optional(),
-  y: z.number().optional(),
+  x: z.number().finite().min(-100000).max(100000).optional(),
+  y: z.number().finite().min(-100000).max(100000).optional(),
 })
 
 const GroupPositionSchema = z.object({
-  x: z.number(),
-  y: z.number(),
+  x: z.number().finite().min(-100000).max(100000),
+  y: z.number().finite().min(-100000).max(100000),
 })
 
 const LayoutDataSchema = z.object({
   personalGroups: z.array(PersonalGroupSchema).max(50).default([]),
   slideOverrides: z.record(z.string().uuid(), SlideOverrideSchema).default({}),
-  groupPositions: z.record(z.string(), GroupPositionSchema).default({}),
+  groupPositions: z.record(z.string().uuid(), GroupPositionSchema).default({}),
 })
 
 // ---------------------------------------------------------------------------
