@@ -11,6 +11,8 @@ const CreateSlideSchema = z.object({
   pptx_url: z.string().url().optional().nullable(),
   thumbnail_url: z.string().url().optional().nullable(),
   editable_fields: z.array(z.unknown()).default([]),
+  page_index: z.number().int().min(0).default(0),
+  page_count: z.number().int().min(1).default(1),
 })
 
 // ---------------------------------------------------------------------------
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const { title, status, tags, pptx_url, thumbnail_url, editable_fields } = parsed.data
+  const { title, status, tags, pptx_url, thumbnail_url, editable_fields, page_index, page_count } = parsed.data
 
   const supabase = createServiceClient()
   const { data, error } = await supabase
@@ -79,6 +81,8 @@ export async function POST(request: NextRequest) {
       thumbnail_url: thumbnail_url ?? null,
       editable_fields,
       created_by: auth.user.id,
+      page_index,
+      page_count,
     })
     .select()
     .single()

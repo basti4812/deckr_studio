@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { Upload } from 'lucide-react'
+import JSZip from 'jszip'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -13,6 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Progress } from '@/components/ui/progress'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import type { Slide } from './slide-card'
 
@@ -21,6 +23,25 @@ interface UploadSlideDialogProps {
   tenantId: string
   onClose: () => void
   onUploaded: (slide: Slide) => void
+}
+
+/**
+ * Count slides in a PPTX file by inspecting its zip structure.
+ * PPTX files contain ppt/slides/slide1.xml, slide2.xml, etc.
+ */
+async function countPptxPages(file: File): Promise<number> {
+  try {
+    const zip = await JSZip.loadAsync(file)
+    let count = 0
+    zip.forEach((path) => {
+      if (/^ppt\/slides\/slide\d+\.xml$/i.test(path)) {
+        count++
+      }
+    })
+    return Math.max(count, 1)
+  } catch {
+    return 1 // fallback to 1 if we can't read the zip
+  }
 }
 
 export function UploadSlideDialog({
@@ -33,6 +54,7 @@ export function UploadSlideDialog({
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [progress, setProgress] = useState({ current: 0, total: 0, status: '' })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -54,6 +76,7 @@ export function UploadSlideDialog({
     setTitle('')
     setFile(null)
     setError(null)
+    setProgress({ current: 0, total: 0, status: '' })
     onClose()
   }
 
@@ -69,11 +92,15 @@ export function UploadSlideDialog({
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('Not authenticated')
 
-      // Generate a temporary ID for the storage path
+      // Count pages in PPTX
+      setProgress({ current: 0, total: 0, status: 'Counting slides…' })
+      const pageCount = await countPptxPages(file)
+
+      // Upload PPTX file to storage
+      setProgress({ current: 0, total: pageCount + 1, status: 'Uploading file…' })
       const tempId = crypto.randomUUID()
       const storagePath = `${tenantId}/${tempId}/original.pptx`
 
-      // Upload file to Supabase Storage
       const { error: storageError } = await supabase.storage
         .from('slides')
         .upload(storagePath, file, {
@@ -83,34 +110,72 @@ export function UploadSlideDialog({
 
       if (storageError) throw new Error(storageError.message)
 
-      // Get the public or signed URL
+      // Get signed URL for ConvertAPI to access
       const { data: urlData } = await supabase.storage
         .from('slides')
         .createSignedUrl(storagePath, 60 * 60 * 24 * 365) // 1-year signed URL
 
       const pptx_url = urlData?.signedUrl ?? null
 
-      // Create the slide record via API
-      const res = await fetch('/api/slides', {
+      // Create slide records — one per page
+      const createdSlideIds: string[] = []
+
+      for (let i = 0; i < pageCount; i++) {
+        setProgress({
+          current: i + 1,
+          total: pageCount + 1,
+          status: pageCount > 1
+            ? `Creating slide ${i + 1} of ${pageCount}…`
+            : 'Creating slide…',
+        })
+
+        const slideTitle = pageCount > 1
+          ? `${title.trim()} — Slide ${i + 1}`
+          : title.trim()
+
+        const res = await fetch('/api/slides', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            title: slideTitle,
+            status: 'standard',
+            pptx_url,
+            page_index: i,
+            page_count: pageCount,
+          }),
+        })
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error((data as { error?: string }).error ?? `Failed to create slide ${i + 1}`)
+        }
+
+        const data = await res.json()
+        createdSlideIds.push(data.slide.id)
+        onUploaded(data.slide as Slide)
+      }
+
+      // Trigger thumbnail generation (fire and forget)
+      setProgress({
+        current: pageCount + 1,
+        total: pageCount + 1,
+        status: 'Generating thumbnails…',
+      })
+
+      fetch('/api/slides/generate-thumbnails', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({
-          title: title.trim(),
-          status: 'standard',
-          pptx_url,
-        }),
+        body: JSON.stringify({ slideIds: createdSlideIds }),
+      }).catch(() => {
+        // Thumbnails are non-blocking — slide records already created
       })
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.error ?? 'Failed to create slide')
-      }
-
-      const data = await res.json()
-      onUploaded(data.slide as Slide)
       handleClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed')
@@ -119,13 +184,18 @@ export function UploadSlideDialog({
     }
   }
 
+  const showProgress = uploading && progress.total > 0
+  const progressPercent = progress.total > 0
+    ? Math.round((progress.current / progress.total) * 100)
+    : 0
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Upload Slide</DialogTitle>
           <DialogDescription>
-            Upload a PowerPoint file (.pptx) to add it to the slide library.
+            Upload a PowerPoint file (.pptx). Multi-page presentations will create one slide per page.
           </DialogDescription>
         </DialogHeader>
 
@@ -168,6 +238,14 @@ export function UploadSlideDialog({
               placeholder="e.g. Company Overview"
             />
           </div>
+
+          {/* Progress */}
+          {showProgress && (
+            <div className="space-y-2">
+              <Progress value={progressPercent} className="h-2" />
+              <p className="text-xs text-muted-foreground text-center">{progress.status}</p>
+            </div>
+          )}
 
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
