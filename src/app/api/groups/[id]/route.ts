@@ -9,7 +9,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Params }
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const { id } = await params
-  let body: { name?: string; position?: number } = {}
+  let body: { name?: string; position?: number; x?: number; y?: number } = {}
   try { body = await request.json() } catch { /* ok */ }
 
   const supabase = createServiceClient()
@@ -26,6 +26,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Params }
   const updates: Record<string, unknown> = {}
   if (body.name !== undefined) updates.name = body.name.trim()
   if (body.position !== undefined) updates.position = body.position
+  if (body.x !== undefined) updates.x = body.x
+  if (body.y !== undefined) updates.y = body.y
   if (!Object.keys(updates).length) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
 
   const { data, error } = await supabase.from('slide_groups').update(updates).eq('id', id).select().single()

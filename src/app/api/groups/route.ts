@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
   const { data: memberships, error: mErr } = await supabase
     .from('slide_group_memberships')
-    .select('id, slide_id, group_id, position')
+    .select('id, slide_id, group_id, position, x, y')
     .in('group_id', (groups ?? []).map((g) => g.id))
     .order('position', { ascending: true })
 

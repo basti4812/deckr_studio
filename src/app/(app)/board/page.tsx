@@ -13,8 +13,18 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ResetLayoutDialog } from '@/components/board/reset-layout-dialog'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { useCanvas } from '@/hooks/use-canvas'
+import { useCanvasDrag, type DragState } from '@/hooks/use-canvas-drag'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import { CARD_WIDTH } from '@/components/board/canvas-slide-card'
+import {
+  computeGroupPositions,
+  calcGroupHeight as autoCalcGroupHeight,
+  CARD_HEIGHT,
+  COLS as AUTO_COLS,
+  GAP as AUTO_GAP,
+  PADDING as AUTO_PADDING,
+  BETWEEN_GROUPS as AUTO_BETWEEN_GROUPS,
+} from '@/lib/auto-layout'
 import { GroupSection } from '@/components/board/group-section'
 import { ZoomControls } from '@/components/board/zoom-controls'
 import { TrayPanel, type TrayItem } from '@/components/board/tray-panel'
@@ -41,25 +51,34 @@ import { useIsMobile } from '@/hooks/use-mobile'
 // Layout constants
 // ---------------------------------------------------------------------------
 
-const COLS = 5
-const CARD_HEIGHT = 185
-const GAP = 24
-const PADDING = 48
-const SECTION_HEADER = 36 + 12 // header + margin-bottom
-const BETWEEN_GROUPS = 40
+const COLS = AUTO_COLS
+const GAP = AUTO_GAP
+const PADDING = AUTO_PADDING
+const BETWEEN_GROUPS = AUTO_BETWEEN_GROUPS
 
 function calcGroupHeight(slideCount: number) {
-  if (slideCount === 0) return SECTION_HEADER + 60 // empty state
-  const rows = Math.ceil(slideCount / COLS)
-  return SECTION_HEADER + rows * CARD_HEIGHT + (rows - 1) * GAP
+  return autoCalcGroupHeight(slideCount)
 }
 
-function calcWorldSize(sections: { slides: Slide[] }[]) {
-  const totalH = sections.reduce((acc, s, i) => {
-    return acc + calcGroupHeight(s.slides.length) + (i < sections.length - 1 ? BETWEEN_GROUPS : 0)
-  }, 0)
-  const w = Math.max(COLS * CARD_WIDTH + (COLS - 1) * GAP + PADDING * 2, 1500)
-  const h = Math.max(totalH + PADDING * 2, 1200)
+/**
+ * Compute the canvas world size from positioned sections.
+ * Uses the bounding box of all groups instead of vertical stacking.
+ */
+function calcWorldSize(sections: { slides: { length: number } | Slide[]; x: number; y: number }[]) {
+  const groupWidth = COLS * CARD_WIDTH + (COLS - 1) * GAP
+  let maxRight = 0
+  let maxBottom = 0
+
+  for (const s of sections) {
+    const count = Array.isArray(s.slides) ? s.slides.length : 0
+    const right = s.x + groupWidth
+    const bottom = s.y + calcGroupHeight(count)
+    if (right > maxRight) maxRight = right
+    if (bottom > maxBottom) maxBottom = bottom
+  }
+
+  const w = Math.max(maxRight + PADDING, 1500)
+  const h = Math.max(maxBottom + PADDING, 1200)
   return { w, h }
 }
 
@@ -71,12 +90,16 @@ interface SlideGroup {
   id: string
   name: string
   position: number
+  x: number | null
+  y: number | null
 }
 
 interface Membership {
   slide_id: string
   group_id: string
   position: number
+  x: number | null
+  y: number | null
 }
 
 interface Project {
@@ -98,17 +121,22 @@ interface PersonalGroup {
   id: string
   name: string
   position: number
+  x?: number
+  y?: number
 }
 
 interface SlideOverride {
   groupId: string
   position: number
   annotation?: string
+  x?: number
+  y?: number
 }
 
 interface PersonalLayout {
   personalGroups: PersonalGroup[]
   slideOverrides: Record<string, SlideOverride>
+  groupPositions?: Record<string, { x: number; y: number }>
 }
 
 interface BoardSection {
@@ -117,6 +145,8 @@ interface BoardSection {
   slides: Slide[]
   isPersonal?: boolean
   annotations?: Record<string, string>
+  x: number
+  y: number
 }
 
 // ---------------------------------------------------------------------------
@@ -426,10 +456,21 @@ function BoardPageInner() {
       toast.error(t('board.group_name_required'))
       return
     }
+
+    // Place the new group below all existing sections
+    const currentSections = buildSections()
+    let maxBottom = PADDING
+    for (const s of currentSections) {
+      const bottom = s.y + calcGroupHeight(s.slides.length) + BETWEEN_GROUPS
+      if (bottom > maxBottom) maxBottom = bottom
+    }
+
     const group: PersonalGroup = {
       id: crypto.randomUUID(),
       name: trimmed,
       position: (personalLayout?.personalGroups.length ?? 0) + groups.length,
+      x: PADDING,
+      y: maxBottom,
     }
     updateLayout((prev) => ({
       ...prev,
@@ -944,24 +985,25 @@ function BoardPageInner() {
   function buildSections(): BoardSection[] {
     const assignedIds = new Set(memberships.map((m) => m.slide_id))
 
-    // Build admin sections
-    const adminSections: BoardSection[] = groups.map((group) => {
+    // Build admin sections (without positions yet)
+    const adminSections: (Omit<BoardSection, 'x' | 'y'> & { x?: number; y?: number; dbX: number | null; dbY: number | null })[] = groups.map((group) => {
       const memberSlideIds = memberships
         .filter((m) => m.group_id === group.id)
         .sort((a, b) => a.position - b.position)
         .map((m) => m.slide_id)
       const groupSlides = memberSlideIds.flatMap((id) => slides.filter((s) => s.id === id))
-      return { id: group.id, name: group.name, slides: groupSlides }
+      return { id: group.id, name: group.name, slides: groupSlides, dbX: group.x, dbY: group.y }
     })
 
     const ungrouped = slides.filter((s) => !assignedIds.has(s.id))
 
-    // If no personal layout, return admin layout as-is
+    // If no personal layout, return admin layout with positions
     if (!personalLayout) {
+      const withUngrouped = [...adminSections]
       if (ungrouped.length > 0 || groups.length === 0) {
-        adminSections.push({ id: '__ungrouped__', name: 'Ungrouped', slides: ungrouped })
+        withUngrouped.push({ id: '__ungrouped__', name: 'Ungrouped', slides: ungrouped, dbX: null, dbY: null })
       }
-      return adminSections
+      return assignPositions(withUngrouped)
     }
 
     // Merge personal layout overrides
@@ -974,10 +1016,18 @@ function BoardPageInner() {
       slides: section.slides.filter((s) => !overriddenSlideIds.has(s.id)),
     }))
 
-    // Build personal group sections
-    const personalSections: BoardSection[] = personalLayout.personalGroups
+    // Build personal group sections (with personal layout positions)
+    const personalGroupMap = new Map(personalLayout.personalGroups.map((pg) => [pg.id, pg]))
+    const personalSections = personalLayout.personalGroups
       .sort((a, b) => a.position - b.position)
-      .map((pg) => ({ id: pg.id, name: pg.name, slides: [] as Slide[], isPersonal: true }))
+      .map((pg) => ({
+        id: pg.id,
+        name: pg.name,
+        slides: [] as Slide[],
+        isPersonal: true as const,
+        dbX: pg.x ?? null,
+        dbY: pg.y ?? null,
+      }))
 
     // Place overridden slides into the correct sections
     const slideById = new Map(slides.map((s) => [s.id, s]))
@@ -991,11 +1041,9 @@ function BoardPageInner() {
       if (target) {
         target.slides.push(slide)
       }
-      // If target group no longer exists, slide falls through to ungrouped
     }
 
-    // Sort only overridden slides within each section by position,
-    // preserving original admin order for non-overridden slides
+    // Sort only overridden slides within each section by position
     const sortedSectionIds = new Set<string>()
     for (const [, override] of Object.entries(overrides)) {
       if (sortedSectionIds.has(override.groupId)) continue
@@ -1003,8 +1051,6 @@ function BoardPageInner() {
       if (!target) continue
       sortedSectionIds.add(override.groupId)
 
-      // Partition: admin-ordered slides (no override) stay in original order,
-      // overridden slides are sorted by their override position
       const adminSlides = target.slides.filter((s) => !overrides[s.id])
       const overriddenSlides = target.slides
         .filter((s) => overrides[s.id])
@@ -1018,12 +1064,11 @@ function BoardPageInner() {
       if (override.annotation) annotations[slideId] = override.annotation
     }
 
-    // Add ungrouped: slides without admin assignment AND without personal override
+    // Add ungrouped
     const allPlacedIds = new Set(
       allSections.flatMap((s) => s.slides.map((sl) => sl.id))
     )
     const remainingUngrouped = ungrouped.filter((s) => !allPlacedIds.has(s.id))
-    // Also catch slides that were overridden to a now-deleted personal group
     const orphanedOverrides = Object.entries(overrides)
       .filter(([, o]) => !sectionMap.has(o.groupId))
       .map(([slideId]) => slideById.get(slideId))
@@ -1031,11 +1076,70 @@ function BoardPageInner() {
 
     const allUngrouped = [...remainingUngrouped, ...orphanedOverrides]
     if (allUngrouped.length > 0 || (groups.length === 0 && personalSections.length === 0)) {
-      allSections.push({ id: '__ungrouped__', name: 'Ungrouped', slides: allUngrouped })
+      allSections.push({ id: '__ungrouped__', name: 'Ungrouped', slides: allUngrouped, dbX: null, dbY: null })
     }
 
-    // Attach annotations to all sections
-    return allSections.map((s) => ({ ...s, annotations }))
+    // Apply personal position overrides
+    const groupPosOverrides = personalLayout?.groupPositions ?? {}
+    const positioned = allSections.map((s) => {
+      // Check groupPositions for admin group overrides
+      const posOverride = groupPosOverrides[s.id]
+      if (posOverride) {
+        return { ...s, dbX: posOverride.x, dbY: posOverride.y }
+      }
+      // Personal groups get their x/y from personalGroupMap
+      const pg = personalGroupMap.get(s.id)
+      if (pg) {
+        return { ...s, dbX: pg.x ?? s.dbX, dbY: pg.y ?? s.dbY }
+      }
+      return s
+    })
+
+    return assignPositions(positioned).map((s) => ({ ...s, annotations }))
+  }
+
+  /**
+   * Assign x/y positions to sections. Uses stored positions when available,
+   * falls back to auto-layout for sections without positions.
+   */
+  function assignPositions(
+    sections: (Omit<BoardSection, 'x' | 'y'> & { dbX: number | null; dbY: number | null })[]
+  ): BoardSection[] {
+    // Check if any section has stored positions
+    const hasAnyPosition = sections.some((s) => s.dbX !== null && s.dbY !== null)
+
+    if (!hasAnyPosition) {
+      // No custom positions at all — use full auto-layout
+      const autoPositions = computeGroupPositions(
+        sections.map((s) => ({ id: s.id, slideCount: s.slides.length }))
+      )
+      const posMap = new Map(autoPositions.map((p) => [p.id, p]))
+      return sections.map((s) => {
+        const pos = posMap.get(s.id) ?? { x: PADDING, y: PADDING }
+        const { dbX, dbY, ...rest } = s
+        return { ...rest, x: pos.x, y: pos.y }
+      })
+    }
+
+    // Mixed: some have positions, some don't. Place unpositioned ones after the last positioned group.
+    let maxBottom = 0
+    for (const s of sections) {
+      if (s.dbX !== null && s.dbY !== null) {
+        const bottom = s.dbY + calcGroupHeight(s.slides.length) + BETWEEN_GROUPS
+        if (bottom > maxBottom) maxBottom = bottom
+      }
+    }
+
+    let nextY = maxBottom || PADDING
+    return sections.map((s) => {
+      const { dbX, dbY, ...rest } = s
+      if (dbX !== null && dbY !== null) {
+        return { ...rest, x: dbX, y: dbY }
+      }
+      const pos = { x: PADDING, y: nextY }
+      nextY += calcGroupHeight(s.slides.length) + BETWEEN_GROUPS
+      return { ...rest, x: pos.x, y: pos.y }
+    })
   }
 
   // Slide lookup map for tray
@@ -1124,14 +1228,67 @@ function BoardPageInner() {
     ? slideMap.get(trayItems.find((t) => t.id === editingInstance)?.slide_id ?? '')
     : undefined
 
-  // Compute Y positions for each display section
-  const sectionYs: number[] = []
-  let currentY = PADDING
-  for (let i = 0; i < displaySections.length; i++) {
-    sectionYs.push(currentY)
-    currentY += calcGroupHeight(displaySections[i].slides.length)
-    if (i < displaySections.length - 1) currentY += BETWEEN_GROUPS
-  }
+  // -------------------------------------------------------------------------
+  // Group dragging
+  // -------------------------------------------------------------------------
+
+  const handleDragEnd = useCallback(async (drag: DragState) => {
+    if (drag.target.type !== 'group') return
+
+    const groupId = drag.target.id
+    const section = displaySections.find((s) => s.id === groupId)
+    if (!section) return
+
+    const newX = section.x + drag.deltaX
+    const newY = section.y + drag.deltaY
+
+    // Check if this is a personal group or admin group
+    const isPersonalGroup = section.isPersonal
+    const isAdminGroup = groups.some((g) => g.id === groupId)
+
+    if (isAdminGroup && isAdmin) {
+      // Admin dragging an admin group: persist to DB
+      const supabase = createBrowserSupabaseClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+      fetch(`/api/groups/${groupId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ x: newX, y: newY }),
+      }).catch(() => {})
+
+      // Update local state
+      setGroups((prev) => prev.map((g) => g.id === groupId ? { ...g, x: newX, y: newY } : g))
+    } else if (isPersonalGroup) {
+      // Personal group: persist to personal layout
+      updateLayout((prev) => ({
+        ...prev,
+        personalGroups: prev.personalGroups.map((pg) =>
+          pg.id === groupId ? { ...pg, x: newX, y: newY } : pg
+        ),
+      }))
+    } else {
+      // Non-admin user dragging an admin group: store position override in personal layout
+      updateLayout((prev) => ({
+        ...prev,
+        groupPositions: {
+          ...(prev.groupPositions ?? {}),
+          [groupId]: { x: newX, y: newY },
+        },
+      }))
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displaySections, groups, isAdmin])
+
+  const canvasDrag = useCanvasDrag({
+    zoom: canvas.zoom,
+    panX: canvas.panX,
+    panY: canvas.panY,
+    onDragEnd: handleDragEnd,
+  })
 
   return (
     <>
@@ -1163,10 +1320,32 @@ function BoardPageInner() {
             backgroundSize: '24px 24px',
             backgroundColor: '#f0f0f0',
           }}
-          onPointerDown={canvas.onPointerDown}
-          onPointerMove={canvas.onPointerMove}
-          onPointerUp={canvas.onPointerUp}
-          onPointerLeave={canvas.onPointerUp}
+          onPointerDown={(e) => {
+            // If a drag is active, don't start panning
+            if (canvasDrag.isDragging) return
+            canvas.onPointerDown(e)
+          }}
+          onPointerMove={(e) => {
+            if (canvasDrag.isDragging && containerRef.current) {
+              canvasDrag.updateDrag(e, containerRef.current.getBoundingClientRect())
+              return
+            }
+            canvas.onPointerMove(e)
+          }}
+          onPointerUp={() => {
+            if (canvasDrag.isDragging) {
+              canvasDrag.endDrag()
+              return
+            }
+            canvas.onPointerUp()
+          }}
+          onPointerLeave={() => {
+            if (canvasDrag.isDragging) {
+              canvasDrag.endDrag()
+              return
+            }
+            canvas.onPointerUp()
+          }}
         >
           {/* Canvas world */}
           <div
@@ -1215,29 +1394,47 @@ function BoardPageInner() {
                 <p className="text-xs text-muted-foreground">{t('board.try_different_keywords')}</p>
               </div>
             ) : (
-              displaySections.map((section, i) => (
-                <GroupSection
-                  key={section.id}
-                  id={section.id}
-                  name={section.name}
-                  slides={section.slides}
-                  x={PADDING}
-                  y={sectionYs[i]}
-                  onAddToTray={projectId && canEdit ? addToTray : undefined}
-                  isPersonal={section.isPersonal}
-                  onRename={section.isPersonal ? (name) => renamePersonalGroup(section.id, name) : undefined}
-                  onDelete={section.isPersonal ? () => deletePersonalGroup(section.id) : undefined}
-                  annotations={section.annotations}
-                  onAnnotationClick={(slideId) => {
-                    const current = personalLayout?.slideOverrides[slideId]?.annotation ?? ''
-                    setEditingAnnotation({ slideId, value: current })
-                  }}
-                  moveTargets={moveTargets}
-                  onMoveToGroup={moveSlideToGroup}
-                  onResetPosition={resetSlidePosition}
-                  overriddenSlideIds={overriddenSlideIds}
-                />
-              ))
+              displaySections.map((section) => {
+                const isDragTarget =
+                  canvasDrag.activeDrag?.target.type === 'group' &&
+                  canvasDrag.activeDrag.target.id === section.id
+                const dragOffset = isDragTarget
+                  ? { dx: canvasDrag.activeDrag!.deltaX, dy: canvasDrag.activeDrag!.deltaY }
+                  : undefined
+
+                return (
+                  <GroupSection
+                    key={section.id}
+                    id={section.id}
+                    name={section.name}
+                    slides={section.slides}
+                    x={section.x}
+                    y={section.y}
+                    onAddToTray={projectId && canEdit ? addToTray : undefined}
+                    isPersonal={section.isPersonal}
+                    onRename={section.isPersonal ? (name) => renamePersonalGroup(section.id, name) : undefined}
+                    onDelete={section.isPersonal ? () => deletePersonalGroup(section.id) : undefined}
+                    annotations={section.annotations}
+                    onAnnotationClick={(slideId) => {
+                      const current = personalLayout?.slideOverrides[slideId]?.annotation ?? ''
+                      setEditingAnnotation({ slideId, value: current })
+                    }}
+                    moveTargets={moveTargets}
+                    onMoveToGroup={moveSlideToGroup}
+                    onResetPosition={resetSlidePosition}
+                    overriddenSlideIds={overriddenSlideIds}
+                    dragOffset={dragOffset}
+                    onGroupPointerDown={(e) => {
+                      if (!containerRef.current) return
+                      canvasDrag.startDrag(
+                        e,
+                        { type: 'group', id: section.id },
+                        containerRef.current.getBoundingClientRect()
+                      )
+                    }}
+                  />
+                )
+              })
             )}
           </div>
 

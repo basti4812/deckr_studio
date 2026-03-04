@@ -2,7 +2,7 @@
 
 import { memo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pencil, Trash2, Check, X } from 'lucide-react'
+import { GripHorizontal, Pencil, Trash2, Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { CanvasSlideCard, CARD_WIDTH, type MoveTarget } from './canvas-slide-card'
@@ -29,6 +29,10 @@ interface GroupSectionProps {
   onMoveToGroup?: (slideId: string, groupId: string) => void
   onResetPosition?: (slideId: string) => void
   overriddenSlideIds?: Set<string>
+  /** Drag offset applied while group is being dragged */
+  dragOffset?: { dx: number; dy: number }
+  /** Pointer-down handler for group drag (fired from header) */
+  onGroupPointerDown?: (e: React.PointerEvent) => void
 }
 
 export const GroupSection = memo(function GroupSection({
@@ -47,6 +51,8 @@ export const GroupSection = memo(function GroupSection({
   onMoveToGroup,
   onResetPosition,
   overriddenSlideIds,
+  dragOffset,
+  onGroupPointerDown,
 }: GroupSectionProps) {
   const { t } = useTranslation()
   const [editing, setEditing] = useState(false)
@@ -58,13 +64,43 @@ export const GroupSection = memo(function GroupSection({
     setEditing(false)
   }
 
+  const isDragging = dragOffset && (Math.abs(dragOffset.dx) > 2 || Math.abs(dragOffset.dy) > 2)
+  const groupWidth = COLS * CARD_WIDTH + (COLS - 1) * GAP
+
   return (
-    <div style={{ position: 'absolute', left: x, top: y }}>
-      {/* Section label */}
+    <div
+      data-group-id={id}
+      style={{
+        position: 'absolute',
+        left: x + (dragOffset?.dx ?? 0),
+        top: y + (dragOffset?.dy ?? 0),
+        zIndex: isDragging ? 100 : undefined,
+        opacity: isDragging ? 0.9 : undefined,
+        transition: isDragging ? undefined : 'left 0.15s ease, top 0.15s ease',
+      }}
+    >
+      {/* Visual container background */}
       <div
-        style={{ marginBottom: SECTION_HEADER_MARGIN_BOTTOM }}
-        className="flex items-center gap-3"
+        style={{ width: groupWidth + 24, marginLeft: -12, marginTop: -8, paddingBottom: 12 }}
+        className="absolute inset-0 rounded-xl border border-dashed border-border/50 bg-muted/20"
+      />
+
+      {/* Section header — drag handle */}
+      <div
+        data-no-pan
+        style={{ marginBottom: SECTION_HEADER_MARGIN_BOTTOM, cursor: onGroupPointerDown ? 'grab' : undefined }}
+        className="relative flex items-center gap-3"
+        onPointerDown={(e) => {
+          // Don't start drag if clicking on buttons/inputs
+          if ((e.target as HTMLElement).closest('button, input')) return
+          onGroupPointerDown?.(e)
+        }}
       >
+        {/* Drag grip indicator */}
+        {onGroupPointerDown && (
+          <GripHorizontal className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+        )}
+
         {editing ? (
           <div data-no-pan className="flex items-center gap-1">
             <Input
@@ -113,39 +149,41 @@ export const GroupSection = memo(function GroupSection({
       </div>
 
       {/* Slides grid */}
-      {slides.length === 0 ? (
-        <div
-          style={{ width: COLS * CARD_WIDTH + (COLS - 1) * GAP }}
-          className="flex items-center justify-center rounded-lg border border-dashed text-muted-foreground text-xs"
-        >
-          <span className="py-6">
-            {isPersonal ? t('board.right_click_move_here') : t('board.no_slides_in_group')}
-          </span>
-        </div>
-      ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${COLS}, ${CARD_WIDTH}px)`,
-            gap: GAP,
-          }}
-        >
-          {slides.map((slide) => (
-            <CanvasSlideCard
-              key={slide.id}
-              slide={slide}
-              onAddToTray={onAddToTray}
-              annotation={annotations?.[slide.id]}
-              onAnnotationClick={onAnnotationClick}
-              moveTargets={moveTargets}
-              onMoveToGroup={onMoveToGroup}
-              onResetPosition={onResetPosition}
-              hasOverride={overriddenSlideIds?.has(slide.id)}
-              currentGroupId={id}
-            />
-          ))}
-        </div>
-      )}
+      <div className="relative">
+        {slides.length === 0 ? (
+          <div
+            style={{ width: groupWidth }}
+            className="flex items-center justify-center rounded-lg border border-dashed text-muted-foreground text-xs"
+          >
+            <span className="py-6">
+              {isPersonal ? t('board.right_click_move_here') : t('board.no_slides_in_group')}
+            </span>
+          </div>
+        ) : (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${COLS}, ${CARD_WIDTH}px)`,
+              gap: GAP,
+            }}
+          >
+            {slides.map((slide) => (
+              <CanvasSlideCard
+                key={slide.id}
+                slide={slide}
+                onAddToTray={onAddToTray}
+                annotation={annotations?.[slide.id]}
+                onAnnotationClick={onAnnotationClick}
+                moveTargets={moveTargets}
+                onMoveToGroup={onMoveToGroup}
+                onResetPosition={onResetPosition}
+                hasOverride={overriddenSlideIds?.has(slide.id)}
+                currentGroupId={id}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 })
