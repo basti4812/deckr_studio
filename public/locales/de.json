@@ -361,6 +361,7 @@
     "reset_layout": "Layout zurücksetzen",
     "add_group": "Gruppe hinzufügen",
     "group_name_placeholder": "Gruppenname…",
+    "group_name_required": "Bitte geben Sie einen Gruppennamen ein.",
     "open_version_history": "Versionshistorie öffnen",
     "slide_annotation": "Folien-Anmerkung",
     "annotation_placeholder": "Persönliche Notiz hinzufügen (max. 100 Zeichen)…",
@@ -375,7 +376,27 @@
   "tray": {
     "no_slides": "Keine Folien",
     "deprecated_warning": "Keine veralteten Folien",
-    "upload_personal_slide": "Persönliche Folie hochladen"
+    "upload_personal_slide": "Persönliche Folie hochladen",
+    "expand": "Fach erweitern",
+    "collapse": "Fach reduzieren",
+    "project": "Projekt",
+    "title": "Projekt-Fach",
+    "slide_count": "{{count}} Folie(n)",
+    "slide_count_one": "{{count}} Folie",
+    "slide_count_other": "{{count}} Folien",
+    "upload": "Hochladen",
+    "save": "Speichern",
+    "save_named_version": "Benannte Version speichern",
+    "add_slides_to_save": "Folien hinzufügen, um eine Version zu speichern",
+    "present": "Präsentieren",
+    "start_presentation": "Präsentation starten",
+    "add_slides_to_present": "Folien hinzufügen zum Präsentieren",
+    "export": "Exportieren",
+    "export_pptx": "Als PowerPoint (.pptx) exportieren",
+    "export_pdf": "Als PDF exportieren",
+    "add_slides_to_export": "Folien hinzufügen zum Exportieren",
+    "open_project_hint": "Öffnen Sie ein Projekt, um Ihre Präsentation zusammenzustellen.",
+    "open_project": "Projekt öffnen"
   },
   "export_dialog": {
     "exporting": "Wird exportiert…",
@@ -1017,5 +1038,26 @@
     "remove": "Entfernen",
     "search": "Suchen",
     "no_results": "Keine Ergebnisse"
+  },
+  "dashboard": {
+    "title": "Admin Dashboard",
+    "description": "Überblick über die Aktivitäten, Nutzungsstatistiken und Schnellaktionen Ihres Teams.",
+    "total_slides": "Aktive Folien",
+    "total_projects": "Projekte",
+    "exports_30d": "Exporte (30 Tage)",
+    "team_members": "Teammitglieder",
+    "recent_projects": "Neueste Projekte",
+    "recent_activity": "Neueste Aktivitäten",
+    "no_projects": "Noch keine Projekte.",
+    "no_activity": "Keine neuesten Aktivitäten.",
+    "open_board": "Board öffnen",
+    "create_project": "Projekt erstellen",
+    "manage_team": "Team verwalten",
+    "quick_actions": "Schnellaktionen",
+    "project_name": "Name",
+    "project_status": "Status",
+    "last_updated": "Zuletzt aktualisiert",
+    "view_all_projects": "Alle Projekte anzeigen",
+    "view_activity_log": "Aktivitätsprotokoll anzeigen"
   }
 }

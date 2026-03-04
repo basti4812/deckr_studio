@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 
 const MIN_ZOOM = 0.08
 const MAX_ZOOM = 2.0
@@ -14,7 +14,7 @@ export interface CanvasState {
   panY: number
 }
 
-export function useCanvas(initialZoom = 0.5) {
+export function useCanvas(initialZoom = 0.5, containerRef?: RefObject<HTMLDivElement | null>) {
   const [zoom, setZoom] = useState(initialZoom)
   const [panX, setPanX] = useState(0)
   const [panY, setPanY] = useState(0)
@@ -62,14 +62,18 @@ export function useCanvas(initialZoom = 0.5) {
 
   // -------------------------------------------------------------------------
   // Wheel handler — zoom centered on cursor position
+  // Attached as a native event listener with { passive: false } so that
+  // preventDefault() actually works and the browser doesn't zoom the page.
   // -------------------------------------------------------------------------
 
-  const onWheel = useCallback(
-    (e: React.WheelEvent<HTMLDivElement>) => {
+  useEffect(() => {
+    const el = containerRef?.current
+    if (!el) return
+
+    function handleWheel(e: WheelEvent) {
       e.preventDefault()
 
-      // Capture synchronously — e.currentTarget is nullified after the handler returns
-      const rect = e.currentTarget.getBoundingClientRect()
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
       const cursorX = e.clientX - rect.left
       const cursorY = e.clientY - rect.top
       const delta = e.deltaY > 0 ? -1 : 1
@@ -85,9 +89,11 @@ export function useCanvas(initialZoom = 0.5) {
 
         return newZoom
       })
-    },
-    []
-  )
+    }
+
+    el.addEventListener('wheel', handleWheel, { passive: false })
+    return () => el.removeEventListener('wheel', handleWheel)
+  }, [containerRef])
 
   // -------------------------------------------------------------------------
   // Pointer drag handlers
@@ -123,7 +129,6 @@ export function useCanvas(initialZoom = 0.5) {
     zoomIn,
     zoomOut,
     fitToScreen,
-    onWheel,
     onPointerDown,
     onPointerMove,
     onPointerUp,

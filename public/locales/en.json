@@ -361,6 +361,7 @@
     "reset_layout": "Reset layout",
     "add_group": "Add group",
     "group_name_placeholder": "Group name…",
+    "group_name_required": "Please enter a group name.",
     "open_version_history": "Open version history",
     "slide_annotation": "Slide annotation",
     "annotation_placeholder": "Add a personal note (max 100 chars)…",
@@ -375,7 +376,27 @@
   "tray": {
     "no_slides": "No slides",
     "deprecated_warning": "No deprecated slides",
-    "upload_personal_slide": "Upload a personal slide"
+    "upload_personal_slide": "Upload a personal slide",
+    "expand": "Expand tray",
+    "collapse": "Collapse tray",
+    "project": "Project",
+    "title": "Project Tray",
+    "slide_count": "{{count}} slide(s)",
+    "slide_count_one": "{{count}} slide",
+    "slide_count_other": "{{count}} slides",
+    "upload": "Upload",
+    "save": "Save",
+    "save_named_version": "Save a named version",
+    "add_slides_to_save": "Add slides to save a version",
+    "present": "Present",
+    "start_presentation": "Start presentation",
+    "add_slides_to_present": "Add slides to present",
+    "export": "Export",
+    "export_pptx": "Export as PowerPoint (.pptx)",
+    "export_pdf": "Export as PDF",
+    "add_slides_to_export": "Add slides to export",
+    "open_project_hint": "Open a project to start assembling your presentation.",
+    "open_project": "Open project"
   },
   "export_dialog": {
     "exporting": "Exporting…",
@@ -1017,5 +1038,26 @@
     "remove": "Remove",
     "search": "Search",
     "no_results": "No results"
+  },
+  "dashboard": {
+    "title": "Admin Dashboard",
+    "description": "Overview of your team's activity, usage statistics, and quick actions.",
+    "total_slides": "Active Slides",
+    "total_projects": "Projects",
+    "exports_30d": "Exports (30 days)",
+    "team_members": "Team Members",
+    "recent_projects": "Recent Projects",
+    "recent_activity": "Recent Activity",
+    "no_projects": "No projects yet.",
+    "no_activity": "No recent activity.",
+    "open_board": "Open Board",
+    "create_project": "Create Project",
+    "manage_team": "Manage Team",
+    "quick_actions": "Quick Actions",
+    "project_name": "Name",
+    "project_status": "Status",
+    "last_updated": "Last Updated",
+    "view_all_projects": "View all projects",
+    "view_activity_log": "View activity log"
   }
 }

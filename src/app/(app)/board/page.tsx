@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { Briefcase, Clock, Plus, RotateCcw, Share2, Users, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -205,7 +206,7 @@ function BoardPageInner() {
   const canEdit = userPermission === 'owner' || userPermission === 'edit'
 
   const containerRef = useRef<HTMLDivElement>(null)
-  const canvas = useCanvas(0.5)
+  const canvas = useCanvas(0.5, containerRef)
 
   // Auto-save debounce
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -421,7 +422,10 @@ function BoardPageInner() {
   // Personal group CRUD
   function addPersonalGroup() {
     const trimmed = newGroupName.trim()
-    if (!trimmed) return
+    if (!trimmed) {
+      toast.error(t('board.group_name_required'))
+      return
+    }
     const group: PersonalGroup = {
       id: crypto.randomUUID(),
       name: trimmed,
@@ -1159,7 +1163,6 @@ function BoardPageInner() {
             backgroundSize: '24px 24px',
             backgroundColor: '#f0f0f0',
           }}
-          onWheel={canvas.onWheel}
           onPointerDown={canvas.onPointerDown}
           onPointerMove={canvas.onPointerMove}
           onPointerUp={canvas.onPointerUp}

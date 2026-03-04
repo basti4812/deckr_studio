@@ -476,6 +476,8 @@ function DemoPresentationMode({
 
 export function DemoBoard() {
   // Canvas (zoom / pan)
+  const viewportRef = useRef<HTMLDivElement>(null)
+
   const {
     zoom,
     panX,
@@ -483,13 +485,10 @@ export function DemoBoard() {
     zoomIn,
     zoomOut,
     fitToScreen,
-    onWheel,
     onPointerDown,
     onPointerMove,
     onPointerUp,
-  } = useCanvas(0.45)
-
-  const viewportRef = useRef<HTMLDivElement>(null)
+  } = useCanvas(0.45, viewportRef)
 
   // Tray state
   const [trayItems, setTrayItems] = useState<DemoTrayItem[]>([...INITIAL_TRAY_ITEMS])
@@ -652,7 +651,6 @@ export function DemoBoard() {
           <div
             ref={viewportRef}
             className="relative flex-1 overflow-hidden bg-muted/30 cursor-grab active:cursor-grabbing"
-            onWheel={onWheel}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
