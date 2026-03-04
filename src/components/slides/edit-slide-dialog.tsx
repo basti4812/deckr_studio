@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Plus, RefreshCw, Trash2, Upload, X } from 'lucide-react'
+import { Plus, RefreshCw, Scan, Trash2, Upload, X } from 'lucide-react'
+import { parsePptxFields } from '@/lib/pptx-parser'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -39,9 +41,11 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
   const [fields, setFields] = useState<EditableField[]>([])
   const [replacementFile, setReplacementFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
+  const [scanning, setScanning] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const tagInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const scanInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (slide) {
@@ -93,6 +97,27 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
 
   function updateField(id: string, changes: Partial<EditableField>) {
     setFields((prev) => prev.map((f) => (f.id === id ? { ...f, ...changes } : f)))
+  }
+
+  async function handleRescan(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !slide) return
+    setScanning(true)
+    try {
+      const detected = await parsePptxFields(file, slide.page_index ?? 0)
+      const newFields = detected.map((f) => ({
+        id: f.id,
+        label: f.label,
+        placeholder: f.placeholder,
+        required: f.required,
+      }))
+      setFields(newFields)
+    } catch {
+      setError('Could not parse text fields from file')
+    } finally {
+      setScanning(false)
+      if (scanInputRef.current) scanInputRef.current.value = ''
+    }
   }
 
   async function handleSave() {
@@ -279,11 +304,30 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label>Editable text fields</Label>
-              <Button type="button" variant="outline" size="sm" onClick={addField}>
-                <Plus className="mr-1 h-3 w-3" />
-                Add field
-              </Button>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => scanInputRef.current?.click()}
+                  disabled={scanning}
+                >
+                  <Scan className="mr-1 h-3 w-3" />
+                  {scanning ? 'Scanning…' : 'Re-scan PPTX'}
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={addField}>
+                  <Plus className="mr-1 h-3 w-3" />
+                  Add field
+                </Button>
+              </div>
             </div>
+            <input
+              ref={scanInputRef}
+              type="file"
+              accept=".pptx"
+              className="hidden"
+              onChange={handleRescan}
+            />
 
             {fields.length === 0 && (
               <p className="text-sm text-muted-foreground">
@@ -294,9 +338,14 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
             {fields.map((field, index) => (
               <div key={field.id} className="rounded-md border p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-muted-foreground">
-                    Field {index + 1}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      Field {index + 1}
+                    </span>
+                    {field.placeholder && (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Auto-detected</Badge>
+                    )}
+                  </div>
                   <Button
                     type="button"
                     variant="ghost"

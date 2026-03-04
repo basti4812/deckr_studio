@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 
 const MIN_ZOOM = 0.08
 const MAX_ZOOM = 2.0
-const ZOOM_STEP = 0.15
+const ZOOM_STEP = 0.08
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
@@ -79,7 +79,7 @@ export function useCanvas(initialZoom = 0.5, containerRef?: RefObject<HTMLDivEle
       const delta = e.deltaY > 0 ? -1 : 1
 
       setZoom((currentZoom) => {
-        const factor = 1 + delta * 0.1
+        const factor = 1 + delta * 0.03
         const newZoom = clamp(currentZoom * factor, MIN_ZOOM, MAX_ZOOM)
         const zoomRatio = newZoom / currentZoom
 

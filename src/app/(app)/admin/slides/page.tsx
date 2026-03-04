@@ -1,8 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Upload } from 'lucide-react'
+import { CheckSquare, ImageIcon, Loader2, Trash2, Upload, X } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +19,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import { SlideCard } from '@/components/slides/slide-card'
+import { SlideGroupCard } from '@/components/slides/slide-group-card'
 import { UploadSlideDialog } from '@/components/slides/upload-slide-dialog'
 import { EditSlideDialog } from '@/components/slides/edit-slide-dialog'
 import type { Slide } from '@/components/slides/slide-card'
@@ -35,6 +36,9 @@ export default function SlideLibraryPage() {
   const [editSlide, setEditSlide] = useState<Slide | null>(null)
   const [deleteSlide, setDeleteSlide] = useState<Slide | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
 
   const fetchSlides = useCallback(async () => {
     const supabase = createBrowserSupabaseClient()
@@ -60,6 +64,58 @@ export default function SlideLibraryPage() {
     }
   }, [userLoading, fetchSlides])
 
+  // Poll for thumbnail updates when slides are missing thumbnails
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pendingThumbnails = slides.filter((s) => s.pptx_url && !s.thumbnail_url)
+
+  useEffect(() => {
+    if (pendingThumbnails.length === 0 || loading) {
+      if (pollRef.current) {
+        clearInterval(pollRef.current)
+        pollRef.current = null
+      }
+      return
+    }
+
+    // Start polling every 5 seconds
+    if (!pollRef.current) {
+      pollRef.current = setInterval(async () => {
+        const supabase = createBrowserSupabaseClient()
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) return
+
+        const res = await fetch('/api/slides', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+        if (!res.ok) return
+        const data = await res.json()
+        const freshSlides = (data.slides ?? []) as Slide[]
+
+        setSlides((prev) => {
+          let changed = false
+          const updated = prev.map((s) => {
+            if (s.thumbnail_url) return s
+            const fresh = freshSlides.find((f) => f.id === s.id)
+            if (fresh?.thumbnail_url) {
+              changed = true
+              return { ...s, thumbnail_url: fresh.thumbnail_url }
+            }
+            return s
+          })
+          return changed ? updated : prev
+        })
+      }, 5000)
+    }
+
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current)
+        pollRef.current = null
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingThumbnails.length, loading])
+
   async function handleDelete() {
     if (!deleteSlide) return
     setDeleting(true)
@@ -81,6 +137,104 @@ export default function SlideLibraryPage() {
     }
   }
 
+  function toggleSelect(id: string, isSelected: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (isSelected) next.add(id)
+      else next.delete(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === filtered.length) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(filtered.map((s) => s.id)))
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (selected.size === 0) return
+    setBulkDeleting(true)
+    try {
+      const supabase = createBrowserSupabaseClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+
+      const errors: string[] = []
+      const deleted: string[] = []
+
+      for (const id of selected) {
+        const res = await fetch(`/api/slides/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+        if (res.ok) {
+          deleted.push(id)
+        } else {
+          const data = await res.json().catch(() => ({}))
+          const slide = slides.find((s) => s.id === id)
+          errors.push(`${slide?.title ?? id}: ${(data as { error?: string }).error ?? 'Failed'}`)
+        }
+      }
+
+      if (deleted.length > 0) {
+        setSlides((prev) => prev.filter((s) => !deleted.includes(s.id)))
+      }
+      setSelected(new Set())
+
+      if (errors.length > 0) {
+        console.error('[bulk-delete] Some slides could not be deleted:', errors)
+      }
+    } finally {
+      setBulkDeleting(false)
+      setBulkDeleteConfirm(false)
+    }
+  }
+
+  const [regenerating, setRegenerating] = useState(false)
+
+  async function handleRegenerateThumbnails() {
+    const missing = slides.filter((s) => !s.thumbnail_url)
+    if (missing.length === 0) return
+
+    setRegenerating(true)
+    try {
+      const supabase = createBrowserSupabaseClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+
+      const res = await fetch('/api/slides/generate-thumbnails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ slideIds: missing.map((s) => s.id) }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        if (data.results) {
+          setSlides((prev) =>
+            prev.map((s) => {
+              const result = data.results.find((r: { slideId: string; thumbnailUrl: string | null }) => r.slideId === s.id)
+              if (result?.thumbnailUrl) {
+                return { ...s, thumbnail_url: result.thumbnailUrl }
+              }
+              return s
+            })
+          )
+        }
+      }
+    } finally {
+      setRegenerating(false)
+    }
+  }
+
+  const missingThumbnailCount = slides.filter((s) => !s.thumbnail_url && s.pptx_url).length
+
   const filtered = filter === 'all' ? slides : slides.filter((s) => s.status === filter)
 
   const counts = {
@@ -100,10 +254,21 @@ export default function SlideLibraryPage() {
             {t('admin.slide_library_description')}
           </p>
         </div>
-        <Button onClick={() => setUploadOpen(true)}>
-          <Upload className="mr-2 h-4 w-4" />
-          {t('admin.upload_slide')}
-        </Button>
+        <div className="flex items-center gap-2">
+          {missingThumbnailCount > 0 && (
+            <Button variant="outline" onClick={handleRegenerateThumbnails} disabled={regenerating}>
+              <ImageIcon className="mr-2 h-4 w-4" />
+              {regenerating
+                ? t('admin.regenerating_thumbnails', 'Generating…')
+                : t('admin.regenerate_thumbnails', { count: missingThumbnailCount, defaultValue: `Regenerate thumbnails (${missingThumbnailCount})` })
+              }
+            </Button>
+          )}
+          <Button onClick={() => setUploadOpen(true)}>
+            <Upload className="mr-2 h-4 w-4" />
+            {t('admin.upload_slide')}
+          </Button>
+        </div>
       </div>
 
       {/* Filter tabs */}
@@ -115,6 +280,63 @@ export default function SlideLibraryPage() {
           <TabsTrigger value="deprecated">{t('admin.deprecated')} ({counts.deprecated})</TabsTrigger>
         </TabsList>
       </Tabs>
+
+      {/* Selection toolbar */}
+      {filtered.length > 0 && !loading && (
+        <div className="flex items-center gap-3">
+          <Button
+            variant={selected.size > 0 ? 'default' : 'outline'}
+            size="sm"
+            onClick={toggleSelectAll}
+          >
+            <CheckSquare className="mr-2 h-4 w-4" />
+            {selected.size === filtered.length && filtered.length > 0
+              ? t('admin.deselect_all', 'Deselect all')
+              : t('admin.select_all', 'Select all')
+            }
+          </Button>
+
+          {selected.size > 0 && (
+            <>
+              <span className="text-sm text-muted-foreground">
+                {t('admin.slides_selected', { count: selected.size, defaultValue: `${selected.size} selected` })}
+              </span>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setBulkDeleteConfirm(true)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                {t('admin.delete_selected', 'Delete selected')}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelected(new Set())}
+              >
+                <X className="mr-2 h-4 w-4" />
+                {t('admin.clear_selection', 'Clear')}
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Thumbnail generation banner */}
+      {(regenerating || pendingThumbnails.length > 0) && !loading && (
+        <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          <p className="text-sm text-primary">
+            {regenerating
+              ? t('admin.generating_thumbnails_banner', 'Generating thumbnails, please wait…')
+              : t('admin.thumbnails_pending_banner', {
+                  count: pendingThumbnails.length,
+                  defaultValue: `${pendingThumbnails.length} thumbnail${pendingThumbnails.length !== 1 ? 's' : ''} are being generated. They will appear automatically.`,
+                })
+            }
+          </p>
+        </div>
+      )}
 
       {/* Grid */}
       {loading ? (
@@ -148,14 +370,49 @@ export default function SlideLibraryPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((slide) => (
-            <SlideCard
-              key={slide.id}
-              slide={slide}
-              onEdit={setEditSlide}
-              onDelete={setDeleteSlide}
-            />
-          ))}
+          {(() => {
+            // Group slides by source_filename (multi-page uploads)
+            const groups = new Map<string, Slide[]>()
+            const ungrouped: Slide[] = []
+
+            for (const slide of filtered) {
+              if (slide.source_filename && (slide.page_count ?? 1) > 1) {
+                const key = slide.source_filename
+                if (!groups.has(key)) groups.set(key, [])
+                groups.get(key)!.push(slide)
+              } else {
+                ungrouped.push(slide)
+              }
+            }
+
+            return (
+              <>
+                {/* Grouped presentations */}
+                {Array.from(groups.entries()).map(([filename, groupSlides]) => (
+                  <SlideGroupCard
+                    key={filename}
+                    filename={filename}
+                    slides={groupSlides}
+                    onEdit={setEditSlide}
+                    onDelete={setDeleteSlide}
+                    selected={selected}
+                    onSelectChange={toggleSelect}
+                  />
+                ))}
+                {/* Ungrouped / single slides */}
+                {ungrouped.map((slide) => (
+                  <SlideCard
+                    key={slide.id}
+                    slide={slide}
+                    onEdit={setEditSlide}
+                    onDelete={setDeleteSlide}
+                    selected={selected.has(slide.id)}
+                    onSelectChange={(checked) => toggleSelect(slide.id, checked)}
+                  />
+                ))}
+              </>
+            )
+          })()}
         </div>
       )}
 
@@ -199,6 +456,35 @@ export default function SlideLibraryPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting ? t('admin.deleting') : t('admin.delete_slide_button')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk delete confirmation */}
+      <AlertDialog open={bulkDeleteConfirm} onOpenChange={(o) => !o && setBulkDeleteConfirm(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('admin.bulk_delete_confirm', { count: selected.size, defaultValue: `Delete ${selected.size} slides?` })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('admin.bulk_delete_message', 'This action cannot be undone. Slides that are used in projects cannot be deleted.')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>
+              {t('admin.cancel', 'Cancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleting
+                ? t('admin.deleting', 'Deleting…')
+                : t('admin.delete_slides_button', { count: selected.size, defaultValue: `Delete ${selected.size} slides` })
+              }
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -2,7 +2,7 @@
 
 import { useTranslation } from 'react-i18next'
 import Link from 'next/link'
-import { ChevronDown, ChevronLeft, ChevronRight, Download, FolderOpen, Play, Save, Upload } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, FolderOpen, Play, Save, Upload } from 'lucide-react'
 import {
   DndContext,
   closestCenter,
@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { TraySlideItem } from '@/components/board/tray-slide-item'
 import { PersonalTraySlideItem } from '@/components/board/personal-tray-slide-item'
 import type { Slide } from '@/components/slides/slide-card'
@@ -149,75 +150,94 @@ export function TrayPanel({
 
         {/* Action buttons — only shown when a project is open */}
         {projectId && (onPresent || onExport || onUploadPersonalSlide || onSaveVersion) && (
-          <div className="flex gap-1.5">
-            {onUploadPersonalSlide && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 gap-1.5"
-                onClick={onUploadPersonalSlide}
-                title={t('tray.upload_personal_slide')}
-              >
-                <Upload className="h-3.5 w-3.5" />
-                {t('tray.upload')}
-              </Button>
-            )}
-            {onSaveVersion && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 gap-1.5"
-                onClick={onSaveVersion}
-                disabled={trayItems.length === 0}
-                title={trayItems.length === 0 ? t('tray.add_slides_to_save') : t('tray.save_named_version')}
-              >
-                <Save className="h-3.5 w-3.5" />
-                {t('tray.save')}
-              </Button>
-            )}
-            {onPresent && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 gap-1.5"
-                onClick={onPresent}
-                disabled={trayItems.length === 0}
-                title={trayItems.length === 0 ? t('tray.add_slides_to_present') : t('tray.start_presentation')}
-              >
-                <Play className="h-3.5 w-3.5" />
-                {t('tray.present')}
-              </Button>
-            )}
-            {(onExport || onPdfExport) && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 gap-1.5"
-                    disabled={trayItems.length === 0}
-                    title={trayItems.length === 0 ? t('tray.add_slides_to_export') : t('tray.export')}
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    {t('tray.export')}
-                    <ChevronDown className="h-3 w-3 ml-auto" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40">
-                  {onExport && (
-                    <DropdownMenuItem onClick={onExport}>
-                      {t('tray.export_pptx')}
-                    </DropdownMenuItem>
-                  )}
-                  {onPdfExport && (
-                    <DropdownMenuItem onClick={onPdfExport}>
-                      {t('tray.export_pdf')}
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
+          <TooltipProvider delayDuration={300}>
+            <div className="flex gap-1">
+              {onUploadPersonalSlide && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={onUploadPersonalSlide}
+                    >
+                      <Upload className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('tray.upload_personal_slide')}</TooltipContent>
+                </Tooltip>
+              )}
+              {onSaveVersion && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={onSaveVersion}
+                      disabled={trayItems.length === 0}
+                    >
+                      <Save className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {trayItems.length === 0 ? t('tray.add_slides_to_save') : t('tray.save_named_version')}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              {onPresent && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={onPresent}
+                      disabled={trayItems.length === 0}
+                    >
+                      <Play className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {trayItems.length === 0 ? t('tray.add_slides_to_present') : t('tray.present')}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              {(onExport || onPdfExport) && (
+                <DropdownMenu>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          disabled={trayItems.length === 0}
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {trayItems.length === 0 ? t('tray.add_slides_to_export') : t('tray.export')}
+                    </TooltipContent>
+                  </Tooltip>
+                  <DropdownMenuContent align="end" className="w-40">
+                    {onExport && (
+                      <DropdownMenuItem onClick={onExport}>
+                        {t('tray.export_pptx')}
+                      </DropdownMenuItem>
+                    )}
+                    {onPdfExport && (
+                      <DropdownMenuItem onClick={onPdfExport}>
+                        {t('tray.export_pdf')}
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+          </TooltipProvider>
         )}
       </div>
 

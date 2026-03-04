@@ -75,10 +75,13 @@ export async function POST(request: NextRequest) {
     try {
       // Call ConvertAPI: PPTX → PNG (all pages)
       const convertRes = await fetch(
-        `https://v2.convertapi.com/convert/pptx/to/png?Secret=${secret}`,
+        'https://v2.convertapi.com/convert/pptx/to/png',
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${secret}`,
+          },
           body: JSON.stringify({
             Parameters: [
               { Name: 'File', FileValue: { Url: pptxUrl } },

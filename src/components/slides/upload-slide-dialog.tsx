@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 import { Upload } from 'lucide-react'
 import JSZip from 'jszip'
+import { parsePptxFields } from '@/lib/pptx-parser'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -140,6 +141,21 @@ export function UploadSlideDialog({
           ? `${title.trim()} — Slide ${i + 1}`
           : title.trim()
 
+        // Auto-detect editable text fields from PPTX
+        let editable_fields: { id: string; label: string; placeholder: string; required: boolean }[] = []
+        try {
+          const detected = await parsePptxFields(file, i)
+          editable_fields = detected.map((f) => ({
+            id: f.id,
+            label: f.label,
+            placeholder: f.placeholder,
+            required: f.required,
+          }))
+        } catch {
+          // Non-fatal: proceed without auto-detected fields
+          console.warn(`[upload] Could not parse text fields for slide ${i + 1}`)
+        }
+
         const res = await fetch('/api/slides', {
           method: 'POST',
           headers: {
@@ -152,6 +168,8 @@ export function UploadSlideDialog({
             pptx_url,
             page_index: i,
             page_count: pageCount,
+            source_filename: file.name,
+            editable_fields,
           }),
         })
 

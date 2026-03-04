@@ -3,6 +3,7 @@
 import { AlertTriangle, LayoutTemplate, Lock, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Card,
   CardContent,
@@ -29,6 +30,9 @@ export interface Slide {
   created_at: string
   updated_at: string
   created_by: string | null
+  page_index?: number | null
+  page_count?: number | null
+  source_filename?: string | null
 }
 
 export interface EditableField {
@@ -42,6 +46,8 @@ interface SlideCardProps {
   slide: Slide
   onEdit: (slide: Slide) => void
   onDelete: (slide: Slide) => void
+  selected?: boolean
+  onSelectChange?: (selected: boolean) => void
 }
 
 function StatusBadge({ status }: { status: Slide['status'] }) {
@@ -68,11 +74,21 @@ function StatusBadge({ status }: { status: Slide['status'] }) {
   )
 }
 
-export function SlideCard({ slide, onEdit, onDelete }: SlideCardProps) {
+export function SlideCard({ slide, onEdit, onDelete, selected, onSelectChange }: SlideCardProps) {
   return (
-    <Card className="group overflow-hidden">
+    <Card className={`group overflow-hidden ${selected ? 'ring-2 ring-primary' : ''}`}>
       {/* Thumbnail area */}
       <div className="relative aspect-video bg-muted flex items-center justify-center border-b">
+        {onSelectChange !== undefined && (
+          <div className="absolute left-2 top-2 z-10">
+            <Checkbox
+              checked={selected}
+              onCheckedChange={(checked) => onSelectChange(checked === true)}
+              className="h-5 w-5 border-2 bg-background/80 backdrop-blur-sm"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        )}
         {slide.thumbnail_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img

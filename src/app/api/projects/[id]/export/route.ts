@@ -26,6 +26,8 @@ interface SlideRecord {
   id: string
   title: string
   pptx_url: string | null
+  page_index: number | null
+  page_count: number | null
   editable_fields: EditableField[]
 }
 
@@ -89,7 +91,7 @@ export async function POST(
   if (slideIds.length > 0) {
     const { data: slidesData, error: slidesError } = await supabase
       .from('slides')
-      .select('id, title, pptx_url, editable_fields')
+      .select('id, title, pptx_url, page_index, page_count, editable_fields')
       .in('id', slideIds)
       .eq('tenant_id', profile.tenant_id)
 
@@ -117,6 +119,8 @@ export async function POST(
   }
 
   // Download and process each slide in tray order
+  // Cache PPTX downloads by URL to avoid re-downloading the same multi-page file
+  const pptxCache = new Map<string, ArrayBuffer>()
   const processedBuffers: Uint8Array[] = []
 
   for (const item of trayItems) {
@@ -146,40 +150,49 @@ export async function POST(
       continue
     }
 
-    // Library slide
+    // Library slide — skip if deleted or missing PPTX
     const slide = slideMap.get(item.slide_id)
-    if (!slide) {
-      return NextResponse.json(
-        { error: `Slide "${item.slide_id}" not found` },
-        { status: 422 }
-      )
-    }
-    if (!slide.pptx_url) {
-      return NextResponse.json(
-        { error: `Slide "${slide.title}" has no PPTX file attached` },
-        { status: 422 }
-      )
+    if (!slide || !slide.pptx_url) {
+      continue
     }
 
-    // Download from Supabase Storage
-    const storagePath = `${profile.tenant_id}/${slide.id}/original.pptx`
-    const { data: fileData, error: storageError } = await supabase.storage
-      .from('slides')
-      .download(storagePath)
-
-    if (storageError || !fileData) {
-      return NextResponse.json(
-        { error: `Could not download "${slide.title}". Please try again.` },
-        { status: 502 }
-      )
+    // Download PPTX from signed URL (with caching for multi-page files)
+    let fullBuffer = pptxCache.get(slide.pptx_url)
+    if (!fullBuffer) {
+      const downloadRes = await fetch(slide.pptx_url)
+      if (!downloadRes.ok) {
+        return NextResponse.json(
+          { error: `Could not download "${slide.title}". Please try again.` },
+          { status: 502 }
+        )
+      }
+      fullBuffer = await downloadRes.arrayBuffer()
+      pptxCache.set(slide.pptx_url, fullBuffer)
     }
 
-    const buffer = await fileData.arrayBuffer()
+    // Extract single page from multi-page PPTX if needed
+    const pageIndex = slide.page_index ?? 0
+    const pageCount = slide.page_count ?? 1
+    let slideBuffer: ArrayBuffer
+
+    if (pageCount > 1) {
+      slideBuffer = await extractSinglePage(fullBuffer, pageIndex)
+    } else {
+      slideBuffer = fullBuffer
+    }
+
     const fields = Array.isArray(slide.editable_fields) ? slide.editable_fields : []
     const instanceEdits = textEdits[item.id] ?? {}
 
-    const processed = await applyTextEdits(buffer, fields, instanceEdits)
+    const processed = await applyTextEdits(slideBuffer, fields, instanceEdits)
     processedBuffers.push(processed)
+  }
+
+  if (processedBuffers.length === 0) {
+    return NextResponse.json(
+      { error: 'No downloadable slides found. Some slides may have been deleted.' },
+      { status: 400 }
+    )
   }
 
   // Merge all processed slides into one .pptx
@@ -449,6 +462,113 @@ function normalizeCrossRunPlaceholder(
       : `<a:r><a:t>${newText}</a:t></a:r>`
     return pPr ? `${pOpen}${pPr}${newRun}</a:p>` : `${pOpen}${newRun}</a:p>`
   })
+}
+
+/**
+ * Extracts a single page from a multi-page PPTX by presentation order,
+ * returning a new single-slide PPTX. Uses presentation.xml to determine
+ * the actual slide order (file names like slide3.xml don't imply order).
+ */
+async function extractSinglePage(
+  buffer: ArrayBuffer,
+  pageIndex: number
+): Promise<ArrayBuffer> {
+  const srcZip = await JSZip.loadAsync(buffer)
+
+  // Read presentation.xml.rels to map rId → slide file target
+  const presRelsFile = srcZip.file('ppt/_rels/presentation.xml.rels')
+  if (!presRelsFile) throw new Error('Missing presentation.xml.rels')
+  const presRelsXml = await presRelsFile.async('string')
+
+  const ridToTarget = new Map<string, string>()
+  for (const m of presRelsXml.matchAll(/<Relationship[^>]+Id="(rId\d+)"[^>]+Target="([^"]+)"[^>]*\/>/g)) {
+    ridToTarget.set(m[1], m[2])
+  }
+
+  // Read presentation.xml to get slide order from sldIdLst
+  const presFile = srcZip.file('ppt/presentation.xml')
+  if (!presFile) throw new Error('Missing presentation.xml')
+  const presXml = await presFile.async('string')
+
+  const orderedSlideTargets: string[] = []
+  for (const m of presXml.matchAll(/<p:sldId[^>]+r:id="(rId\d+)"[^>]*\/>/g)) {
+    const target = ridToTarget.get(m[1])
+    if (target) orderedSlideTargets.push(target)
+  }
+
+  if (pageIndex >= orderedSlideTargets.length) {
+    throw new Error(`Page ${pageIndex} out of range (${orderedSlideTargets.length} slides)`)
+  }
+
+  // The actual slide file for the requested page index (e.g. "slides/slide7.xml")
+  const targetSlide = orderedSlideTargets[pageIndex]
+  const targetSlidePath = `ppt/${targetSlide}`
+  const targetSlideFileName = targetSlide.replace('slides/', '')
+
+  const slideFile = srcZip.file(targetSlidePath)
+  if (!slideFile) throw new Error(`Slide file ${targetSlidePath} not found`)
+
+  // Build output ZIP
+  const outZip = await JSZip.loadAsync(buffer)
+
+  // Remove all slide XMLs and their rels
+  const allSlideXmls = Object.keys(outZip.files).filter((f) =>
+    /^ppt\/slides\/slide\d+\.xml$/.test(f)
+  )
+  const allSlideRels = Object.keys(outZip.files).filter((f) =>
+    /^ppt\/slides\/_rels\/slide\d+\.xml\.rels$/.test(f)
+  )
+  for (const f of [...allSlideXmls, ...allSlideRels]) outZip.remove(f)
+
+  // Add target slide as slide1.xml
+  const slideContent = await slideFile.async('uint8array')
+  outZip.file('ppt/slides/slide1.xml', slideContent)
+
+  // Copy rels for target slide, renaming to slide1.xml.rels
+  const relsFile = srcZip.file(`ppt/slides/_rels/${targetSlideFileName}.rels`)
+  if (relsFile) {
+    const relsContent = await relsFile.async('uint8array')
+    outZip.file('ppt/slides/_rels/slide1.xml.rels', relsContent)
+  }
+
+  // Fix presentation.xml: keep only one slide reference
+  let newPresXml = presXml.replace(
+    /<p:sldIdLst>[\s\S]*?<\/p:sldIdLst>/,
+    '<p:sldIdLst><p:sldId id="256" r:id="rId2"/></p:sldIdLst>'
+  )
+  outZip.file('ppt/presentation.xml', newPresXml)
+
+  // Fix presentation.xml.rels: keep one slide relationship
+  let newPresRels = presRelsXml.replace(
+    /<Relationship[^>]*Type="[^"]*\/slide"[^>]*\/>\s*/g,
+    ''
+  )
+  const slideRelType =
+    'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide'
+  newPresRels = newPresRels.replace(
+    '</Relationships>',
+    `<Relationship Id="rId2" Type="${slideRelType}" Target="slides/slide1.xml"/>\n</Relationships>`
+  )
+  outZip.file('ppt/_rels/presentation.xml.rels', newPresRels)
+
+  // Fix [Content_Types].xml: keep only slide1 override
+  const ctFile = outZip.file('[Content_Types].xml')
+  if (ctFile) {
+    let ctXml = await ctFile.async('string')
+    ctXml = ctXml.replace(
+      /<Override[^>]*PartName="\/ppt\/slides\/slide\d+\.xml"[^>]*\/>\s*/g,
+      ''
+    )
+    const slideContentType =
+      'application/vnd.openxmlformats-officedocument.presentationml.slide+xml'
+    ctXml = ctXml.replace(
+      '</Types>',
+      `<Override PartName="/ppt/slides/slide1.xml" ContentType="${slideContentType}"/>\n</Types>`
+    )
+    outZip.file('[Content_Types].xml', ctXml)
+  }
+
+  return outZip.generateAsync({ type: 'arraybuffer' })
 }
 
 function escapeRegex(str: string): string {

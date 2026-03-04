@@ -5,10 +5,11 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Briefcase, Clock, Plus, RotateCcw, Share2, Users, X } from 'lucide-react'
+import { Briefcase, Clock, Plus, RotateCcw, Share2, Upload, Users, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ResetLayoutDialog } from '@/components/board/reset-layout-dialog'
 import { useCurrentUser } from '@/hooks/use-current-user'
@@ -204,6 +205,7 @@ function BoardPageInner() {
   // Personal slides state (PROJ-32)
   const [personalSlides, setPersonalSlides] = useState<PersonalSlideRecord[]>([])
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
+  const [fileDragOver, setFileDragOver] = useState(false)
 
   // Personal layout state (PROJ-20)
   const [personalLayout, setPersonalLayout] = useState<PersonalLayout | null>(null)
@@ -1346,6 +1348,25 @@ function BoardPageInner() {
             }
             canvas.onPointerUp()
           }}
+          onDragOver={(e) => {
+            if (projectId && canEdit && e.dataTransfer.types.includes('Files')) {
+              e.preventDefault()
+              setFileDragOver(true)
+            }
+          }}
+          onDragLeave={(e) => {
+            if (e.currentTarget.contains(e.relatedTarget as Node)) return
+            setFileDragOver(false)
+          }}
+          onDrop={(e) => {
+            setFileDragOver(false)
+            if (!projectId || !canEdit) return
+            const file = e.dataTransfer.files[0]
+            if (file?.name.endsWith('.pptx')) {
+              e.preventDefault()
+              setUploadDialogOpen(true)
+            }
+          }}
         >
           {/* Canvas world */}
           <div
@@ -1471,90 +1492,122 @@ function BoardPageInner() {
           )}
 
           {/* Top-right toolbar: personal layout + share */}
-          <div data-no-pan className="absolute top-4 right-4 z-10 flex items-center gap-2">
-            {/* Personal layout controls */}
-            {hasPersonalLayout && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 bg-background/80 backdrop-blur-sm"
-                onClick={() => setResetDialogOpen(true)}
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                {t('board.reset_layout')}
-              </Button>
-            )}
-            {!addingGroup ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 bg-background/80 backdrop-blur-sm"
-                onClick={() => setAddingGroup(true)}
-              >
-                <Plus className="h-3.5 w-3.5" />
-                {t('board.add_group')}
-              </Button>
-            ) : (
-              <div className="flex items-center gap-1 bg-background/80 backdrop-blur-sm rounded-md border px-1">
-                <Input
-                  className="h-7 w-36 text-xs border-0 shadow-none focus-visible:ring-0"
-                  placeholder={t('board.group_name_placeholder')}
-                  value={newGroupName}
-                  onChange={(e) => setNewGroupName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') addPersonalGroup(); if (e.key === 'Escape') { setAddingGroup(false); setNewGroupName('') } }}
-                  autoFocus
-                />
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={addPersonalGroup}>
-                  <Plus className="h-3.5 w-3.5" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setAddingGroup(false); setNewGroupName('') }}>
-                  <X className="h-3.5 w-3.5" />
-                </Button>
+          <TooltipProvider delayDuration={300}>
+            <div data-no-pan className="absolute top-4 right-4 z-10 flex items-center gap-1">
+              {/* Personal layout controls */}
+              {hasPersonalLayout && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+                      onClick={() => setResetDialogOpen(true)}
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('board.reset_layout')}</TooltipContent>
+                </Tooltip>
+              )}
+              {!addingGroup ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+                      onClick={() => setAddingGroup(true)}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('board.add_group')}</TooltipContent>
+                </Tooltip>
+              ) : (
+                <div className="flex items-center gap-1 bg-background/80 backdrop-blur-sm rounded-md border px-1">
+                  <Input
+                    className="h-7 w-36 text-xs border-0 shadow-none focus-visible:ring-0"
+                    placeholder={t('board.group_name_placeholder')}
+                    value={newGroupName}
+                    onChange={(e) => setNewGroupName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') addPersonalGroup(); if (e.key === 'Escape') { setAddingGroup(false); setNewGroupName('') } }}
+                    autoFocus
+                  />
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={addPersonalGroup}>
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setAddingGroup(false); setNewGroupName('') }}>
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+              {/* Version history button (PROJ-38) */}
+              {projectId && canEdit && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+                      onClick={() => setVersionHistoryOpen(true)}
+                      aria-label={t('board.open_version_history')}
+                    >
+                      <Clock className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('version_history.title')}</TooltipContent>
+                </Tooltip>
+              )}
+              {/* Share controls */}
+              {projectId && !canEdit && (
+                <Badge variant="outline" className="gap-1 bg-background/80 backdrop-blur-sm">
+                  <Users className="h-3 w-3" />
+                  {t('project_card.shared_badge')}
+                </Badge>
+              )}
+              {projectId && canEdit && (
+                <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+                        onClick={() => setCrmDialogOpen(true)}
+                      >
+                        <Briefcase className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('crm.button')}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+                        onClick={handleOpenSharePanel}
+                      >
+                        <Share2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('board.share')}</TooltipContent>
+                  </Tooltip>
+                </>
+              )}
+            </div>
+          </TooltipProvider>
+
+          {/* File drag-and-drop overlay */}
+          {fileDragOver && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-primary/10 border-2 border-dashed border-primary rounded-lg pointer-events-none">
+              <div className="flex flex-col items-center gap-2 bg-background/90 rounded-lg px-6 py-4 shadow-lg">
+                <Upload className="h-8 w-8 text-primary" />
+                <p className="text-sm font-medium text-primary">{t('slides.drop_pptx_here', 'Drop .pptx file to upload')}</p>
               </div>
-            )}
-            {/* Version history button (PROJ-38) */}
-            {projectId && canEdit && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 bg-background/80 backdrop-blur-sm"
-                onClick={() => setVersionHistoryOpen(true)}
-                aria-label={t('board.open_version_history')}
-              >
-                <Clock className="h-3.5 w-3.5" />
-                {t('version_history.title')}
-              </Button>
-            )}
-            {/* Share controls */}
-            {projectId && !canEdit && (
-              <Badge variant="outline" className="gap-1 bg-background/80 backdrop-blur-sm">
-                <Users className="h-3 w-3" />
-                {t('project_card.shared_badge')}
-              </Badge>
-            )}
-            {projectId && canEdit && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 bg-background/80 backdrop-blur-sm"
-                  onClick={() => setCrmDialogOpen(true)}
-                >
-                  <Briefcase className="h-3.5 w-3.5" />
-                  {t('crm.button')}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 bg-background/80 backdrop-blur-sm"
-                  onClick={handleOpenSharePanel}
-                >
-                  <Share2 className="h-3.5 w-3.5" />
-                  {t('board.share')}
-                </Button>
-              </>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Zoom controls */}
           <div data-no-pan className="absolute bottom-4 right-4 z-10">
