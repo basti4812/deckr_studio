@@ -169,7 +169,6 @@ interface BoardDataState {
 
 type BoardDataAction =
   | { type: 'SET_BOARD_DATA'; slides: Slide[]; groups: SlideGroup[]; memberships: Membership[] }
-  | { type: 'SET_LOADING'; loading: boolean }
   | { type: 'UPDATE_GROUP'; groupId: string; update: Partial<SlideGroup> }
 
 const initialBoardData: BoardDataState = {
@@ -183,8 +182,6 @@ function boardDataReducer(state: BoardDataState, action: BoardDataAction): Board
   switch (action.type) {
     case 'SET_BOARD_DATA':
       return { ...state, slides: action.slides, groups: action.groups, memberships: action.memberships, loading: false }
-    case 'SET_LOADING':
-      return { ...state, loading: action.loading }
     case 'UPDATE_GROUP':
       return { ...state, groups: state.groups.map((g) => g.id === action.groupId ? { ...g, ...action.update } : g) }
     default:
@@ -1311,28 +1308,36 @@ function BoardPageInner() {
   // Render
   // -------------------------------------------------------------------------
 
-  const sections = buildSections()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const sections = useMemo(() => buildSections(), [slides, groups, memberships, personalLayout])
 
   // --- Search + filter ---
   const isFiltering = debouncedQuery.length > 0 || activeFilters.groups.length > 0 || activeFilters.tags.length > 0 || activeFilters.statuses.length > 0
 
-  const filteredSections = sections.map((section) => {
-    if (activeFilters.groups.length > 0 && !activeFilters.groups.includes(section.name)) {
-      return { ...section, slides: [] as Slide[] }
-    }
-    const filteredSlides = section.slides.filter((slide) => {
-      if (debouncedQuery) {
-        const q = debouncedQuery.toLowerCase()
-        if (!slide.title.toLowerCase().includes(q) && !(slide.tags ?? []).some((t) => t.toLowerCase().includes(q))) return false
-      }
-      if (activeFilters.tags.length > 0 && !(slide.tags ?? []).some((t) => activeFilters.tags.includes(t))) return false
-      if (activeFilters.statuses.length > 0 && !activeFilters.statuses.includes(slide.status)) return false
-      return true
-    })
-    return { ...section, slides: filteredSlides }
-  })
+  const filteredSections = useMemo(() => {
+    if (!isFiltering) return sections
 
-  const displaySections = isFiltering ? filteredSections.filter((s) => s.slides.length > 0) : sections
+    return sections.map((section) => {
+      if (activeFilters.groups.length > 0 && !activeFilters.groups.includes(section.name)) {
+        return { ...section, slides: [] as Slide[] }
+      }
+      const filteredSlides = section.slides.filter((slide) => {
+        if (debouncedQuery) {
+          const q = debouncedQuery.toLowerCase()
+          if (!slide.title.toLowerCase().includes(q) && !(slide.tags ?? []).some((t) => t.toLowerCase().includes(q))) return false
+        }
+        if (activeFilters.tags.length > 0 && !(slide.tags ?? []).some((t) => activeFilters.tags.includes(t))) return false
+        if (activeFilters.statuses.length > 0 && !activeFilters.statuses.includes(slide.status)) return false
+        return true
+      })
+      return { ...section, slides: filteredSlides }
+    })
+  }, [sections, isFiltering, debouncedQuery, activeFilters])
+
+  const displaySections = useMemo(
+    () => isFiltering ? filteredSections.filter((s) => s.slides.length > 0) : sections,
+    [isFiltering, filteredSections, sections]
+  )
   const totalCount = slides.length
   const resultCount = filteredSections.reduce((acc, s) => acc + s.slides.length, 0)
   const filterCount = activeFilters.groups.length + activeFilters.tags.length + activeFilters.statuses.length
@@ -1341,29 +1346,18 @@ function BoardPageInner() {
 
   const { w: worldW, h: worldH } = calcWorldSize(isFiltering ? displaySections : sections, collapsedGroups)
 
-  // Virtualization: only render groups visible in the viewport (+ buffer)
-  const VIRTUALIZATION_BUFFER = 400 // pixels in world coordinates
-  const groupWidth = COLS * CARD_WIDTH + (COLS - 1) * GAP
-  const visibleSections = useMemo(() => {
-    if (!containerRef.current || displaySections.length <= 5) return displaySections
-    const rect = containerRef.current.getBoundingClientRect()
-    const viewLeft = -canvas.panX / canvas.zoom - VIRTUALIZATION_BUFFER
-    const viewTop = -canvas.panY / canvas.zoom - VIRTUALIZATION_BUFFER
-    const viewRight = (-canvas.panX + rect.width) / canvas.zoom + VIRTUALIZATION_BUFFER
-    const viewBottom = (-canvas.panY + rect.height) / canvas.zoom + VIRTUALIZATION_BUFFER
-
-    return displaySections.filter((section) => {
-      const count = section.slides.length
-      const isCollapsed = collapsedGroups.has(section.id)
-      const sectionHeight = calcGroupHeight(count, isCollapsed)
-      const sRight = section.x + groupWidth
-      const sBottom = section.y + sectionHeight
-
-      // AABB intersection test
-      return sRight >= viewLeft && section.x <= viewRight && sBottom >= viewTop && section.y <= viewBottom
+  // Track container size for virtualization (resize-aware)
+  const [containerSize, setContainerSize] = useState({ w: 0, h: 0 })
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const ro = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect
+      setContainerSize((prev) => prev.w === width && prev.h === height ? prev : { w: width, h: height })
     })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displaySections, canvas.panX, canvas.panY, canvas.zoom, collapsedGroups])
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   // Move targets = all groups (admin + personal) for context menu
   const moveTargets = sections.map((s) => ({ id: s.id, name: s.name }))
@@ -1435,6 +1429,32 @@ function BoardPageInner() {
     panY: canvas.panY,
     onDragEnd: handleDragEnd,
   })
+
+  // Virtualization: only render groups visible in the viewport (+ buffer)
+  const VIRTUALIZATION_BUFFER = 400 // pixels in world coordinates
+  const groupWidth = COLS * CARD_WIDTH + (COLS - 1) * GAP
+  const draggedGroupId = canvasDrag.activeDrag?.target.type === 'group' ? canvasDrag.activeDrag.target.id : null
+  const visibleSections = useMemo(() => {
+    if (containerSize.w === 0 || displaySections.length <= 5) return displaySections
+    const viewLeft = -canvas.panX / canvas.zoom - VIRTUALIZATION_BUFFER
+    const viewTop = -canvas.panY / canvas.zoom - VIRTUALIZATION_BUFFER
+    const viewRight = (-canvas.panX + containerSize.w) / canvas.zoom + VIRTUALIZATION_BUFFER
+    const viewBottom = (-canvas.panY + containerSize.h) / canvas.zoom + VIRTUALIZATION_BUFFER
+
+    return displaySections.filter((section) => {
+      // Always keep the actively-dragged group visible
+      if (section.id === draggedGroupId) return true
+
+      const count = section.slides.length
+      const isCollapsed = collapsedGroups.has(section.id)
+      const sectionHeight = calcGroupHeight(count, isCollapsed)
+      const sRight = section.x + groupWidth
+      const sBottom = section.y + sectionHeight
+
+      // AABB intersection test
+      return sRight >= viewLeft && section.x <= viewRight && sBottom >= viewTop && section.y <= viewBottom
+    })
+  }, [displaySections, canvas.panX, canvas.panY, canvas.zoom, collapsedGroups, containerSize, draggedGroupId])
 
   return (
     <>
