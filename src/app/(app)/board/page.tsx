@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Briefcase, Clock, Plus, RotateCcw, Share2, Upload, Users, X } from 'lucide-react'
+import { Briefcase, ChevronsDownUp, ChevronsUpDown, Clock, Maximize2, Minimize2, Plus, RotateCcw, Share2, Upload, Users, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -47,6 +47,7 @@ import { checkFillStatus, type UnfilledField } from '@/lib/fill-check'
 import type { Slide } from '@/components/slides/slide-card'
 import { MobileProjectView } from '@/components/board/mobile-project-view'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useBoardFullscreen } from '@/providers/fullscreen-provider'
 
 // ---------------------------------------------------------------------------
 // Layout constants
@@ -57,23 +58,27 @@ const GAP = AUTO_GAP
 const PADDING = AUTO_PADDING
 const BETWEEN_GROUPS = AUTO_BETWEEN_GROUPS
 
-function calcGroupHeight(slideCount: number) {
-  return autoCalcGroupHeight(slideCount)
+function calcGroupHeight(slideCount: number, collapsed?: boolean) {
+  return autoCalcGroupHeight(slideCount, collapsed)
 }
 
 /**
  * Compute the canvas world size from positioned sections.
  * Uses the bounding box of all groups instead of vertical stacking.
  */
-function calcWorldSize(sections: { slides: { length: number } | Slide[]; x: number; y: number }[]) {
+function calcWorldSize(
+  sections: { slides: { length: number } | Slide[]; x: number; y: number; id?: string }[],
+  collapsedGroups?: Set<string>
+) {
   const groupWidth = COLS * CARD_WIDTH + (COLS - 1) * GAP
   let maxRight = 0
   let maxBottom = 0
 
   for (const s of sections) {
     const count = Array.isArray(s.slides) ? s.slides.length : 0
+    const isCollapsed = s.id ? collapsedGroups?.has(s.id) : false
     const right = s.x + groupWidth
-    const bottom = s.y + calcGroupHeight(count)
+    const bottom = s.y + calcGroupHeight(count, isCollapsed)
     if (right > maxRight) maxRight = right
     if (bottom > maxBottom) maxBottom = bottom
   }
@@ -169,6 +174,7 @@ function BoardPageInner() {
   const searchParams = useSearchParams()
   const projectId = searchParams.get('project')
   const isMobile = useIsMobile()
+  const { isFullscreen: isBoardFullscreen, toggleFullscreen: toggleBoardFullscreen } = useBoardFullscreen()
 
   const [slides, setSlides] = useState<Slide[]>([])
   const [groups, setGroups] = useState<SlideGroup[]>([])
@@ -231,6 +237,52 @@ function BoardPageInner() {
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({ groups: [], tags: [], statuses: [] })
+
+  // Collapsed groups state (persisted to localStorage)
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set<string>()
+    try {
+      const stored = localStorage.getItem(`deckr-collapsed-groups-${projectId ?? 'board'}`)
+      return stored ? new Set(JSON.parse(stored) as string[]) : new Set<string>()
+    } catch {
+      return new Set<string>()
+    }
+  })
+
+  const toggleGroupCollapse = useCallback((groupId: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev)
+      if (next.has(groupId)) next.delete(groupId)
+      else next.add(groupId)
+      try {
+        localStorage.setItem(
+          `deckr-collapsed-groups-${projectId ?? 'board'}`,
+          JSON.stringify([...next])
+        )
+      } catch { /* quota exceeded */ }
+      return next
+    })
+  }, [projectId])
+
+  const collapseAll = useCallback(() => {
+    const sections = buildSections()
+    const allIds = new Set(sections.map((s) => s.id))
+    setCollapsedGroups(allIds)
+    try {
+      localStorage.setItem(
+        `deckr-collapsed-groups-${projectId ?? 'board'}`,
+        JSON.stringify([...allIds])
+      )
+    } catch { /* quota exceeded */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, slides, groups, memberships, personalLayout])
+
+  const expandAll = useCallback(() => {
+    setCollapsedGroups(new Set())
+    try {
+      localStorage.removeItem(`deckr-collapsed-groups-${projectId ?? 'board'}`)
+    } catch { /* ignore */ }
+  }, [projectId])
 
   // Derived permission state
   const isProjectOwner = project ? project.owner_id === userId : true
@@ -1172,7 +1224,7 @@ function BoardPageInner() {
     if (loading || didFit.current || !containerRef.current) return
     didFit.current = true
     const sections = buildSections()
-    const { w, h } = calcWorldSize(sections)
+    const { w, h } = calcWorldSize(sections, collapsedGroups)
     const rect = containerRef.current.getBoundingClientRect()
     canvas.fitToScreen(w, h, rect.width, rect.height)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1181,11 +1233,34 @@ function BoardPageInner() {
   const handleFit = useCallback(() => {
     if (!containerRef.current) return
     const sections = buildSections()
-    const { w, h } = calcWorldSize(sections)
+    const { w, h } = calcWorldSize(sections, collapsedGroups)
     const rect = containerRef.current.getBoundingClientRect()
     canvas.fitToScreen(w, h, rect.width, rect.height)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slides, groups, memberships, canvas])
+  }, [slides, groups, memberships, canvas, collapsedGroups])
+
+  // Re-fit canvas when entering/exiting board fullscreen
+  useEffect(() => {
+    // Small delay to let layout transition complete
+    const timer = setTimeout(() => handleFit(), 100)
+    return () => clearTimeout(timer)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBoardFullscreen])
+
+  // Keyboard shortcut: F to toggle board fullscreen (only when no input focused)
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'f' || e.key === 'F') {
+        if (presentationMode) return
+        const tag = (e.target as HTMLElement).tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable) return
+        e.preventDefault()
+        toggleBoardFullscreen()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [toggleBoardFullscreen, presentationMode])
 
   // -------------------------------------------------------------------------
   // Render
@@ -1219,7 +1294,7 @@ function BoardPageInner() {
   const allTags = Array.from(new Set(slides.flatMap((s) => s.tags ?? []))).sort()
   const allGroupNames = sections.map((s) => s.name)
 
-  const { w: worldW, h: worldH } = calcWorldSize(isFiltering ? displaySections : sections)
+  const { w: worldW, h: worldH } = calcWorldSize(isFiltering ? displaySections : sections, collapsedGroups)
 
   // Move targets = all groups (admin + personal) for context menu
   const moveTargets = sections.map((s) => ({ id: s.id, name: s.name }))
@@ -1453,6 +1528,8 @@ function BoardPageInner() {
                         containerRef.current.getBoundingClientRect()
                       )
                     }}
+                    isCollapsed={collapsedGroups.has(section.id)}
+                    onToggleCollapse={() => toggleGroupCollapse(section.id)}
                   />
                 )
               })
@@ -1494,6 +1571,49 @@ function BoardPageInner() {
           {/* Top-right toolbar: personal layout + share */}
           <TooltipProvider delayDuration={300}>
             <div data-no-pan className="absolute top-4 right-4 z-10 flex items-center gap-1">
+              {/* Board fullscreen toggle */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+                    onClick={toggleBoardFullscreen}
+                  >
+                    {isBoardFullscreen
+                      ? <Minimize2 className="h-3.5 w-3.5" />
+                      : <Maximize2 className="h-3.5 w-3.5" />
+                    }
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {isBoardFullscreen
+                    ? t('board.exit_fullscreen', 'Exit fullscreen (F)')
+                    : t('board.enter_fullscreen', 'Fullscreen (F)')
+                  }
+                </TooltipContent>
+              </Tooltip>
+              {/* Collapse/Expand all groups */}
+              {!loading && sections.length > 1 && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+                      onClick={collapsedGroups.size > 0 ? expandAll : collapseAll}
+                    >
+                      {collapsedGroups.size > 0
+                        ? <ChevronsUpDown className="h-3.5 w-3.5" />
+                        : <ChevronsDownUp className="h-3.5 w-3.5" />
+                      }
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {collapsedGroups.size > 0 ? t('board.expand_all', 'Expand all') : t('board.collapse_all', 'Collapse all')}
+                  </TooltipContent>
+                </Tooltip>
+              )}
               {/* Personal layout controls */}
               {hasPersonalLayout && (
                 <Tooltip>
