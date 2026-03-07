@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslation } from 'react-i18next'
@@ -157,6 +157,42 @@ interface BoardSection {
 }
 
 // ---------------------------------------------------------------------------
+// Board data reducer — groups tightly-coupled data state
+// ---------------------------------------------------------------------------
+
+interface BoardDataState {
+  slides: Slide[]
+  groups: SlideGroup[]
+  memberships: Membership[]
+  loading: boolean
+}
+
+type BoardDataAction =
+  | { type: 'SET_BOARD_DATA'; slides: Slide[]; groups: SlideGroup[]; memberships: Membership[] }
+  | { type: 'SET_LOADING'; loading: boolean }
+  | { type: 'UPDATE_GROUP'; groupId: string; update: Partial<SlideGroup> }
+
+const initialBoardData: BoardDataState = {
+  slides: [],
+  groups: [],
+  memberships: [],
+  loading: true,
+}
+
+function boardDataReducer(state: BoardDataState, action: BoardDataAction): BoardDataState {
+  switch (action.type) {
+    case 'SET_BOARD_DATA':
+      return { ...state, slides: action.slides, groups: action.groups, memberships: action.memberships, loading: false }
+    case 'SET_LOADING':
+      return { ...state, loading: action.loading }
+    case 'UPDATE_GROUP':
+      return { ...state, groups: state.groups.map((g) => g.id === action.groupId ? { ...g, ...action.update } : g) }
+    default:
+      return state
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Board page
 // ---------------------------------------------------------------------------
 
@@ -177,10 +213,8 @@ function BoardPageInner() {
   const isMobile = useIsMobile()
   const { isFullscreen: isBoardFullscreen, toggleFullscreen: toggleBoardFullscreen } = useBoardFullscreen()
 
-  const [slides, setSlides] = useState<Slide[]>([])
-  const [groups, setGroups] = useState<SlideGroup[]>([])
-  const [memberships, setMemberships] = useState<Membership[]>([])
-  const [loading, setLoading] = useState(true)
+  const [boardData, dispatchBoard] = useReducer(boardDataReducer, initialBoardData)
+  const { slides, groups, memberships, loading } = boardData
 
   // Project / tray state
   const [project, setProject] = useState<Project | null>(null)
@@ -320,14 +354,18 @@ function BoardPageInner() {
         fetch('/api/board/layout', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
       ])
 
+      let newSlides: Slide[] = []
+      let newGroups: SlideGroup[] = []
+      let newMemberships: Membership[] = []
+
       if (slidesRes?.ok) {
         const d = await slidesRes.json()
-        setSlides(d.slides ?? [])
+        newSlides = d.slides ?? []
       }
       if (groupsRes?.ok) {
         const d = await groupsRes.json()
-        setGroups(d.groups ?? [])
-        setMemberships(d.memberships ?? [])
+        newGroups = d.groups ?? []
+        newMemberships = d.memberships ?? []
       }
       if (layoutRes?.ok) {
         const d = await layoutRes.json()
@@ -337,7 +375,7 @@ function BoardPageInner() {
           layoutRef.current = d.layout
         }
       }
-      setLoading(false)
+      dispatchBoard({ type: 'SET_BOARD_DATA', slides: newSlides, groups: newGroups, memberships: newMemberships })
     }
 
     load()
@@ -1204,10 +1242,10 @@ function BoardPageInner() {
   }
 
   // Slide lookup map for tray
-  const slideMap = new Map(slides.map((s) => [s.id, s]))
+  const slideMap = useMemo(() => new Map(slides.map((s) => [s.id, s])), [slides])
 
   // Personal slides lookup map for tray (PROJ-32)
-  const personalSlidesMap = new Map(personalSlides.map((s) => [s.id, s]))
+  const personalSlidesMap = useMemo(() => new Map(personalSlides.map((s) => [s.id, s])), [personalSlides])
 
   // Slides in tray order for presentation mode
   const presentationSlides: PresentationSlide[] = trayItems.flatMap((item) => {
@@ -1303,6 +1341,30 @@ function BoardPageInner() {
 
   const { w: worldW, h: worldH } = calcWorldSize(isFiltering ? displaySections : sections, collapsedGroups)
 
+  // Virtualization: only render groups visible in the viewport (+ buffer)
+  const VIRTUALIZATION_BUFFER = 400 // pixels in world coordinates
+  const groupWidth = COLS * CARD_WIDTH + (COLS - 1) * GAP
+  const visibleSections = useMemo(() => {
+    if (!containerRef.current || displaySections.length <= 5) return displaySections
+    const rect = containerRef.current.getBoundingClientRect()
+    const viewLeft = -canvas.panX / canvas.zoom - VIRTUALIZATION_BUFFER
+    const viewTop = -canvas.panY / canvas.zoom - VIRTUALIZATION_BUFFER
+    const viewRight = (-canvas.panX + rect.width) / canvas.zoom + VIRTUALIZATION_BUFFER
+    const viewBottom = (-canvas.panY + rect.height) / canvas.zoom + VIRTUALIZATION_BUFFER
+
+    return displaySections.filter((section) => {
+      const count = section.slides.length
+      const isCollapsed = collapsedGroups.has(section.id)
+      const sectionHeight = calcGroupHeight(count, isCollapsed)
+      const sRight = section.x + groupWidth
+      const sBottom = section.y + sectionHeight
+
+      // AABB intersection test
+      return sRight >= viewLeft && section.x <= viewRight && sBottom >= viewTop && section.y <= viewBottom
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displaySections, canvas.panX, canvas.panY, canvas.zoom, collapsedGroups])
+
   // Move targets = all groups (admin + personal) for context menu
   const moveTargets = sections.map((s) => ({ id: s.id, name: s.name }))
   const overriddenSlideIds = new Set(Object.keys(personalLayout?.slideOverrides ?? {}))
@@ -1345,7 +1407,7 @@ function BoardPageInner() {
       }).catch(() => {})
 
       // Update local state
-      setGroups((prev) => prev.map((g) => g.id === groupId ? { ...g, x: newX, y: newY } : g))
+      dispatchBoard({ type: 'UPDATE_GROUP', groupId, update: { x: newX, y: newY } })
     } else if (isPersonalGroup) {
       // Personal group: persist to personal layout
       updateLayout((prev) => ({
@@ -1497,7 +1559,7 @@ function BoardPageInner() {
                 <p className="text-xs text-muted-foreground">{t('board.try_different_keywords')}</p>
               </div>
             ) : (
-              displaySections.map((section) => {
+              visibleSections.map((section) => {
                 const isDragTarget =
                   canvasDrag.activeDrag?.target.type === 'group' &&
                   canvasDrag.activeDrag.target.id === section.id
