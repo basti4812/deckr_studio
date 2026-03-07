@@ -29,9 +29,9 @@ export function ViewerError({ type }: { type: ViewerErrorType }) {
   const { title, description } = config[type]
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+    <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="text-center space-y-3 px-6">
-        <h1 className="text-2xl font-semibold text-gray-900">{title}</h1>
+        <h1 className="font-heading text-2xl font-semibold text-foreground">{title}</h1>
         <p className="text-sm text-gray-500 max-w-sm mx-auto">{description}</p>
       </div>
     </div>

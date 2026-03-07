@@ -396,7 +396,7 @@ export default function TeamManagementPage() {
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">
             {t('admin.team_management')}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">

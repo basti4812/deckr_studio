@@ -450,7 +450,7 @@ export default function BillingPage() {
     return (
       <div className="space-y-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Billing</h1>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">Billing</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Manage your subscription, seats, payment method, and view invoices.
           </p>
@@ -483,7 +483,7 @@ export default function BillingPage() {
       <div className="space-y-6">
         {/* Page Header */}
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Billing</h1>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">Billing</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Manage your subscription, seats, payment method, and view invoices
             for your organization.

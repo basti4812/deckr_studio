@@ -281,7 +281,7 @@ export default function ActivityLogPage() {
     <TooltipProvider>
       {/* Page Header */}
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{t('admin.activity_log')}</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">{t('admin.activity_log')}</h1>
         <p className="text-sm text-muted-foreground">{t('admin.activity_log_description')}</p>
       </div>
 

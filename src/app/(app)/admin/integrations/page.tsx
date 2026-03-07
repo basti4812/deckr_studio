@@ -79,7 +79,7 @@ export default function IntegrationsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{t('admin.integrations')}</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">{t('admin.integrations')}</h1>
         <p className="text-sm text-muted-foreground">{t('admin.integrations_description')}</p>
       </div>
 

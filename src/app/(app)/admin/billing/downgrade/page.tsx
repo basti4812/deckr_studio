@@ -13,7 +13,7 @@ export default function DowngradePage() {
             Back to Billing
           </Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">
           Downgrade Plan
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">

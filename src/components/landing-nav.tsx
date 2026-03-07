@@ -25,21 +25,20 @@ export function LandingNav() {
   }, [])
 
   const navLinks = [
-    { label: t('landing.features_nav'), href: '#features' },
-    { label: t('landing.how_it_works_nav'), href: '#how-it-works' },
-    { label: t('landing.pricing_nav'), href: '#pricing' },
+    { label: 'Product', href: '#how-it-works' },
+    { label: 'Pricing', href: '#pricing' },
   ]
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-gray-950/95 backdrop-blur supports-[backdrop-filter]:bg-gray-950/80">
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold select-none">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground text-xs font-bold select-none">
             D
           </div>
-          <span className="text-sm font-semibold tracking-tight text-white">
-            deckr Studio
+          <span className="text-sm font-semibold tracking-tight text-foreground">
+            deckr
           </span>
         </Link>
 
@@ -49,7 +48,7 @@ export function LandingNav() {
             <a
               key={link.href}
               href={link.href}
-              className="text-sm text-gray-400 transition-colors hover:text-white"
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               {link.label}
             </a>
@@ -59,15 +58,15 @@ export function LandingNav() {
         {/* Desktop actions */}
         <div className="hidden items-center gap-3 md:flex">
           {loggedIn ? (
-            <Button size="sm" asChild>
+            <Button size="sm" className="rounded-lg" asChild>
               <Link href="/home">{t('landing.open_app')}</Link>
             </Button>
           ) : (
             <>
-              <Button variant="ghost" size="sm" asChild className="text-gray-300 hover:text-white hover:bg-white/10">
+              <Button variant="ghost" size="sm" asChild className="text-muted-foreground hover:text-foreground">
                 <Link href="/login">{t('landing.log_in')}</Link>
               </Button>
-              <Button size="sm" asChild>
+              <Button size="sm" className="rounded-lg" asChild>
                 <Link href="/register">{t('landing.start_free_trial_btn')}</Link>
               </Button>
             </>
@@ -77,23 +76,23 @@ export function LandingNav() {
         {/* Mobile hamburger */}
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="md:hidden text-gray-300 hover:text-white hover:bg-white/10">
+            <Button variant="ghost" size="icon" className="md:hidden text-muted-foreground hover:text-foreground">
               <Menu className="h-5 w-5" />
               <span className="sr-only">Open menu</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" className="w-72 bg-gray-950 border-white/10">
+          <SheetContent side="right" className="w-72 bg-background border-border">
             <div className="flex flex-col gap-6 pt-6">
               <Link
                 href="/"
                 className="flex items-center gap-2"
                 onClick={() => setOpen(false)}
               >
-                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold select-none">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground text-xs font-bold select-none">
                   D
                 </div>
-                <span className="text-sm font-semibold tracking-tight text-white">
-                  deckr Studio
+                <span className="text-sm font-semibold tracking-tight text-foreground">
+                  deckr
                 </span>
               </Link>
               <nav className="flex flex-col gap-4">
@@ -101,24 +100,24 @@ export function LandingNav() {
                   <a
                     key={link.href}
                     href={link.href}
-                    className="text-sm text-gray-400 transition-colors hover:text-white"
+                    className="text-sm text-muted-foreground transition-colors hover:text-foreground"
                     onClick={() => setOpen(false)}
                   >
                     {link.label}
                   </a>
                 ))}
               </nav>
-              <div className="flex flex-col gap-3 border-t border-white/10 pt-4">
+              <div className="flex flex-col gap-3 border-t border-border pt-4">
                 {loggedIn ? (
-                  <Button asChild>
+                  <Button className="rounded-lg" asChild>
                     <Link href="/home" onClick={() => setOpen(false)}>{t('landing.open_app')}</Link>
                   </Button>
                 ) : (
                   <>
-                    <Button variant="ghost" asChild className="justify-start text-gray-300 hover:text-white hover:bg-white/10">
+                    <Button variant="ghost" asChild className="justify-start text-muted-foreground hover:text-foreground">
                       <Link href="/login" onClick={() => setOpen(false)}>{t('landing.log_in')}</Link>
                     </Button>
-                    <Button asChild>
+                    <Button className="rounded-lg" asChild>
                       <Link href="/register" onClick={() => setOpen(false)}>{t('landing.start_free_trial_btn')}</Link>
                     </Button>
                   </>

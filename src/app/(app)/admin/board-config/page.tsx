@@ -196,7 +196,7 @@ export default function BoardConfigPage() {
     <>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Board Layout</h1>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">Board Layout</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Organize slides into named sections. This layout is shown to all users on the board.
           </p>

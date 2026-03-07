@@ -13,7 +13,7 @@ export default function UpgradePage() {
             Back to Billing
           </Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">Upgrade Plan</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">Upgrade Plan</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Choose a higher plan to unlock more features and seats.
         </p>

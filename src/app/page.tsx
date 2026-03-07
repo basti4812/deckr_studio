@@ -1,434 +1,727 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import {
-  BookOpen,
+  ArrowDown,
+  ArrowRight,
   Check,
-  FileDown,
-  LayoutDashboard,
-  ShieldCheck,
-  Zap,
+  Clock,
+  FolderOpen,
+  GripVertical,
+  Layers,
+  Shield,
+  Star,
+  Users,
 } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
 import { LandingNav } from '@/components/landing-nav'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+
+// ---------------------------------------------------------------------------
+// Intersection Observer hook for scroll animations
+// ---------------------------------------------------------------------------
+
+function useScrollReveal() {
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('animate-fade-in-up')
+            entry.target.classList.remove('opacity-0')
+            observer.unobserve(entry.target)
+          }
+        })
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+    )
+
+    const children = el.querySelectorAll('[data-reveal]')
+    children.forEach((child) => observer.observe(child))
+
+    return () => observer.disconnect()
+  }, [])
+
+  return ref
+}
 
 // ---------------------------------------------------------------------------
 // Data
 // ---------------------------------------------------------------------------
 
-const painPointIcons = ['😩', '⏱️', '🤷']
-const painPointKeys = [
-  { title: 'landing.offbrand_title', desc: 'landing.offbrand_desc' },
-  { title: 'landing.wasted_hours_title', desc: 'landing.wasted_hours_desc' },
-  { title: 'landing.version_confusion_title', desc: 'landing.version_confusion_desc' },
+const painPoints = [
+  {
+    before: 'Digging through old decks for that one slide',
+    after: 'Find any slide in 10 seconds',
+  },
+  {
+    before: 'Someone sent an off-brand presentation \u2014 again',
+    after: 'Every deck, locked to your brand',
+  },
+  {
+    before: 'Three hours to prep a 20-slide deck',
+    after: 'Presentation-ready in minutes',
+  },
+  {
+    before: 'No one knows which version is current',
+    after: 'One library. Always up to date.',
+  },
 ]
 
-const featureIcons = [BookOpen, LayoutDashboard, FileDown, ShieldCheck]
-const featureKeys = [
-  { title: 'landing.feature_library', desc: 'landing.feature_library_desc' },
-  { title: 'landing.feature_board', desc: 'landing.feature_board_desc' },
-  { title: 'landing.feature_export', desc: 'landing.feature_export_desc' },
-  { title: 'landing.feature_ci', desc: 'landing.feature_ci_desc' },
+const steps = [
+  {
+    icon: Layers,
+    title: 'Browse your slide library',
+    body: 'All your approved, on-brand slides in one place. Searchable, filterable, always up to date.',
+  },
+  {
+    icon: GripVertical,
+    title: 'Drag & drop to build',
+    body: 'Assemble your presentation like puzzle pieces. Pick the slides you need, arrange them, done.',
+  },
+  {
+    icon: ArrowDown,
+    title: 'Export as PowerPoint',
+    body: 'Download a pixel-perfect .pptx file, ready to present. Fonts, colors, logos \u2014 everything exactly right.',
+  },
 ]
 
-const stepKeys = [
-  { title: 'landing.step1_title', desc: 'landing.step1_desc' },
-  { title: 'landing.step2_title', desc: 'landing.step2_desc' },
-  { title: 'landing.step3_title', desc: 'landing.step3_desc' },
+const benefits = [
+  {
+    icon: Shield,
+    title: 'Always on brand',
+    body: 'Your slides, your colors, your fonts. Locked in \u2014 no matter who builds the deck.',
+  },
+  {
+    icon: Users,
+    title: 'Anyone can do it',
+    body: 'Sales, HR, management \u2014 anyone on your team can build a great deck without design skills.',
+  },
+  {
+    icon: FolderOpen,
+    title: 'One source of truth',
+    body: "No more 'which version is current?' Everyone pulls from the same approved library.",
+  },
+  {
+    icon: Clock,
+    title: 'Done in minutes',
+    body: 'Stop rebuilding presentations from scratch. Your best slides are already waiting for you.',
+  },
 ]
+
+const testimonials = [
+  {
+    quote:
+      'We cut our deck-prep time by 70%. Our sales team used to spend hours on this \u2014 now it\u2019s 15 minutes.',
+    name: 'Sarah K.',
+    role: 'Head of Marketing',
+    company: 'TechCorp GmbH',
+  },
+  {
+    quote:
+      'Finally, no more rogue PowerPoints. Every presentation looks like it came from our design team.',
+    name: 'Marcus T.',
+    role: 'Brand Manager',
+    company: 'Vivo Group',
+  },
+  {
+    quote:
+      'Our onboarding decks used to take a full day. Now our HR team does it in under 20 minutes.',
+    name: 'Julia M.',
+    role: 'People & Culture Lead',
+    company: 'Nordhaus AG',
+  },
+]
+
+const pricingTiers = [
+  {
+    name: 'Starter',
+    price: '0',
+    period: '/ month',
+    description: 'Small teams getting started',
+    features: [
+      'Up to 3 users',
+      '1 slide library',
+      '50 slides',
+      'PowerPoint export',
+    ],
+    cta: 'Get started free',
+    href: '/register',
+    highlighted: false,
+  },
+  {
+    name: 'Team',
+    price: '49',
+    period: '/ month',
+    description: 'Growing marketing & sales teams',
+    features: [
+      'Up to 15 users',
+      'Unlimited libraries',
+      'Unlimited slides',
+      'Analytics',
+      'Priority support',
+    ],
+    cta: 'Start free trial',
+    href: '/register',
+    highlighted: true,
+  },
+  {
+    name: 'Enterprise',
+    price: null,
+    period: null,
+    description: 'Large organizations & agencies',
+    features: [
+      'Unlimited users',
+      'SSO & permissions',
+      'Custom branding',
+      'Dedicated onboarding',
+      'SLA',
+    ],
+    cta: 'Talk to us',
+    href: 'mailto:hello@deckr.studio',
+    highlighted: false,
+  },
+]
+
+// ---------------------------------------------------------------------------
+// Placeholder logos
+// ---------------------------------------------------------------------------
+
+function LogoStrip() {
+  const names = ['Acme', 'Globex', 'Initech', 'Umbrella', 'Stark']
+  return (
+    <div className="flex items-center justify-center gap-8 opacity-40">
+      {names.map((name) => (
+        <span
+          key={name}
+          className="text-sm font-semibold tracking-wider uppercase text-muted-foreground"
+        >
+          {name}
+        </span>
+      ))}
+    </div>
+  )
+}
 
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
 export default function LandingPage() {
-  const { t } = useTranslation()
-
-  const pricingTiers = [
-    {
-      name: t('landing.starter'),
-      price: '9',
-      description: t('landing.starter_desc'),
-      seats: t('landing.starter_seats'),
-      features: [
-        t('landing.unlimited_slides'),
-        t('landing.unlimited_projects'),
-        t('landing.pptx_pdf_export'),
-        t('landing.external_share_links'),
-        t('landing.email_support'),
-      ],
-      cta: t('landing.start_free_trial_btn'),
-      href: '/register',
-      highlighted: false,
-    },
-    {
-      name: t('landing.team'),
-      price: '7',
-      description: t('landing.team_desc'),
-      seats: t('landing.team_seats'),
-      features: [
-        t('landing.everything_in_starter'),
-        t('landing.template_sets'),
-        t('landing.version_history'),
-        t('landing.slide_comments'),
-        t('landing.priority_support'),
-      ],
-      cta: t('landing.start_free_trial_btn'),
-      href: '/register',
-      highlighted: true,
-    },
-    {
-      name: t('landing.enterprise'),
-      price: null,
-      description: t('landing.enterprise_desc'),
-      seats: t('landing.enterprise_seats'),
-      features: [
-        t('landing.everything_in_team'),
-        t('landing.sso'),
-        t('landing.custom_branding'),
-        t('landing.dedicated_onboarding'),
-        t('landing.sla_invoicing'),
-      ],
-      cta: t('landing.contact_us'),
-      href: 'mailto:hello@deckr.studio',
-      highlighted: false,
-    },
-  ]
+  const revealRef = useScrollReveal()
 
   return (
-    <div className="min-h-screen bg-white">
+    <div ref={revealRef} className="min-h-screen bg-background">
       <LandingNav />
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Hero — dark                                                         */}
-      {/* ------------------------------------------------------------------ */}
-      <section className="relative overflow-hidden bg-gray-950 pb-24 pt-20">
-        {/* Background gradient */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 -top-40 flex justify-center"
-        >
-          <div className="h-[600px] w-[800px] rounded-full bg-primary/20 blur-[120px]" />
-        </div>
-
+      {/* ================================================================== */}
+      {/* SECTION 1 · HERO                                                    */}
+      {/* ================================================================== */}
+      <section
+        className="relative overflow-hidden pt-20 pb-24"
+        style={{
+          background:
+            'linear-gradient(180deg, hsl(40 23.1% 97.5%) 0%, hsl(30 34.8% 91%) 100%)',
+        }}
+      >
         <div className="relative mx-auto max-w-6xl px-6 text-center">
-          <Badge variant="secondary" className="mb-6 bg-white/10 text-gray-300 hover:bg-white/10">
-            Presentation management for B2B teams
-          </Badge>
-
-          <h1 className="mx-auto max-w-3xl text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
-            {t('landing.stop_copying_slides')}
+          <h1 className="font-heading text-5xl tracking-tight text-foreground sm:text-6xl lg:text-7xl">
+            Your whole team.
             <br />
-            <span className="text-primary">{t('landing.start_presenting')}</span>
+            <span className="text-primary">Always on brand.</span>
           </h1>
 
-          <p className="mx-auto mt-6 max-w-xl text-lg text-gray-400">
-            {t('landing.main_headline')}
+          <p className="mx-auto mt-6 max-w-xl text-lg text-muted-foreground leading-relaxed">
+            Build perfect presentations from your approved slide library &mdash;
+            in minutes, not hours. No designer needed.
           </p>
 
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Button size="lg" asChild>
-              <Link href="/register">{t('landing.start_free_trial')}</Link>
+            <Button size="lg" className="rounded-lg px-8 text-base" asChild>
+              <Link href="/register">
+                Start for free <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
             </Button>
-            <Button size="lg" variant="outline" asChild className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white">
-              <Link href="/demo">{t('landing.try_the_demo')}</Link>
+            <Button
+              size="lg"
+              variant="ghost"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() =>
+                document
+                  .getElementById('how-it-works')
+                  ?.scrollIntoView({ behavior: 'smooth' })
+              }
+            >
+              See how it works <ArrowDown className="ml-2 h-4 w-4" />
             </Button>
           </div>
 
-          <p className="mt-4 text-xs text-gray-500">{t('landing.no_credit_card')}</p>
-
-          {/* App preview placeholder */}
-          <div className="mx-auto mt-16 max-w-4xl overflow-hidden rounded-xl border border-white/10 bg-gray-900 shadow-2xl">
-            <div className="flex h-8 items-center gap-2 border-b border-white/10 px-4">
-              <div className="h-2.5 w-2.5 rounded-full bg-red-500/60" />
-              <div className="h-2.5 w-2.5 rounded-full bg-yellow-500/60" />
-              <div className="h-2.5 w-2.5 rounded-full bg-green-500/60" />
-              <div className="ml-4 h-4 w-48 rounded bg-white/5" />
+          {/* Social proof */}
+          <div className="mt-8 flex flex-col items-center gap-2">
+            <div className="flex items-center gap-1">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Star
+                  key={i}
+                  className="h-4 w-4 fill-primary text-primary"
+                />
+              ))}
+              <span className="ml-2 text-sm text-muted-foreground">
+                Trusted by 500+ marketing and sales teams
+              </span>
             </div>
-            <div className="grid grid-cols-4 gap-0">
-              {/* Sidebar */}
-              <div className="border-r border-white/10 p-4 space-y-2">
-                {['Home', 'Board', 'Projects', 'Profile'].map((item) => (
-                  <div key={item} className="flex items-center gap-2 rounded-md p-1.5">
-                    <div className="h-3 w-3 rounded bg-white/10" />
-                    <div className="h-2.5 w-16 rounded bg-white/10 text-xs text-gray-500">{item}</div>
-                  </div>
-                ))}
+          </div>
+
+          {/* Hero mockup */}
+          <div className="mx-auto mt-16 max-w-4xl animate-float">
+            <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-warm-lg">
+              {/* Window chrome */}
+              <div className="flex h-10 items-center gap-2 border-b border-border px-4">
+                <div className="h-3 w-3 rounded-full bg-destructive/40" />
+                <div className="h-3 w-3 rounded-full bg-[hsl(var(--warning))]/40" />
+                <div className="h-3 w-3 rounded-full bg-[hsl(var(--success))]/40" />
+                <div className="ml-4 h-4 w-48 rounded-md bg-muted" />
               </div>
-              {/* Main canvas */}
-              <div className="col-span-3 p-6">
-                <div className="mb-4 h-3 w-32 rounded bg-white/10" />
-                <div className="grid grid-cols-3 gap-3">
-                  {Array.from({ length: 9 }).map((_, i) => (
+              {/* App preview */}
+              <div className="grid grid-cols-4 gap-0">
+                {/* Sidebar */}
+                <div className="border-r border-border bg-secondary/50 p-4 space-y-3">
+                  {['Home', 'Board', 'Projects', 'Profile'].map((item) => (
                     <div
-                      key={i}
-                      className="aspect-video rounded-md border border-white/10 bg-gradient-to-br from-white/5 to-white/0"
-                    />
+                      key={item}
+                      className="flex items-center gap-2 rounded-lg p-2"
+                    >
+                      <div className="h-3.5 w-3.5 rounded bg-muted-foreground/15" />
+                      <span className="text-xs text-muted-foreground">
+                        {item}
+                      </span>
+                    </div>
                   ))}
+                </div>
+                {/* Main canvas */}
+                <div className="col-span-3 p-6">
+                  <div className="mb-5 h-3 w-36 rounded-md bg-muted" />
+                  <div className="grid grid-cols-3 gap-3">
+                    {Array.from({ length: 9 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="aspect-video rounded-lg border border-border bg-gradient-to-br from-secondary/80 to-secondary/30"
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Logo strip */}
+          <div className="mt-12">
+            <LogoStrip />
+          </div>
         </div>
       </section>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Pain Points — muted                                                 */}
-      {/* ------------------------------------------------------------------ */}
-      <section className="bg-gray-50 py-20">
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="mb-12 text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              {t('landing.powerpoint_chaos_title')}
-            </h2>
-            <p className="mt-4 text-lg text-gray-500">
-              {t('landing.pain_points_subtitle')}
-            </p>
-          </div>
+      {/* ================================================================== */}
+      {/* SECTION 2 · PROBLEM → SOLUTION                                      */}
+      {/* ================================================================== */}
+      <section className="bg-card py-24">
+        <div className="mx-auto max-w-5xl px-6">
+          <h2
+            data-reveal
+            className="opacity-0 font-heading text-3xl text-center tracking-tight text-foreground sm:text-4xl lg:text-5xl"
+          >
+            Sound familiar?
+          </h2>
 
-          <div className="grid gap-8 sm:grid-cols-3">
-            {painPointKeys.map((point, i) => (
-              <div key={point.title} className="text-center">
-                <div className="mb-4 text-4xl">{painPointIcons[i]}</div>
-                <h3 className="mb-2 font-semibold text-gray-900">{t(point.title)}</h3>
-                <p className="text-sm text-gray-500">{t(point.desc)}</p>
+          <div className="mt-16 space-y-6">
+            {painPoints.map((point, i) => (
+              <div
+                key={i}
+                data-reveal
+                className="opacity-0 grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-4 md:gap-8 items-center"
+                style={{ animationDelay: `${i * 100}ms` }}
+              >
+                {/* Before */}
+                <div className="text-right md:text-right">
+                  <p className="text-muted-foreground line-through decoration-destructive/40 text-base md:text-lg">
+                    {point.before}
+                  </p>
+                </div>
+
+                {/* Arrow */}
+                <div className="hidden md:flex items-center justify-center">
+                  <ArrowRight className="h-5 w-5 text-primary" />
+                </div>
+
+                {/* After */}
+                <div>
+                  <p className="text-foreground font-semibold text-base md:text-lg">
+                    {point.after}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Features — white                                                    */}
-      {/* ------------------------------------------------------------------ */}
-      <section id="features" className="bg-white py-20">
+      {/* ================================================================== */}
+      {/* SECTION 3 · HOW IT WORKS                                            */}
+      {/* ================================================================== */}
+      <section id="how-it-works" className="bg-background py-24">
         <div className="mx-auto max-w-6xl px-6">
-          <div className="mb-12 text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              {t('landing.everything_team_needs')}
-            </h2>
-            <p className="mt-4 text-lg text-gray-500">
-              {t('landing.features_subtitle')}
-            </p>
-          </div>
+          <h2
+            data-reveal
+            className="opacity-0 font-heading text-3xl text-center tracking-tight text-foreground sm:text-4xl lg:text-5xl"
+          >
+            Three steps to a perfect deck
+          </h2>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {featureKeys.map((feature, i) => {
-              const Icon = featureIcons[i]
+          <div className="mt-16 grid gap-12 sm:grid-cols-3">
+            {steps.map((step, index) => {
+              const Icon = step.icon
               return (
-                <Card key={feature.title} className="border-gray-100">
-                  <CardHeader className="pb-3">
-                    <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                      <Icon className="h-5 w-5 text-primary" />
-                    </div>
-                    <CardTitle className="text-base">{t(feature.title)}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="text-sm leading-relaxed">
-                      {t(feature.desc)}
-                    </CardDescription>
-                  </CardContent>
-                </Card>
+                <div
+                  key={step.title}
+                  data-reveal
+                  className="opacity-0 relative flex flex-col items-center text-center"
+                  style={{ animationDelay: `${index * 150}ms` }}
+                >
+                  {/* Icon */}
+                  <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+                    <Icon className="h-6 w-6 text-primary" />
+                  </div>
+                  {/* Step number */}
+                  <div className="mb-3 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                    {index + 1}
+                  </div>
+                  <h3 className="mb-2 text-lg font-semibold text-foreground">
+                    {step.title}
+                  </h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
+                    {step.body}
+                  </p>
+                </div>
               )
             })}
           </div>
         </div>
       </section>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* How It Works — muted                                                */}
-      {/* ------------------------------------------------------------------ */}
-      <section id="how-it-works" className="bg-gray-50 py-20">
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="mb-12 text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              {t('landing.three_steps')}
-            </h2>
-            <p className="mt-4 text-lg text-gray-500">
-              {t('landing.how_it_works_subtitle')}
-            </p>
-          </div>
+      {/* ================================================================== */}
+      {/* SECTION 4 · BENEFITS                                                */}
+      {/* ================================================================== */}
+      <section className="bg-card py-24">
+        <div className="mx-auto max-w-5xl px-6">
+          <h2
+            data-reveal
+            className="opacity-0 font-heading text-3xl text-center tracking-tight text-foreground sm:text-4xl lg:text-5xl"
+          >
+            Built for teams who care about their brand
+          </h2>
 
-          <div className="grid gap-8 sm:grid-cols-3">
-            {stepKeys.map((step, index) => (
-              <div key={step.title} className="relative flex flex-col items-center text-center">
-                {index < stepKeys.length - 1 && (
-                  <div
-                    aria-hidden
-                    className="absolute left-[calc(50%+2rem)] top-5 hidden h-px w-[calc(100%-4rem)] bg-gray-200 sm:block"
-                  />
-                )}
-                <Badge className="mb-4 h-10 w-10 rounded-full p-0 flex items-center justify-center text-sm">
-                  {index + 1}
-                </Badge>
-                <h3 className="mb-2 font-semibold text-gray-900">{t(step.title)}</h3>
-                <p className="text-sm text-gray-500">{t(step.desc)}</p>
+          <div className="mt-16 grid gap-6 sm:grid-cols-2">
+            {benefits.map((benefit, i) => {
+              const Icon = benefit.icon
+              return (
+                <div
+                  key={benefit.title}
+                  data-reveal
+                  className="opacity-0 rounded-2xl border border-border bg-background p-8 transition-shadow duration-200 hover:shadow-warm-md"
+                  style={{ animationDelay: `${i * 100}ms` }}
+                >
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+                    <Icon className="h-6 w-6 text-primary" />
+                  </div>
+                  <h3 className="mb-2 text-lg font-semibold text-foreground">
+                    {benefit.title}
+                  </h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {benefit.body}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ================================================================== */}
+      {/* SECTION 5 · TESTIMONIALS                                            */}
+      {/* ================================================================== */}
+      <section className="bg-background py-24">
+        <div className="mx-auto max-w-6xl px-6">
+          <h2
+            data-reveal
+            className="opacity-0 font-heading text-3xl text-center tracking-tight text-foreground sm:text-4xl lg:text-5xl"
+          >
+            Teams that never go off-brand again
+          </h2>
+
+          <div className="mt-16 grid gap-6 sm:grid-cols-3">
+            {testimonials.map((t, i) => (
+              <div
+                key={t.name}
+                data-reveal
+                className="opacity-0 rounded-2xl border border-border bg-card p-8 transition-shadow duration-200 hover:shadow-warm-md"
+                style={{ animationDelay: `${i * 100}ms` }}
+              >
+                {/* Stars */}
+                <div className="mb-4 flex gap-0.5">
+                  {Array.from({ length: 5 }).map((_, j) => (
+                    <Star
+                      key={j}
+                      className="h-4 w-4 fill-primary text-primary"
+                    />
+                  ))}
+                </div>
+                <p className="mb-6 text-sm text-foreground leading-relaxed italic">
+                  &ldquo;{t.quote}&rdquo;
+                </p>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    {t.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t.role}, {t.company}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Pricing — white                                                     */}
-      {/* ------------------------------------------------------------------ */}
-      <section id="pricing" className="bg-white py-20">
+      {/* ================================================================== */}
+      {/* SECTION 6 · PRICING                                                 */}
+      {/* ================================================================== */}
+      <section id="pricing" className="bg-card py-24">
         <div className="mx-auto max-w-6xl px-6">
-          <div className="mb-12 text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              {t('landing.pricing_title')}
+          <div className="text-center">
+            <h2
+              data-reveal
+              className="opacity-0 font-heading text-3xl tracking-tight text-foreground sm:text-4xl lg:text-5xl"
+            >
+              Simple pricing. No surprises.
             </h2>
-            <p className="mt-4 text-lg text-gray-500">
-              {t('landing.pricing_subtitle')}
+            <p
+              data-reveal
+              className="opacity-0 mt-4 text-lg text-muted-foreground"
+            >
+              Start free. Upgrade when your team grows.
             </p>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-3">
+          <div className="mt-16 grid gap-6 sm:grid-cols-3">
             {pricingTiers.map((tier) => (
-              <Card
+              <div
                 key={tier.name}
-                className={
+                data-reveal
+                className={`opacity-0 relative rounded-2xl border p-8 transition-shadow duration-200 hover:shadow-warm-md ${
                   tier.highlighted
-                    ? 'relative border-primary shadow-lg shadow-primary/10'
-                    : 'border-gray-100'
-                }
+                    ? 'border-primary bg-background shadow-warm-md'
+                    : 'border-border bg-background'
+                }`}
               >
                 {tier.highlighted && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge>{t('landing.most_popular')}</Badge>
+                    <span className="rounded-full bg-primary px-4 py-1 text-xs font-semibold text-primary-foreground">
+                      Most Popular
+                    </span>
                   </div>
                 )}
-                <CardHeader>
-                  <CardTitle className="text-lg">{tier.name}</CardTitle>
-                  <CardDescription>{tier.description}</CardDescription>
-                  <div className="mt-2">
-                    {tier.price ? (
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-bold text-gray-900">
-                          &euro;{tier.price}
-                        </span>
-                        <span className="text-sm text-gray-500">{t('landing.per_user_month')}</span>
-                      </div>
-                    ) : (
-                      <span className="text-2xl font-bold text-gray-900">
-                        {t('landing.custom_pricing')}
+                <h3 className="text-lg font-semibold text-foreground">
+                  {tier.name}
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {tier.description}
+                </p>
+                <div className="mt-4">
+                  {tier.price ? (
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-4xl font-bold text-foreground">
+                        &euro;{tier.price}
                       </span>
-                    )}
-                    <p className="mt-1 text-xs text-gray-400">{tier.seats}</p>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2">
-                    {tier.features.map((f) => (
-                      <li key={f} className="flex items-center gap-2 text-sm text-gray-600">
-                        <Check className="h-4 w-4 shrink-0 text-primary" />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-                <CardFooter>
+                      <span className="text-sm text-muted-foreground">
+                        {tier.period}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-3xl font-bold text-foreground">
+                      Custom
+                    </span>
+                  )}
+                </div>
+
+                <Separator className="my-6" />
+
+                <ul className="space-y-3">
+                  {tier.features.map((f) => (
+                    <li
+                      key={f}
+                      className="flex items-center gap-2.5 text-sm text-foreground"
+                    >
+                      <Check className="h-4 w-4 shrink-0 text-primary" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="mt-8">
                   <Button
-                    className="w-full"
-                    variant={tier.highlighted ? 'default' : 'outline'}
+                    className="w-full rounded-lg"
+                    variant={tier.highlighted ? 'default' : 'secondary'}
                     asChild
                   >
                     <Link href={tier.href}>{tier.cta}</Link>
                   </Button>
-                </CardFooter>
-              </Card>
+                </div>
+              </div>
             ))}
           </div>
+
+          <p
+            data-reveal
+            className="opacity-0 mt-8 text-center text-sm text-muted-foreground"
+          >
+            All plans include a 14-day free trial. No credit card required.
+          </p>
         </div>
       </section>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Final CTA — dark                                                    */}
-      {/* ------------------------------------------------------------------ */}
-      <section className="bg-gray-950 py-20">
-        <div className="mx-auto max-w-6xl px-6 text-center">
-          <Zap className="mx-auto mb-4 h-10 w-10 text-primary" />
-          <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            {t('landing.ready_cta')}
+      {/* ================================================================== */}
+      {/* SECTION 7 · FINAL CTA                                               */}
+      {/* ================================================================== */}
+      <section className="bg-primary py-24">
+        <div className="mx-auto max-w-4xl px-6 text-center">
+          <h2 className="font-heading text-3xl tracking-tight text-primary-foreground sm:text-4xl lg:text-5xl">
+            Your next presentation is one click away.
           </h2>
-          <p className="mx-auto mt-4 max-w-lg text-lg text-gray-400">
-            {t('landing.final_cta')}
+          <p className="mx-auto mt-4 max-w-lg text-lg text-primary-foreground/80">
+            Join 500+ teams who stopped wasting time on slides.
           </p>
-          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Button size="lg" asChild>
-              <Link href="/register">{t('landing.start_trial_cta')}</Link>
-            </Button>
-            <Button size="lg" variant="outline" asChild className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white">
-              <Link href="/demo">{t('landing.see_demo_first')}</Link>
+          <div className="mt-10">
+            <Button
+              size="lg"
+              className="rounded-lg bg-white text-foreground px-8 text-base hover:bg-white/90"
+              asChild
+            >
+              <Link href="/register">
+                Start for free &mdash; no credit card needed{' '}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
             </Button>
           </div>
+          <p className="mt-4 text-sm text-primary-foreground/60">
+            Free plan available &middot; Setup in under 5 minutes &middot;
+            Cancel anytime
+          </p>
         </div>
       </section>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Footer — dark                                                       */}
-      {/* ------------------------------------------------------------------ */}
-      <footer className="border-t border-white/10 bg-gray-950 py-10">
+      {/* ================================================================== */}
+      {/* SECTION 8 · FOOTER                                                  */}
+      {/* ================================================================== */}
+      <footer className="bg-secondary py-12">
         <div className="mx-auto max-w-6xl px-6">
-          <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold select-none">
-                D
-              </div>
-              <span className="text-sm font-semibold tracking-tight text-white">
-                deckr Studio
-              </span>
-            </Link>
+          <div className="flex flex-col items-center justify-between gap-8 sm:flex-row sm:items-start">
+            {/* Logo + tagline */}
+            <div>
+              <Link href="/" className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold select-none">
+                  D
+                </div>
+                <span className="text-sm font-semibold tracking-tight text-foreground">
+                  deckr
+                </span>
+              </Link>
+              <p className="mt-2 text-xs text-muted-foreground max-w-[200px]">
+                Brand-consistent presentations. Every time.
+              </p>
+            </div>
 
-            <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-gray-500">
-              <Link href="/login" className="hover:text-gray-300 transition-colors">
-                {t('landing.log_in')}
+            {/* Nav links */}
+            <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+              <a
+                href="#how-it-works"
+                className="hover:text-foreground transition-colors"
+              >
+                Product
+              </a>
+              <a
+                href="#pricing"
+                className="hover:text-foreground transition-colors"
+              >
+                Pricing
+              </a>
+              <Link
+                href="/login"
+                className="hover:text-foreground transition-colors"
+              >
+                Log in
               </Link>
-              <Link href="/register" className="hover:text-gray-300 transition-colors">
-                {t('landing.start_free_trial_btn')}
+              <Link
+                href="/register"
+                className="hover:text-foreground transition-colors"
+              >
+                Start free trial
               </Link>
-              <Separator orientation="vertical" className="h-3 bg-gray-700" />
-              <Link href="/impressum" className="hover:text-gray-300 transition-colors">
-                {t('landing.impressum')}
+            </nav>
+
+            {/* Legal links */}
+            <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+              <Link
+                href="/privacy"
+                className="hover:text-foreground transition-colors"
+              >
+                Privacy
               </Link>
-              <Link href="/privacy" className="hover:text-gray-300 transition-colors">
-                {t('landing.privacy')}
+              <Link
+                href="/terms"
+                className="hover:text-foreground transition-colors"
+              >
+                Terms
               </Link>
-              <Link href="/terms" className="hover:text-gray-300 transition-colors">
-                {t('landing.terms')}
+              <Link
+                href="/impressum"
+                className="hover:text-foreground transition-colors"
+              >
+                Imprint
               </Link>
-              <Link href="/cookies" className="hover:text-gray-300 transition-colors">
-                {t('landing.cookies_link')}
+              <Link
+                href="/dpa"
+                className="hover:text-foreground transition-colors"
+              >
+                DPA
               </Link>
-              <Link href="/dpa" className="hover:text-gray-300 transition-colors">
-                {t('landing.dpa')}
+              <Link
+                href="/cookies"
+                className="hover:text-foreground transition-colors"
+              >
+                Cookies
               </Link>
-              <Separator orientation="vertical" className="h-3 bg-gray-700" />
               <button
-                className="hover:text-gray-300 transition-colors"
+                className="hover:text-foreground transition-colors"
                 onClick={() => {
                   localStorage.removeItem('deckr_cookie_consent')
                   window.location.reload()
                 }}
               >
-                {t('cookies.settings_link')}
+                Cookie Settings
               </button>
             </nav>
           </div>
 
-          <p className="mt-6 text-center text-xs text-gray-600">
-            {t('landing.footer_copyright', { year: new Date().getFullYear() })}
+          <Separator className="my-8" />
+
+          <p className="text-center text-xs text-muted-foreground">
+            &copy; {new Date().getFullYear()} deckr. Made with &hearts; for
+            brand-conscious teams.
           </p>
         </div>
       </footer>

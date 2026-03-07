@@ -75,7 +75,8 @@ _To be added by /architecture_
 #### AC-6: API role checks
 - [x] requireAdmin() helper verifies role === 'admin' before admin operations
 - [x] Returns 403 for non-admin users
-- [x] Used consistently in: /api/slides, /api/groups, /api/users/[id]/role, /api/subscription PATCH
+- [x] Used consistently in: POST/PATCH/DELETE /api/slides, POST/PATCH/DELETE /api/groups, /api/users/[id]/role, /api/subscription PATCH
+- [x] GET /api/slides and GET /api/groups now use getAuthenticatedUser (all tenant users can read)
 
 #### AC-7: RLS policies restrict admin-only operations
 - [ ] CANNOT VERIFY DIRECTLY: Requires Supabase dashboard review
@@ -95,60 +96,80 @@ _To be added by /architecture_
 
 #### EC-2: Employee accesses admin URL
 - [x] Admin layout component redirects non-admin to /home
-- [ ] BUG: Client-side redirect only -- no server-side middleware check for /admin/* routes
+- [x] FIXED: Proxy middleware now checks isAdminRoute() and redirects non-admin users to /home server-side
 
 #### EC-3: Role change while user is active
 - [x] Role stored in DB as source of truth; TenantProvider re-fetches on navigation
 
 #### EC-4: Missing or malformed role
 - [x] Login defaults to 'employee' if role not in app_metadata (line 92: ?? 'employee')
+- [x] Middleware uses `user.app_metadata?.role ?? 'employee'` as fallback
 - [x] Sidebar shows 'employee' as fallback
 
 ### Security Audit Results
 - [x] Authorization: API routes use requireAdmin() -- employees get 403
 - [x] Cross-tenant role change prevented: target user's tenant_id must match caller's
-- [ ] BUG: Admin routes protected only client-side, not in middleware
+- [x] FIXED: Admin routes now protected server-side in proxy middleware
 
-### Bugs Found
+### Bugs Found (Original)
 
 #### BUG-5: Admin routes not protected server-side in middleware
 - **Severity:** High
-- **Steps to Reproduce:**
-  1. An employee user navigates directly to /admin/slides in the browser
-  2. The proxy.ts middleware does NOT check user role -- it only checks authentication
-  3. The admin layout does a client-side redirect after rendering
-  4. For a brief moment, the admin page shell renders before redirect
-  5. Expected: Middleware should block /admin/* routes for non-admin users server-side
-  6. Actual: Only client-side layout guard exists
-- **Note:** The actual data is still protected because API routes use requireAdmin(), so no data leakage occurs. But the admin UI momentarily renders.
-- **Priority:** Fix before deployment
+- **Status:** FIXED (commit cab7c1c)
+- **Verification:** proxy.ts now has ADMIN_PREFIXES = ['/admin', '/dashboard'] and isAdminRoute() function. When an authenticated user with non-admin role tries to access /admin/* or /dashboard, they are redirected to /home server-side before any page renders. Role is read from user.app_metadata with 'employee' fallback.
 
 #### BUG-6: GET /api/slides requires admin role -- employees cannot read slides
 - **Severity:** High
-- **Steps to Reproduce:**
-  1. Employee user navigates to /board
-  2. Board page fetches GET /api/slides
-  3. GET /api/slides uses requireAdmin() -- returns 401/403 for employees
-  4. Expected: All tenant users should be able to read slides (AC says "all tenant users can SELECT")
-  5. Actual: Only admins can read slides via the API
-- **Priority:** Fix before deployment
+- **Status:** FIXED (commit cab7c1c)
+- **Verification:** GET /api/slides now uses getAuthenticatedUser() + getUserProfile() instead of requireAdmin(). All authenticated tenant users can read slides. Write operations (POST) still use requireAdmin().
 
 #### BUG-7: GET /api/groups requires admin role -- employees cannot see groups
 - **Severity:** High
+- **Status:** FIXED (commit cab7c1c)
+- **Verification:** GET /api/groups now uses getAuthenticatedUser() + getUserProfile() instead of requireAdmin(). All authenticated tenant users can read groups. Write operations (POST, PATCH, DELETE) still use requireAdmin().
+
+### Re-test Results (2026-03-07)
+
+#### BUG-5 Re-test: Server-side admin route protection
+- [x] ADMIN_PREFIXES includes both '/admin' and '/dashboard'
+- [x] isAdminRoute() checks pathname.startsWith(prefix) for each prefix
+- [x] Middleware checks: `if (user && isAdminRoute(pathname))` -- only applies to authenticated users
+- [x] Role fallback: `user.app_metadata?.role ?? 'employee'` -- missing role defaults to employee (fail-safe)
+- [x] Non-admin users redirected to /home (not an error page -- matches edge case spec)
+- [x] Admin users pass through the check normally
+
+#### BUG-6 Re-test: Slides API read access
+- [x] GET /api/slides uses getAuthenticatedUser() -- any authenticated user can call it
+- [x] Tenant isolation maintained: queries filter by profile.tenant_id
+- [x] .limit(500) applied to prevent unbounded queries
+- [x] POST /api/slides still requires admin via requireAdmin()
+
+#### BUG-7 Re-test: Groups API read access
+- [x] GET /api/groups uses getAuthenticatedUser() -- any authenticated user can call it
+- [x] Tenant isolation maintained: queries filter by profile.tenant_id
+- [ ] BUG-21: GET /api/groups has no .limit() clause on the slide_groups query (potential issue for tenants with very many groups)
+- [x] POST /api/groups still requires admin via requireAdmin()
+- [x] PATCH /api/groups/[id] and DELETE /api/groups/[id] still require admin
+
+#### New Issues Found During Re-test
+
+#### BUG-21: GET /api/groups missing .limit() on query
+- **Severity:** Low
 - **Steps to Reproduce:**
-  1. Employee user navigates to /board
-  2. Board page fetches GET /api/groups
-  3. GET /api/groups uses requireAdmin() -- returns 401/403 for employees
-  4. Expected: All tenant users should be able to read groups for the board
-  5. Actual: Only admins can read groups via the API
-- **Priority:** Fix before deployment
+  1. Call GET /api/groups as an authenticated user
+  2. The query selects all slide_groups for the tenant without a .limit() clause
+  3. Expected: A .limit() clause to prevent unbounded result sets (per backend rules)
+  4. Actual: No limit -- all groups returned
+- **Note:** In practice, tenants are unlikely to have thousands of groups, so this is a code hygiene issue rather than a production risk.
+- **Priority:** Nice to have
 
 ### Summary
 - **Acceptance Criteria:** 8/9 passed (1 requires Supabase dashboard verification)
-- **Bugs Found:** 3 total (0 critical, 3 high, 0 medium, 0 low)
-- **Security:** Authorization gaps -- employees blocked from reading slides/groups they should access
-- **Production Ready:** NO
-- **Recommendation:** Fix BUG-6 and BUG-7 (change GET /api/slides and GET /api/groups to use getAuthenticatedUser instead of requireAdmin). Fix BUG-5 (add role check to middleware).
+- **Previous Bugs:** 3 total -- all 3 FIXED
+- **New Bugs:** 1 (low severity)
+- **Security:** PASS -- all authorization gaps closed
+- **Production Ready:** YES
+- **Recommendation:** All high-severity bugs resolved. Deploy.
 
 ## Deployment
 _To be added by /deploy_

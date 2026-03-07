@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Download, LayoutTemplate, Loader2 } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight, Download, LayoutTemplate, Loader2, Maximize2, Minimize2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 // ---------------------------------------------------------------------------
@@ -36,7 +36,35 @@ export function ViewerSlideshow({
 }: ViewerSlideshowProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [downloading, setDownloading] = useState(false)
+  const [downloadError, setDownloadError] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [showFsUI, setShowFsUI] = useState(true)
   const touchStartXRef = useRef<number | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const fsHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {})
+    } else {
+      containerRef.current?.requestFullscreen?.().catch(() => {})
+    }
+  }, [])
+
+  // Sync fullscreen state with browser
+  useEffect(() => {
+    function onFsChange() {
+      setIsFullscreen(!!document.fullscreenElement)
+      setShowFsUI(true)
+    }
+    document.addEventListener('fullscreenchange', onFsChange)
+    return () => document.removeEventListener('fullscreenchange', onFsChange)
+  }, [])
+
+  // Cleanup hide timer
+  useEffect(() => {
+    return () => { if (fsHideTimer.current) clearTimeout(fsHideTimer.current) }
+  }, [])
 
   // Keyboard navigation
   useEffect(() => {
@@ -50,18 +78,29 @@ export function ViewerSlideshow({
         case 'ArrowUp':
           setCurrentIndex((i) => Math.max(i - 1, 0))
           break
+        case 'f':
+        case 'F':
+          toggleFullscreen()
+          break
+        case 'Escape':
+          if (isFullscreen) {
+            document.exitFullscreen().catch(() => {})
+          }
+          break
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [slides.length])
+  }, [slides.length, isFullscreen, toggleFullscreen])
 
   // Download PDF
   async function handleDownloadPdf() {
     setDownloading(true)
+    setDownloadError(false)
     try {
       const res = await fetch(`/api/view/${shareToken}/pdf`, { method: 'POST' })
       if (!res.ok) {
+        setDownloadError(true)
         setDownloading(false)
         return
       }
@@ -75,7 +114,7 @@ export function ViewerSlideshow({
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
     } catch {
-      // Silently fail
+      setDownloadError(true)
     }
     setDownloading(false)
   }
@@ -96,18 +135,108 @@ export function ViewerSlideshow({
     }
   }
 
+  function handleFsMouseMove() {
+    if (!isFullscreen) return
+    setShowFsUI(true)
+    if (fsHideTimer.current) clearTimeout(fsHideTimer.current)
+    fsHideTimer.current = setTimeout(() => setShowFsUI(false), 3000)
+  }
+
   const slide = slides[currentIndex]
 
   if (!slide) return null
 
+  // -------------------------------------------------------------------------
+  // Fullscreen mode — cinematic edge-to-edge view
+  // -------------------------------------------------------------------------
+  if (isFullscreen) {
+    return (
+      <div
+        ref={containerRef}
+        className="fixed inset-0 z-50 bg-black flex items-center justify-center"
+        onMouseMove={handleFsMouseMove}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Slide — fills entire screen */}
+        {slide.thumbnail_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={slide.thumbnail_url}
+            alt={slide.title}
+            className="w-full h-full object-contain select-none"
+            draggable={false}
+          />
+        ) : (
+          <div className="flex flex-col items-center gap-4 text-white/30">
+            <LayoutTemplate className="h-24 w-24" />
+            <p className="text-xl font-medium">{slide.title}</p>
+          </div>
+        )}
+
+        {/* Overlay UI — fades after 3s */}
+        <div className={`pointer-events-none fixed inset-0 z-[55] transition-opacity duration-500 ${showFsUI ? 'opacity-100' : 'opacity-0'}`}>
+          {/* Top bar */}
+          <div className="pointer-events-auto flex items-center justify-between p-4">
+            <button
+              onClick={toggleFullscreen}
+              className="flex items-center gap-2 rounded-lg bg-black/60 px-3 py-2 text-sm text-white backdrop-blur-sm hover:bg-black/80 transition-colors"
+            >
+              <X className="h-4 w-4" />
+              Exit
+            </button>
+            <span className="rounded-lg bg-black/60 px-3 py-2 text-sm text-white tabular-nums backdrop-blur-sm">
+              {currentIndex + 1} / {slides.length}
+            </span>
+          </div>
+
+          {/* Previous */}
+          {currentIndex > 0 && (
+            <button
+              className="pointer-events-auto absolute left-4 top-1/2 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm hover:bg-black/80 transition-colors"
+              onClick={() => setCurrentIndex((i) => i - 1)}
+            >
+              <ChevronLeft className="h-6 w-6" />
+            </button>
+          )}
+
+          {/* Next */}
+          {currentIndex < slides.length - 1 && (
+            <button
+              className="pointer-events-auto absolute right-4 top-1/2 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm hover:bg-black/80 transition-colors"
+              onClick={() => setCurrentIndex((i) => i + 1)}
+            >
+              <ChevronRight className="h-6 w-6" />
+            </button>
+          )}
+
+          {/* Progress bar */}
+          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-1 bg-white/10">
+            <div
+              className="h-full transition-all duration-300 ease-out"
+              style={{
+                width: `${((currentIndex + 1) / slides.length) * 100}%`,
+                backgroundColor: tenantPrimaryColor,
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // -------------------------------------------------------------------------
+  // Normal (non-fullscreen) mode
+  // -------------------------------------------------------------------------
   return (
     <div
-      className="flex min-h-screen flex-col bg-gray-50"
+      ref={containerRef}
+      className="flex min-h-screen flex-col bg-background"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
       {/* Header */}
-      <header className="flex items-center justify-between border-b bg-white px-4 py-3 shadow-sm">
+      <header className="flex items-center justify-between border-b bg-card px-4 py-3 shadow-warm-sm">
         <div className="flex items-center gap-3 min-w-0">
           {tenantLogoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -117,7 +246,7 @@ export function ViewerSlideshow({
               className="h-8 max-w-[120px] object-contain"
             />
           ) : (
-            <span className="text-sm font-semibold text-gray-700 truncate">
+            <span className="text-sm font-semibold text-foreground truncate">
               {tenantName}
             </span>
           )}
@@ -126,25 +255,50 @@ export function ViewerSlideshow({
           </span>
         </div>
 
-        <Button
-          onClick={handleDownloadPdf}
-          disabled={downloading}
-          size="sm"
-          style={{ backgroundColor: tenantPrimaryColor, borderColor: tenantPrimaryColor }}
-          className="text-white hover:opacity-90 transition-opacity"
-        >
-          {downloading ? (
-            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Download className="mr-1.5 h-3.5 w-3.5" />
-          )}
-          Download PDF
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={toggleFullscreen}
+            variant="outline"
+            size="sm"
+            title="Fullscreen (F)"
+          >
+            <Maximize2 className="mr-1.5 h-3.5 w-3.5" />
+            Fullscreen
+          </Button>
+
+          <Button
+            onClick={handleDownloadPdf}
+            disabled={downloading}
+            size="sm"
+            style={{ backgroundColor: tenantPrimaryColor, borderColor: tenantPrimaryColor }}
+            className="text-white hover:opacity-90 transition-opacity"
+          >
+            {downloading ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Download className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Download PDF
+          </Button>
+        </div>
       </header>
 
-      {/* Slide canvas */}
+      {/* Download error banner */}
+      {downloadError && (
+        <div className="flex items-center justify-center gap-2 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+          PDF download failed. Please try again.
+          <button
+            onClick={() => setDownloadError(false)}
+            className="ml-2 underline hover:no-underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Slide canvas — responsive, fills available space */}
       <div className="flex flex-1 items-center justify-center p-4 sm:p-8">
-        <div className="relative w-full max-w-5xl aspect-video bg-white rounded-lg shadow-lg overflow-hidden">
+        <div className="relative w-full max-w-7xl aspect-video bg-card rounded-lg shadow-warm-lg overflow-hidden">
           {slide.thumbnail_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -154,7 +308,7 @@ export function ViewerSlideshow({
               draggable={false}
             />
           ) : (
-            <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-gray-100 text-gray-400">
+            <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-muted text-muted-foreground">
               <LayoutTemplate className="h-16 w-16" />
               <p className="text-lg font-medium">{slide.title}</p>
             </div>
@@ -163,7 +317,7 @@ export function ViewerSlideshow({
       </div>
 
       {/* Navigation footer */}
-      <footer className="flex items-center justify-center gap-4 border-t bg-white px-4 py-3">
+      <footer className="flex items-center justify-center gap-4 border-t bg-card px-4 py-3">
         <Button
           variant="outline"
           size="icon"

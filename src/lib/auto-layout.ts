@@ -27,10 +27,14 @@ export interface SlidePosition {
   y: number
 }
 
+const COLLAPSED_HEIGHT = SECTION_HEADER
+
 /**
  * Compute group heights for layout calculation.
+ * When collapsed, returns only the header height.
  */
-export function calcGroupHeight(slideCount: number): number {
+export function calcGroupHeight(slideCount: number, collapsed?: boolean): number {
+  if (collapsed) return COLLAPSED_HEIGHT
   if (slideCount === 0) return SECTION_HEADER + 60 // empty state placeholder
   const rows = Math.ceil(slideCount / COLS)
   return SECTION_HEADER + rows * CARD_HEIGHT + (rows - 1) * GAP
@@ -127,4 +131,4 @@ export function hitTestGroups(
   return null
 }
 
-export { COLS, CARD_WIDTH, CARD_HEIGHT, GAP, PADDING, SECTION_HEADER, BETWEEN_GROUPS }
+export { COLS, CARD_WIDTH, CARD_HEIGHT, GAP, PADDING, SECTION_HEADER, BETWEEN_GROUPS, COLLAPSED_HEIGHT }

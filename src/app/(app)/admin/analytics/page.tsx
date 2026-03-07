@@ -439,7 +439,7 @@ export default function AnalyticsPage() {
     <TooltipProvider>
       {/* Page Header */}
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{t('admin.analytics')}</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">{t('admin.analytics')}</h1>
         <p className="text-sm text-muted-foreground">{t('admin.analytics_description')}</p>
       </div>
 

@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 
+interface RateLimitResult {
+  current_count: number
+  is_limited: boolean
+  retry_after_sec: number
+}
+
 /**
  * Supabase-backed rate limiter — persists across serverless cold starts.
+ * Uses an atomic RPC function to avoid race conditions.
  * Returns a 429 NextResponse if the user has exceeded the limit, otherwise null.
  */
 export async function checkRateLimit(
@@ -12,38 +19,25 @@ export async function checkRateLimit(
   windowMs: number,
 ): Promise<NextResponse | null> {
   const supabase = createServiceClient()
-  const now = new Date()
 
-  const { data } = await supabase
-    .from('rate_limits')
-    .select('count, reset_at')
-    .eq('user_id', userId)
-    .eq('endpoint', endpoint)
-    .maybeSingle()
+  const { data, error } = await supabase.rpc('increment_rate_limit', {
+    p_user_id: userId,
+    p_endpoint: endpoint,
+    p_max_requests: maxRequests,
+    p_window_ms: windowMs,
+  }).single() as { data: RateLimitResult | null; error: unknown }
 
-  const windowActive = data !== null && new Date(data.reset_at) > now
-
-  if (windowActive && data.count >= maxRequests) {
-    const retryAfterSec = Math.ceil(
-      (new Date(data.reset_at).getTime() - now.getTime()) / 1000,
-    )
-    return NextResponse.json(
-      { error: 'Too many requests. Please try again later.' },
-      { status: 429, headers: { 'Retry-After': String(retryAfterSec) } },
-    )
+  if (error || !data) {
+    // If the RPC fails, allow the request through rather than blocking
+    console.error('Rate limit RPC error:', error)
+    return null
   }
 
-  if (windowActive) {
-    await supabase
-      .from('rate_limits')
-      .update({ count: data.count + 1 })
-      .eq('user_id', userId)
-      .eq('endpoint', endpoint)
-  } else {
-    const resetAt = new Date(now.getTime() + windowMs).toISOString()
-    await supabase
-      .from('rate_limits')
-      .upsert({ user_id: userId, endpoint, count: 1, reset_at: resetAt })
+  if (data.is_limited) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429, headers: { 'Retry-After': String(data.retry_after_sec) } },
+    )
   }
 
   return null
@@ -51,6 +45,7 @@ export async function checkRateLimit(
 
 /**
  * Supabase-backed IP rate limiter — for unauthenticated endpoints like registration.
+ * Uses an atomic RPC function to avoid race conditions.
  * Returns a 429 NextResponse if the IP has exceeded the limit, otherwise null.
  */
 export async function checkIpRateLimit(
@@ -65,38 +60,24 @@ export async function checkIpRateLimit(
     'unknown'
 
   const supabase = createServiceClient()
-  const now = new Date()
 
-  const { data } = await supabase
-    .from('ip_rate_limits')
-    .select('count, reset_at')
-    .eq('ip', ip)
-    .eq('endpoint', endpoint)
-    .maybeSingle()
+  const { data, error } = await supabase.rpc('increment_ip_rate_limit', {
+    p_ip: ip,
+    p_endpoint: endpoint,
+    p_max_requests: maxRequests,
+    p_window_ms: windowMs,
+  }).single() as { data: RateLimitResult | null; error: unknown }
 
-  const windowActive = data !== null && new Date(data.reset_at) > now
-
-  if (windowActive && data.count >= maxRequests) {
-    const retryAfterSec = Math.ceil(
-      (new Date(data.reset_at).getTime() - now.getTime()) / 1000,
-    )
-    return NextResponse.json(
-      { error: 'Too many requests. Please try again later.' },
-      { status: 429, headers: { 'Retry-After': String(retryAfterSec) } },
-    )
+  if (error || !data) {
+    console.error('IP rate limit RPC error:', error)
+    return null
   }
 
-  if (windowActive) {
-    await supabase
-      .from('ip_rate_limits')
-      .update({ count: data.count + 1 })
-      .eq('ip', ip)
-      .eq('endpoint', endpoint)
-  } else {
-    const resetAt = new Date(now.getTime() + windowMs).toISOString()
-    await supabase
-      .from('ip_rate_limits')
-      .upsert({ ip, endpoint, count: 1, reset_at: resetAt })
+  if (data.is_limited) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429, headers: { 'Retry-After': String(data.retry_after_sec) } },
+    )
   }
 
   return null

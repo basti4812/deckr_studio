@@ -306,7 +306,7 @@ export default function TemplateSetsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Template Sets</h1>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">Template Sets</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Create curated slide collections for specific presentation types.
           </p>

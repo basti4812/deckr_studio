@@ -386,7 +386,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                 </button>
                 <div>
                   <DialogTitle>{selectedSet.name}</DialogTitle>
-                  <DialogDescription className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     {selectedSet.category && (
                       <Badge variant="secondary" className="text-xs">
                         {selectedSet.category}
@@ -395,7 +395,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                     <span>
                       {selectedSet.slide_count} slide{selectedSet.slide_count !== 1 ? 's' : ''}
                     </span>
-                  </DialogDescription>
+                  </div>
                 </div>
               </div>
             </DialogHeader>

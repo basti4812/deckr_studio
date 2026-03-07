@@ -59,20 +59,21 @@ _To be added by /architecture_
 
 #### AC-1: slides table schema
 - [x] POST /api/slides creates slide with: tenant_id, title, status, pptx_url, thumbnail_url, editable_fields, created_by
-- [x] Status values validated: 'standard' | 'mandatory' | 'deprecated'
+- [x] Status values validated via Zod: 'standard' | 'mandatory' | 'deprecated'
 - [x] editable_fields stored as JSONB array
+- [x] Additional fields: tags, page_index, page_count, source_filename (schema extended)
 
 #### AC-2: PPTX upload creates slide record
 - [x] UploadSlideDialog component handles file upload
 - [x] POST /api/slides creates the database record
 
 #### AC-3: Thumbnail generated after upload
-- [ ] CANNOT VERIFY: Thumbnail generation logic depends on external service (LibreOffice)
+- [ ] CANNOT VERIFY: Thumbnail generation logic depends on external service (ConvertAPI)
 - [x] thumbnail_url field exists and is stored
 
 #### AC-4: Admin can set slide status
 - [x] PATCH /api/slides/[id] accepts status field
-- [x] Validates against allowed values
+- [x] Validates against allowed values via Zod
 - [x] EditSlideDialog component allows status change
 
 #### AC-5: Mandatory slides shown with lock icon
@@ -85,6 +86,7 @@ _To be added by /architecture_
 #### AC-7: Editable fields per slide
 - [x] editable_fields JSONB stored on slide record
 - [x] EditSlideDialog allows field management
+- [x] PATCH /api/slides/[id] validates editable_fields with full EditableFieldSchema (id, label, placeholder, required)
 
 #### AC-8: Admin can edit title and status
 - [x] PATCH /api/slides/[id] supports title and status updates
@@ -92,12 +94,14 @@ _To be added by /architecture_
 
 #### AC-9: Admin can replace slide (new PPTX)
 - [x] PATCH /api/slides/[id] accepts pptx_url and thumbnail_url updates
+- [x] pptx_updated_at timestamp set when pptx_url changes
+- [x] Affected project owners notified (PROJ-17 integration)
 
 #### AC-10: Admin can delete slide
 - [x] DELETE /api/slides/[id] implemented
 - [x] Confirmation dialog in SlideLibraryPage
 - [x] Storage file cleanup attempted (best-effort)
-- [ ] BUG: No check if slide is in active projects before deletion (spec says deletion should be blocked or warned)
+- [x] FIXED: Project usage check added -- returns 409 with count of affected projects if slide is in any active project
 
 #### AC-11: Slides scoped to tenant via RLS
 - [x] API routes filter by tenant_id from authenticated user's profile
@@ -106,7 +110,7 @@ _To be added by /architecture_
 ### Edge Cases Status
 
 #### EC-1: Non-PPTX file upload
-- [ ] CANNOT VERIFY without reading UploadSlideDialog fully -- validation should be client-side
+- [ ] CANNOT VERIFY without running UploadSlideDialog in browser -- validation should be client-side
 
 #### EC-2: Corrupt PPTX
 - [ ] CANNOT VERIFY without external processing service
@@ -115,44 +119,74 @@ _To be added by /architecture_
 - [x] Slide can be created with thumbnail_url = null (placeholder handling)
 
 #### EC-4: Delete slide in active projects
-- [ ] BUG: No check for active project usage before deletion
+- [x] FIXED: DELETE /api/slides/[id] now checks `projects.slide_order` for references to the slide. Returns 409 with message "Slide is used in N project(s). Remove it from all projects before deleting."
 
 #### EC-5: Mandatory slide deleted
-- [ ] BUG: Same as above -- no usage check
+- [x] FIXED: Same project usage check applies to all slide statuses including mandatory
 
 ### Security Audit Results
 - [x] All write operations (POST, PATCH, DELETE) require admin role via requireAdmin()
 - [x] Tenant isolation enforced on all queries
-- [ ] BUG: POST /api/slides does not use Zod for input validation -- uses manual checks only
+- [x] FIXED: POST /api/slides now uses CreateSlideSchema (Zod) for full input validation
 - [x] No XSS vectors: title is stored as plain text
+- [x] Rate limiting on PATCH (60/min) and DELETE (30/min) per admin user
 
-### Bugs Found
+### Bugs Found (Original)
 
 #### BUG-18: Slide deletion does not check for active project usage
 - **Severity:** Medium
-- **Steps to Reproduce:**
-  1. Create a slide, add it to a project
-  2. Delete the slide from admin slide library
-  3. Expected: Warning dialog showing affected projects, or deletion blocked
-  4. Actual: Slide deleted immediately without checking projects
-- **Priority:** Fix before deployment
+- **Status:** FIXED (verified in current codebase)
+- **Verification:** DELETE /api/slides/[id] now queries projects table with `.contains('slide_order', [{ slide_id: id }])` and returns 409 if count > 0. The error message includes the number of affected projects.
 
 #### BUG-19: POST /api/slides lacks Zod validation
 - **Severity:** Medium
+- **Status:** FIXED (commit cab7c1c)
+- **Verification:** POST /api/slides now uses CreateSlideSchema with Zod validation:
+  - `title`: string, min 1, max 255 (required)
+  - `status`: enum ['standard', 'mandatory', 'deprecated'] with default 'standard'
+  - `tags`: array of trimmed strings, max 20 items
+  - `pptx_url`: optional nullable URL
+  - `thumbnail_url`: optional nullable URL
+  - `editable_fields`: array of unknown, default []
+  - `page_index`: integer, min 0, default 0
+  - `page_count`: integer, min 1, default 1
+  - `source_filename`: optional nullable string, max 255
+
+### Re-test Results (2026-03-07)
+
+#### BUG-18 Re-test: Slide deletion with project usage check
+- [x] DELETE endpoint queries projects for slide references using `.contains('slide_order', [{ slide_id: id }])`
+- [x] Returns HTTP 409 (Conflict) when slide is in use, with count of affected projects
+- [x] Only deletes if no projects reference the slide
+- [x] Storage file cleanup happens after successful DB delete (correct order)
+- [x] Tenant scoping maintained: only checks projects in the same tenant
+
+#### BUG-19 Re-test: Zod validation on POST /api/slides
+- [x] CreateSlideSchema validates all input fields
+- [x] Invalid JSON returns 400 "Invalid JSON"
+- [x] Missing title returns 400 with Zod error message
+- [x] Invalid status value returns 400 with Zod error message
+- [x] Title max length enforced (255 chars)
+- [ ] BUG-24: editable_fields uses z.array(z.unknown()) -- accepts any array items without structure validation (POST only; PATCH uses proper EditableFieldSchema)
+
+#### New Issues Found During Re-test
+
+#### BUG-24: POST /api/slides editable_fields not fully schema-validated
+- **Severity:** Low
 - **Steps to Reproduce:**
-  1. POST /api/slides with body { title: " ", status: "standard" }
-  2. Title is trimmed but an empty-after-trim title would fail only at !title?.trim()
-  3. editable_fields accepts any unknown[] array without validation
-  4. Expected: Full Zod schema validation like other endpoints
-  5. Actual: Manual validation only, editable_fields not schema-validated
-- **Priority:** Fix in next sprint
+  1. POST /api/slides with body: `{ "title": "Test", "editable_fields": [{"garbage": true}, 42, "string"] }`
+  2. Expected: Validation error -- editable_fields items should match `{id, label, placeholder, required}` schema
+  3. Actual: Accepted -- `z.array(z.unknown())` allows any array contents
+- **Note:** PATCH /api/slides/[id] correctly uses `z.array(EditableFieldSchema)` which validates `{id, label, placeholder, required}`. Only the POST endpoint is inconsistent.
+- **Priority:** Fix in next sprint -- not exploitable since only admins can POST, but violates data integrity
 
 ### Summary
-- **Acceptance Criteria:** 9/11 passed (2 cannot verify without external services)
-- **Bugs Found:** 2 total (0 critical, 0 high, 2 medium, 0 low)
-- **Security:** Pass (all writes admin-gated)
-- **Production Ready:** YES (with caveat about deletion check)
-- **Recommendation:** Deploy -- add project usage check for slide deletion
+- **Acceptance Criteria:** 10/11 passed (1 cannot verify without external service)
+- **Previous Bugs:** 2 total -- both FIXED
+- **New Bugs:** 1 (low severity)
+- **Security:** PASS (all writes admin-gated, rate-limited, Zod-validated)
+- **Production Ready:** YES
+- **Recommendation:** All previous bugs resolved. Deploy.
 
 ## Deployment
 _To be added by /deploy_

@@ -2,7 +2,7 @@
 
 import { memo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { GripHorizontal, Pencil, Trash2, Check, X } from 'lucide-react'
+import { ChevronDown, ChevronRight, GripHorizontal, Pencil, Trash2, Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { CanvasSlideCard, CARD_WIDTH, type MoveTarget } from './canvas-slide-card'
@@ -33,6 +33,10 @@ interface GroupSectionProps {
   dragOffset?: { dx: number; dy: number }
   /** Pointer-down handler for group drag (fired from header) */
   onGroupPointerDown?: (e: React.PointerEvent) => void
+  /** Whether the group is collapsed (slides hidden) */
+  isCollapsed?: boolean
+  /** Toggle collapse callback */
+  onToggleCollapse?: () => void
 }
 
 export const GroupSection = memo(function GroupSection({
@@ -53,6 +57,8 @@ export const GroupSection = memo(function GroupSection({
   overriddenSlideIds,
   dragOffset,
   onGroupPointerDown,
+  isCollapsed,
+  onToggleCollapse,
 }: GroupSectionProps) {
   const { t } = useTranslation()
   const [editing, setEditing] = useState(false)
@@ -96,6 +102,20 @@ export const GroupSection = memo(function GroupSection({
           onGroupPointerDown?.(e)
         }}
       >
+        {/* Collapse/expand toggle */}
+        {onToggleCollapse && (
+          <button
+            data-no-pan
+            onClick={(e) => { e.stopPropagation(); onToggleCollapse() }}
+            className="shrink-0 flex items-center justify-center h-5 w-5 rounded hover:bg-muted transition-colors"
+          >
+            {isCollapsed
+              ? <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+              : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+            }
+          </button>
+        )}
+
         {/* Drag grip indicator */}
         {onGroupPointerDown && (
           <GripHorizontal className="h-4 w-4 text-muted-foreground/40 shrink-0" />
@@ -148,44 +168,48 @@ export const GroupSection = memo(function GroupSection({
         <span className="text-xs text-muted-foreground">{slides.length}</span>
       </div>
 
-      {/* Slides grid */}
-      <div className="relative">
-        {slides.length === 0 ? (
-          <div
-            style={{ width: groupWidth }}
-            className="flex items-center justify-center rounded-lg border border-dashed text-muted-foreground text-xs"
-          >
-            <span className="py-6">
-              {isPersonal ? t('board.right_click_move_here') : t('board.no_slides_in_group')}
-            </span>
-          </div>
-        ) : (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: `repeat(${COLS}, ${CARD_WIDTH}px)`,
-              gap: GAP,
-            }}
-          >
-            {slides.map((slide) => (
-              <CanvasSlideCard
-                key={slide.id}
-                slide={slide}
-                onAddToTray={onAddToTray}
-                annotation={annotations?.[slide.id]}
-                onAnnotationClick={onAnnotationClick}
-                moveTargets={moveTargets}
-                onMoveToGroup={onMoveToGroup}
-                onResetPosition={onResetPosition}
-                hasOverride={overriddenSlideIds?.has(slide.id)}
-                currentGroupId={id}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Slides grid — hidden when collapsed */}
+      {!isCollapsed && (
+        <div className="relative">
+          {slides.length === 0 ? (
+            <div
+              style={{ width: groupWidth }}
+              className="flex items-center justify-center rounded-lg border border-dashed text-muted-foreground text-xs"
+            >
+              <span className="py-6">
+                {isPersonal ? t('board.right_click_move_here') : t('board.no_slides_in_group')}
+              </span>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${COLS}, ${CARD_WIDTH}px)`,
+                gap: GAP,
+              }}
+            >
+              {slides.map((slide) => (
+                <CanvasSlideCard
+                  key={slide.id}
+                  slide={slide}
+                  onAddToTray={onAddToTray}
+                  annotation={annotations?.[slide.id]}
+                  onAnnotationClick={onAnnotationClick}
+                  moveTargets={moveTargets}
+                  onMoveToGroup={onMoveToGroup}
+                  onResetPosition={onResetPosition}
+                  hasOverride={overriddenSlideIds?.has(slide.id)}
+                  currentGroupId={id}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 })
 
-export { COLS, GAP, SECTION_HEADER_HEIGHT, SECTION_HEADER_MARGIN_BOTTOM }
+const COLLAPSED_HEIGHT = SECTION_HEADER_HEIGHT + SECTION_HEADER_MARGIN_BOTTOM
+
+export { COLS, GAP, SECTION_HEADER_HEIGHT, SECTION_HEADER_MARGIN_BOTTOM, COLLAPSED_HEIGHT }

@@ -9,6 +9,10 @@ const config: Config = {
   ],
   theme: {
   	extend: {
+  		fontFamily: {
+  			heading: ['var(--font-heading)', 'serif'],
+  			sans: ['var(--font-body)', 'system-ui', 'sans-serif'],
+  		},
   		colors: {
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
@@ -66,6 +70,12 @@ const config: Config = {
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
   		},
+  		boxShadow: {
+  			'warm-sm': '0 1px 3px rgba(90, 60, 40, 0.06)',
+  			'warm': '0 2px 8px rgba(90, 60, 40, 0.08)',
+  			'warm-md': '0 4px 16px rgba(90, 60, 40, 0.10)',
+  			'warm-lg': '0 8px 24px rgba(90, 60, 40, 0.14)',
+  		},
   		keyframes: {
   			'accordion-down': {
   				from: {
@@ -82,11 +92,27 @@ const config: Config = {
   				to: {
   					height: '0'
   				}
-  			}
+  			},
+  			'float': {
+  				'0%, 100%': { transform: 'translateY(0)' },
+  				'50%': { transform: 'translateY(-8px)' },
+  			},
+  			'fade-in-up': {
+  				from: {
+  					opacity: '0',
+  					transform: 'translateY(20px)',
+  				},
+  				to: {
+  					opacity: '1',
+  					transform: 'translateY(0)',
+  				},
+  			},
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
+  			'accordion-up': 'accordion-up 0.2s ease-out',
+  			'float': 'float 6s ease-in-out infinite',
+  			'fade-in-up': 'fade-in-up 0.6s ease-out forwards',
   		}
   	}
   },

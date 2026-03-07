@@ -121,6 +121,8 @@ export function PresentationMode({ slides, onExit }: PresentationModeProps) {
 
   const slide = slides[currentIndex]
 
+  if (!slide) return null
+
   return (
     <div
       ref={containerRef}
@@ -130,13 +132,13 @@ export function PresentationMode({ slides, onExit }: PresentationModeProps) {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Current slide */}
+      {/* Current slide — fills entire viewport while preserving aspect ratio */}
       {slide.thumbnail_url && !failedImages.has(currentIndex) ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={slide.thumbnail_url}
           alt={slide.title}
-          className="max-w-full max-h-full object-contain select-none"
+          className="w-full h-full object-contain select-none"
           draggable={false}
           onError={() => setFailedImages((prev) => new Set(prev).add(currentIndex))}
         />
@@ -196,22 +198,13 @@ export function PresentationMode({ slides, onExit }: PresentationModeProps) {
           </button>
         )}
 
-        {/* Progress dots — shown for ≤20 slides, 44px touch targets */}
-        {slides.length <= 20 && (
-          <div className="pointer-events-auto absolute bottom-4 left-1/2 -translate-x-1/2 flex">
-            {slides.map((_, i) => (
-              <button
-                key={i}
-                onClick={(e) => { e.stopPropagation(); setCurrentIndex(i) }}
-                className="flex items-center justify-center min-w-[44px] min-h-[44px] p-0"
-              >
-                <span className={`block h-1.5 rounded-full transition-all ${
-                  i === currentIndex ? 'w-5 bg-white' : 'w-1.5 bg-white/40 hover:bg-white/70'
-                }`} />
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Progress bar — thin line at bottom, works at any slide count */}
+        <div className="pointer-events-auto absolute bottom-0 left-0 right-0 h-1 bg-white/10">
+          <div
+            className="h-full bg-primary transition-all duration-300 ease-out"
+            style={{ width: `${((currentIndex + 1) / slides.length) * 100}%` }}
+          />
+        </div>
       </div>
     </div>
   )
