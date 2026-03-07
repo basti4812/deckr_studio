@@ -304,6 +304,7 @@
     "revoke_link": "Link widerrufen"
   },
   "board": {
+    "view_only": "Nur Ansicht",
     "open_a_project": "Öffnen Sie ein Projekt",
     "click_slide_to_add": "Klicken Sie auf eine Folie auf dem Canvas, um sie hier hinzuzufügen.",
     "project": "Projekt",
@@ -313,7 +314,9 @@
     "present": "Präsentieren",
     "export": "Exportieren",
     "export_pptx": ".pptx exportieren",
+    "export_pptx_desc": "Bearbeitbare PowerPoint-Datei",
     "export_pdf": "Als PDF exportieren",
+    "export_pdf_desc": "Festes Layout zum Teilen",
     "share": "Teilen",
     "add_slides_to_save_version": "Fügen Sie Folien hinzu, um eine Version zu speichern",
     "save_version_tooltip": "Eine benannte Version speichern",
@@ -393,7 +396,9 @@
     "add_slides_to_present": "Folien hinzufügen zum Präsentieren",
     "export": "Exportieren",
     "export_pptx": "Als PowerPoint (.pptx) exportieren",
+    "export_pptx_desc": "Bearbeitbare PowerPoint-Datei",
     "export_pdf": "Als PDF exportieren",
+    "export_pdf_desc": "Festes Layout zum Teilen",
     "add_slides_to_export": "Folien hinzufügen zum Exportieren",
     "open_project_hint": "Öffnen Sie ein Projekt, um Ihre Präsentation zusammenzustellen.",
     "open_project": "Projekt öffnen"
@@ -403,7 +408,11 @@
     "generating_presentation": "Ihre Präsentation wird generiert. Dies kann einen Moment dauern…",
     "export_failed": "Export fehlgeschlagen",
     "close": "Schließen",
-    "try_again": "Erneut versuchen"
+    "try_again": "Erneut versuchen",
+    "step_preparing": "Folien werden vorbereitet...",
+    "step_converting": "Konvertierung zu {{format}}...",
+    "step_finalizing": "Download wird abgeschlossen...",
+    "taking_moment": "Dies kann einen Moment dauern..."
   },
   "fill_warning": {
     "title": "Erforderliche Felder sind leer",

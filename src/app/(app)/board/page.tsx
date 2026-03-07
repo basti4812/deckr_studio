@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Briefcase, ChevronsDownUp, ChevronsUpDown, Clock, Maximize2, Minimize2, Plus, RotateCcw, Share2, Upload, Users, X } from 'lucide-react'
+import { Briefcase, ChevronsDownUp, ChevronsUpDown, Clock, Eye, Maximize2, Minimize2, Plus, RotateCcw, Share2, Upload, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -190,7 +191,7 @@ function BoardPageInner() {
   const [deprecatedError, setDeprecatedError] = useState('')
   const [editingInstance, setEditingInstance] = useState<string | null>(null)
   const [fillWarning, setFillWarning] = useState<{ issues: UnfilledField[]; proceed: () => void; proceedLabel: string } | null>(null)
-  const [exportState, setExportState] = useState<{ open: boolean; error: string | null } | null>(null)
+  const [exportState, setExportState] = useState<{ open: boolean; error: string | null; step: number; format: 'pptx' | 'pdf' } | null>(null)
   const [presentationMode, setPresentationMode] = useState(false)
 
   // Share panel state
@@ -702,15 +703,17 @@ function BoardPageInner() {
 
   async function doExport(type: 'pptx' | 'pdf' = 'pptx') {
     if (!projectId) return
-    setExportState({ open: true, error: null })
+    setExportState({ open: true, error: null, step: 1, format: type })
 
     try {
       const supabase = createBrowserSupabaseClient()
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
-        setExportState({ open: true, error: 'Not authenticated. Please refresh and try again.' })
+        setExportState({ open: true, error: 'Not authenticated. Please refresh and try again.', step: 1, format: type })
         return
       }
+
+      setExportState({ open: true, error: null, step: 2, format: type })
 
       const apiUrl = type === 'pdf'
         ? `/api/projects/${projectId}/export/pdf`
@@ -726,9 +729,13 @@ function BoardPageInner() {
         setExportState({
           open: true,
           error: (data as { error?: string }).error ?? 'Export failed. Please try again.',
+          step: 2,
+          format: type,
         })
         return
       }
+
+      setExportState({ open: true, error: null, step: 3, format: type })
 
       // Trigger browser download
       const blob = await res.blob()
@@ -744,7 +751,7 @@ function BoardPageInner() {
 
       setExportState(null)
     } catch {
-      setExportState({ open: true, error: 'Export failed. Please try again.' })
+      setExportState({ open: true, error: 'Export failed. Please try again.', step: 2, format: type })
     }
   }
 
@@ -1536,9 +1543,26 @@ function BoardPageInner() {
             )}
           </div>
 
-          {/* Search + filter bar */}
+          {/* Breadcrumb + search + filter bar */}
+          {!loading && (
+            <div data-no-pan className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+              {projectId && !isBoardFullscreen && (
+                <Breadcrumb>
+                  <BreadcrumbList>
+                    <BreadcrumbItem>
+                      <BreadcrumbLink asChild><Link href="/projects">{t('nav.projects', 'Projects')}</Link></BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbPage className="max-w-[200px] truncate">{project?.name || t('board.project', 'Project')}</BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </BreadcrumbList>
+                </Breadcrumb>
+              )}
+            </div>
+          )}
           {!loading && slides.length > 0 && (
-            <div data-no-pan className="absolute top-4 left-4 z-10">
+            <div data-no-pan className={`absolute left-4 z-10 ${projectId && !isBoardFullscreen ? 'top-14' : 'top-4'}`}>
               <SearchFilterBar
                 searchQuery={searchInput}
                 onSearchChange={setSearchInput}
@@ -1681,9 +1705,9 @@ function BoardPageInner() {
               )}
               {/* Share controls */}
               {projectId && !canEdit && (
-                <Badge variant="outline" className="gap-1 bg-background/80 backdrop-blur-sm">
-                  <Users className="h-3 w-3" />
-                  {t('project_card.shared_badge')}
+                <Badge variant="outline" className="gap-1.5 bg-background/80 backdrop-blur-sm text-muted-foreground">
+                  <Eye className="h-3 w-3" />
+                  {t('board.view_only', 'View only')}
                 </Badge>
               )}
               {projectId && canEdit && (
@@ -1787,6 +1811,8 @@ function BoardPageInner() {
           onClose={() => setExportState(null)}
           onRetry={() => doExport(lastExportTypeRef.current)}
           error={exportState.error}
+          step={exportState.step}
+          format={exportState.format}
         />
       )}
 

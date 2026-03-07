@@ -304,6 +304,7 @@
     "revoke_link": "Revoke link"
   },
   "board": {
+    "view_only": "View only",
     "open_a_project": "Open a project",
     "click_slide_to_add": "Click a slide on the canvas to add it here.",
     "project": "Project",
@@ -313,7 +314,9 @@
     "present": "Present",
     "export": "Export",
     "export_pptx": "Export .pptx",
+    "export_pptx_desc": "Editable PowerPoint file",
     "export_pdf": "Export as PDF",
+    "export_pdf_desc": "Fixed-layout document for sharing",
     "share": "Share",
     "add_slides_to_save_version": "Add slides to save a version",
     "save_version_tooltip": "Save a named version",
@@ -393,7 +396,9 @@
     "add_slides_to_present": "Add slides to present",
     "export": "Export",
     "export_pptx": "Export as PowerPoint (.pptx)",
+    "export_pptx_desc": "Editable PowerPoint file",
     "export_pdf": "Export as PDF",
+    "export_pdf_desc": "Fixed-layout document for sharing",
     "add_slides_to_export": "Add slides to export",
     "open_project_hint": "Open a project to start assembling your presentation.",
     "open_project": "Open project"
@@ -403,7 +408,11 @@
     "generating_presentation": "Generating your presentation. This may take a moment…",
     "export_failed": "Export failed",
     "close": "Close",
-    "try_again": "Try again"
+    "try_again": "Try again",
+    "step_preparing": "Preparing slides...",
+    "step_converting": "Converting to {{format}}...",
+    "step_finalizing": "Finalizing download...",
+    "taking_moment": "This may take a moment..."
   },
   "fill_warning": {
     "title": "Required fields are empty",

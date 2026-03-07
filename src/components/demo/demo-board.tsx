@@ -266,12 +266,18 @@ function DemoTrayPanel({
                 <ChevronDown className="h-3 w-3 ml-auto" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuItem onClick={onExport}>
-                {t('board.export_pptx')}
+                <div>
+                  <div>{t('board.export_pptx')}</div>
+                  <div className="text-xs text-muted-foreground">{t('board.export_pptx_desc')}</div>
+                </div>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onPdfExport}>
-                {t('board.export_pdf')}
+                <div>
+                  <div>{t('board.export_pdf')}</div>
+                  <div className="text-xs text-muted-foreground">{t('board.export_pdf_desc')}</div>
+                </div>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

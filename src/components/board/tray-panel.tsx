@@ -222,15 +222,21 @@ export function TrayPanel({
                       {trayItems.length === 0 ? t('tray.add_slides_to_export') : t('tray.export')}
                     </TooltipContent>
                   </Tooltip>
-                  <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuContent align="end" className="w-56">
                     {onExport && (
                       <DropdownMenuItem onClick={onExport}>
-                        {t('tray.export_pptx')}
+                        <div>
+                          <div>{t('tray.export_pptx')}</div>
+                          <div className="text-xs text-muted-foreground">{t('tray.export_pptx_desc')}</div>
+                        </div>
                       </DropdownMenuItem>
                     )}
                     {onPdfExport && (
                       <DropdownMenuItem onClick={onPdfExport}>
-                        {t('tray.export_pdf')}
+                        <div>
+                          <div>{t('tray.export_pdf')}</div>
+                          <div className="text-xs text-muted-foreground">{t('tray.export_pdf_desc')}</div>
+                        </div>
                       </DropdownMenuItem>
                     )}
                   </DropdownMenuContent>
