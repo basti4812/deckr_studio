@@ -412,7 +412,9 @@
     "step_preparing": "Preparing slides...",
     "step_converting": "Converting to {{format}}...",
     "step_finalizing": "Finalizing download...",
-    "taking_moment": "This may take a moment..."
+    "taking_moment": "This may take a moment...",
+    "not_authenticated": "Not authenticated. Please refresh and try again.",
+    "export_failed_message": "Export failed. Please try again."
   },
   "fill_warning": {
     "title": "Required fields are empty",

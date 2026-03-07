@@ -49,7 +49,7 @@ export function ExportProgressDialog({
   }, [open, error])
 
   const currentStep = Math.min(step, STEPS.length) - 1
-  const progress = error !== null ? STEPS[currentStep]?.progress ?? 0 : STEPS[currentStep]?.progress ?? 0
+  const progress = STEPS[currentStep]?.progress ?? 0
 
   const formatLabel = format === 'pdf' ? 'PDF' : 'PowerPoint'
 

@@ -412,7 +412,9 @@
     "step_preparing": "Folien werden vorbereitet...",
     "step_converting": "Konvertierung zu {{format}}...",
     "step_finalizing": "Download wird abgeschlossen...",
-    "taking_moment": "Dies kann einen Moment dauern..."
+    "taking_moment": "Dies kann einen Moment dauern...",
+    "not_authenticated": "Nicht authentifiziert. Bitte aktualisieren Sie die Seite und versuchen Sie es erneut.",
+    "export_failed_message": "Export fehlgeschlagen. Bitte versuchen Sie es erneut."
   },
   "fill_warning": {
     "title": "Erforderliche Felder sind leer",

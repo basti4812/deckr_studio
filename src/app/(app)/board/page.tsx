@@ -709,7 +709,7 @@ function BoardPageInner() {
       const supabase = createBrowserSupabaseClient()
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
-        setExportState({ open: true, error: 'Not authenticated. Please refresh and try again.', step: 1, format: type })
+        setExportState({ open: true, error: t('export_dialog.not_authenticated', 'Not authenticated. Please refresh and try again.'), step: 1, format: type })
         return
       }
 
@@ -728,7 +728,7 @@ function BoardPageInner() {
         const data = await res.json().catch(() => ({}))
         setExportState({
           open: true,
-          error: (data as { error?: string }).error ?? 'Export failed. Please try again.',
+          error: (data as { error?: string }).error ?? t('export_dialog.export_failed_message', 'Export failed. Please try again.'),
           step: 2,
           format: type,
         })
@@ -751,7 +751,7 @@ function BoardPageInner() {
 
       setExportState(null)
     } catch {
-      setExportState({ open: true, error: 'Export failed. Please try again.', step: 2, format: type })
+      setExportState({ open: true, error: t('export_dialog.export_failed_message', 'Export failed. Please try again.'), step: 2, format: type })
     }
   }
 
@@ -1543,22 +1543,20 @@ function BoardPageInner() {
             )}
           </div>
 
-          {/* Breadcrumb + search + filter bar */}
-          {!loading && (
-            <div data-no-pan className="absolute top-4 left-4 z-10 flex flex-col gap-2">
-              {projectId && !isBoardFullscreen && (
-                <Breadcrumb>
-                  <BreadcrumbList>
-                    <BreadcrumbItem>
-                      <BreadcrumbLink asChild><Link href="/projects">{t('nav.projects', 'Projects')}</Link></BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                      <BreadcrumbPage className="max-w-[200px] truncate">{project?.name || t('board.project', 'Project')}</BreadcrumbPage>
-                    </BreadcrumbItem>
-                  </BreadcrumbList>
-                </Breadcrumb>
-              )}
+          {/* Breadcrumb */}
+          {!loading && projectId && !isBoardFullscreen && (
+            <div data-no-pan className="absolute top-4 left-4 z-10 rounded-md bg-background/80 px-2.5 py-1.5 backdrop-blur-sm">
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild><Link href="/projects">{t('nav.projects', 'Projects')}</Link></BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage className="max-w-[200px] truncate">{project?.name || t('board.project', 'Project')}</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
             </div>
           )}
           {!loading && slides.length > 0 && (
