@@ -204,7 +204,11 @@
     "use_this_template": "Use this template",
     "creating": "Creating…",
     "template_no_slides": "This template set has no slides.",
-    "deprecated_badge": "Deprecated"
+    "deprecated_badge": "Deprecated",
+    "slide_count_one": "{{count}} slide",
+    "slide_count_other": "{{count}} slides",
+    "back_to_name": "Back to name",
+    "back_to_templates": "Back to templates"
   },
   "profile": {
     "title": "Profile & Settings",
@@ -418,9 +422,11 @@
   },
   "fill_warning": {
     "title": "Required fields are empty",
-    "description": "The following required fields must be filled in before exporting:",
+    "description": "The following required fields are not yet filled in. You can still {{action}}, but the fields will be empty.",
+    "slide_position": "Slide #{{position}}",
+    "field_required": "\"{{label}}\" — required",
     "fill_in": "Fill in",
-    "proceed_anyway": "Export anyway"
+    "proceed_anyway": "{{action}} anyway"
   },
   "save_version_dialog": {
     "title": "Save Version",
@@ -451,14 +457,25 @@
   },
   "presentation": {
     "exit": "Exit",
-    "exit_tooltip": "Exit presentation (Esc)"
+    "exit_tooltip": "Exit presentation (Esc)",
+    "text_edited": "Text edited"
+  },
+  "slide_preview": {
+    "title": "Slide Preview",
+    "text_fields": "Text Fields",
+    "no_text_edits": "No text edits for this slide.",
+    "field_empty": "Empty",
+    "close": "Close"
   },
   "edit_fields": {
     "title": "Edit text fields",
     "required": "Required",
     "save": "Save",
     "saving": "Saving…",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "done": "Done",
+    "auto_saved": "Changes saved automatically",
+    "no_editable_fields": "This slide has no editable text fields."
   },
   "comments": {
     "title": "Comments",
@@ -736,6 +753,23 @@
     "remove_field": "Remove field",
     "all_fields_must_have_label": "All editable fields must have a label",
     "save": "Save",
+    "replace_pptx": "Replace PPTX file…",
+    "replace_warning": "Uploading a new file will update all projects using this slide.",
+    "editable_text_fields": "Editable text fields",
+    "rescan_pptx": "Re-scan PPTX",
+    "scanning": "Scanning…",
+    "no_editable_fields": "No editable fields. Employees will not be able to modify any text on this slide.",
+    "field_number": "Field {{number}}",
+    "auto_detected": "Auto-detected",
+    "label_placeholder": "e.g. Customer name",
+    "placeholder_placeholder": "e.g. Enter customer name",
+    "required_description": "Required — warn before export if empty",
+    "cancel": "Cancel",
+    "saving": "Saving…",
+    "save_changes": "Save changes",
+    "title_required": "Title is required",
+    "all_fields_need_label": "All editable fields must have a label",
+    "scan_error": "Could not parse text fields from file",
     "upload_slide": "Upload Slide",
     "upload_slide_description": "Upload a PowerPoint file (.pptx) to add it to the slide library.",
     "powerpoint_file_label": "PowerPoint file",
@@ -920,6 +954,11 @@
   },
   "viewer": {
     "download_pdf": "Download PDF",
+    "exit": "Exit",
+    "fullscreen": "Fullscreen",
+    "fullscreen_tooltip": "Fullscreen (F)",
+    "pdf_failed": "PDF download failed. Please try again.",
+    "dismiss": "Dismiss",
     "link_not_found": "Link not found",
     "link_not_found_desc": "This link may have been revoked or the presentation deleted.",
     "link_expired": "This link has expired",

@@ -52,6 +52,9 @@ function parseSlideXml(slideXml: string): DetectedField[] {
     // Must have a text body
     if (!sp.includes('<p:txBody>') && !sp.includes('<p:txBody ')) continue
 
+    // Skip freehand / custom-geometry shapes (ink drawings, connectors, etc.)
+    if (sp.includes('<a:custGeom')) continue
+
     // Extract shape name from <p:cNvPr name="...">
     const nameMatch = sp.match(/<p:cNvPr[^>]+name="([^"]*)"/)
     const shapeName = nameMatch?.[1] ?? ''
@@ -96,7 +99,7 @@ function parseSlideXml(slideXml: string): DetectedField[] {
       id: crypto.randomUUID(),
       label,
       placeholder: text,
-      required: phType === 'title' || phType === 'ctrTitle',
+      required: false,
       shapeName,
       phType,
     })

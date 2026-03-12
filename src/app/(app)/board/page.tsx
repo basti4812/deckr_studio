@@ -17,7 +17,7 @@ import { useCurrentUser } from '@/hooks/use-current-user'
 import { useCanvas } from '@/hooks/use-canvas'
 import { useCanvasDrag, type DragState } from '@/hooks/use-canvas-drag'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
-import { CARD_WIDTH } from '@/components/board/canvas-slide-card'
+import { CARD_WIDTH, THUMB_HEIGHT } from '@/components/board/canvas-slide-card'
 import {
   computeGroupPositions,
   calcGroupHeight as autoCalcGroupHeight,
@@ -26,6 +26,7 @@ import {
   GAP as AUTO_GAP,
   PADDING as AUTO_PADDING,
   BETWEEN_GROUPS as AUTO_BETWEEN_GROUPS,
+  SECTION_HEADER as AUTO_SECTION_HEADER,
 } from '@/lib/auto-layout'
 import { GroupSection } from '@/components/board/group-section'
 import { ZoomControls } from '@/components/board/zoom-controls'
@@ -33,6 +34,7 @@ import { TrayPanel, type TrayItem } from '@/components/board/tray-panel'
 import { EditFieldsDialog } from '@/components/board/edit-fields-dialog'
 import { FillWarningDialog } from '@/components/board/fill-warning-dialog'
 import { ExportProgressDialog } from '@/components/board/export-progress-dialog'
+import { SlidePreviewDialog } from '@/components/board/slide-preview-dialog'
 import { PresentationMode, type PresentationSlide } from '@/components/board/presentation-mode'
 import { SharePanel, type ShareRecord, type SearchUser } from '@/components/projects/share-panel'
 import { CrmDetailsDialog } from '@/components/projects/crm-details-dialog'
@@ -221,6 +223,7 @@ function BoardPageInner() {
   const [trayCollapsed, setTrayCollapsed] = useState(false)
   const [deprecatedError, setDeprecatedError] = useState('')
   const [editingInstance, setEditingInstance] = useState<string | null>(null)
+  const [previewSlideId, setPreviewSlideId] = useState<string | null>(null)
   const [fillWarning, setFillWarning] = useState<{ issues: UnfilledField[]; proceed: () => void; proceedLabel: string } | null>(null)
   const [exportState, setExportState] = useState<{ open: boolean; error: string | null; step: number; format: 'pptx' | 'pdf' } | null>(null)
   const [presentationMode, setPresentationMode] = useState(false)
@@ -331,6 +334,46 @@ function BoardPageInner() {
 
   // Tracks which export type to retry when the export dialog "Try again" is clicked
   const lastExportTypeRef = useRef<'pptx' | 'pdf'>('pptx')
+
+  // Preview URLs: instance-level rendered thumbnails with text edits applied
+  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({})
+  const renderTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+
+  /**
+   * Schedule a background re-render of a slide thumbnail with text edits.
+   * Debounced to 2 seconds after the last edit to avoid hammering ConvertAPI.
+   */
+  function scheduleRenderPreview(instanceId: string, slideId: string, edits: Record<string, string>) {
+    if (!projectId) return
+    // Clear any pending render for this instance
+    if (renderTimers.current[instanceId]) {
+      clearTimeout(renderTimers.current[instanceId])
+    }
+    renderTimers.current[instanceId] = setTimeout(async () => {
+      try {
+        const supabase = createBrowserSupabaseClient()
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) return
+
+        const res = await fetch('/api/slides/render-preview', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ slideId, projectId, instanceId, edits }),
+        })
+
+        if (!res.ok) return
+        const data = await res.json()
+        if (data.previewUrl) {
+          setPreviewUrls((prev) => ({ ...prev, [instanceId]: data.previewUrl }))
+        }
+      } catch {
+        // Silently ignore render failures — user can still export
+      }
+    }, 2000)
+  }
 
   // -------------------------------------------------------------------------
   // Fetch slides + groups
@@ -728,6 +771,13 @@ function BoardPageInner() {
         [instanceId]: { ...(prev[instanceId] ?? {}), [fieldId]: value },
       }
       scheduleSave(trayItemsRef.current, updated)
+
+      // Trigger background re-render of the slide thumbnail with text edits
+      const trayItem = trayItemsRef.current.find((t) => t.id === instanceId)
+      if (trayItem && !trayItem.is_personal) {
+        scheduleRenderPreview(instanceId, trayItem.slide_id, updated[instanceId])
+      }
+
       return updated
     })
   }
@@ -795,7 +845,7 @@ function BoardPageInner() {
     lastExportTypeRef.current = 'pptx'
     const issues = checkFillStatus(trayItems, slideMap, textEdits)
     if (issues.length > 0) {
-      setFillWarning({ issues, proceed: () => doExport('pptx'), proceedLabel: 'Export' })
+      setFillWarning({ issues, proceed: () => doExport('pptx'), proceedLabel: t('board.export') })
     } else {
       doExport('pptx')
     }
@@ -806,7 +856,7 @@ function BoardPageInner() {
     lastExportTypeRef.current = 'pdf'
     const issues = checkFillStatus(trayItems, slideMap, textEdits)
     if (issues.length > 0) {
-      setFillWarning({ issues, proceed: () => doExport('pdf'), proceedLabel: 'Export PDF' })
+      setFillWarning({ issues, proceed: () => doExport('pdf'), proceedLabel: t('board.export_pdf') })
     } else {
       doExport('pdf')
     }
@@ -816,7 +866,7 @@ function BoardPageInner() {
     if (!projectId) return
     const issues = checkFillStatus(trayItems, slideMap, textEdits)
     if (issues.length > 0) {
-      setFillWarning({ issues, proceed: () => setPresentationMode(true), proceedLabel: 'Present' })
+      setFillWarning({ issues, proceed: () => setPresentationMode(true), proceedLabel: t('board.present') })
     } else {
       setPresentationMode(true)
     }
@@ -1245,16 +1295,20 @@ function BoardPageInner() {
   const personalSlidesMap = useMemo(() => new Map(personalSlides.map((s) => [s.id, s])), [personalSlides])
 
   // Slides in tray order for presentation mode
-  const presentationSlides: PresentationSlide[] = trayItems.flatMap((item) => {
+  const presentationSlides: PresentationSlide[] = trayItems.flatMap((item): PresentationSlide[] => {
     // Personal slides — no thumbnail in V1, show placeholder title
     if (item.is_personal && item.personal_slide_id) {
       const ps = personalSlidesMap.get(item.personal_slide_id)
       if (!ps) return []
-      return [{ thumbnail_url: null, title: ps.title }]
+      return [{ thumbnail_url: null, title: ps.title, hasTextEdits: false }]
     }
     const slide = slideMap.get(item.slide_id)
     if (!slide) return []
-    return [{ thumbnail_url: slide.thumbnail_url, title: slide.title }]
+    const edits = textEdits[item.id]
+    const hasTextEdits = !!edits && Object.values(edits).some((v) => v.trim() !== '')
+    // Use rendered preview if available (shows text edits applied)
+    const thumbnailUrl = previewUrls[item.id] ?? slide.thumbnail_url
+    return [{ thumbnail_url: thumbnailUrl, title: slide.title, hasTextEdits }]
   })
 
   // -------------------------------------------------------------------------
@@ -1476,11 +1530,11 @@ function BoardPageInner() {
       )}
 
       {/* Full-bleed canvas + tray (desktop only — not mounted on mobile) */}
-      {!isMobile && <div className="hidden md:flex flex-1 min-h-0 -m-6">
+      {!isMobile && <div className={`hidden md:flex flex-1 min-h-0 ${isBoardFullscreen ? '' : '-m-6'}`}>
         {/* Canvas area */}
         <div
           ref={containerRef}
-          className="relative flex-1 min-h-0 overflow-hidden cursor-grab active:cursor-grabbing"
+          className={`relative flex-1 min-h-0 overflow-hidden cursor-grab active:cursor-grabbing ${isBoardFullscreen ? 'rounded-lg border' : ''}`}
           style={{
             background: 'radial-gradient(circle, #d0d0d0 1px, transparent 1px)',
             backgroundSize: '24px 24px',
@@ -1542,7 +1596,6 @@ function BoardPageInner() {
               height: worldH,
               transform: `translate(${canvas.panX}px, ${canvas.panY}px) scale(${canvas.zoom})`,
               transformOrigin: '0 0',
-              willChange: 'transform',
             }}
           >
             {loading ? (
@@ -1595,6 +1648,7 @@ function BoardPageInner() {
                     slides={section.slides}
                     x={section.x}
                     y={section.y}
+                    zoom={canvas.zoom}
                     onAddToTray={projectId && canEdit ? addToTray : undefined}
                     isPersonal={section.isPersonal}
                     onRename={section.isPersonal ? (name) => renamePersonalGroup(section.id, name) : undefined}
@@ -1619,6 +1673,18 @@ function BoardPageInner() {
                     }}
                     isCollapsed={collapsedGroups.has(section.id)}
                     onToggleCollapse={() => toggleGroupCollapse(section.id)}
+                    onPreview={(slide) => setPreviewSlideId(slide.id)}
+                    onDoubleClick={(slide) => {
+                      if (!containerRef.current) return
+                      const idx = section.slides.findIndex((s) => s.id === slide.id)
+                      if (idx < 0) return
+                      const col = idx % AUTO_COLS
+                      const row = Math.floor(idx / AUTO_COLS)
+                      const slideX = section.x + col * (CARD_WIDTH + AUTO_GAP)
+                      const slideY = section.y + AUTO_SECTION_HEADER + row * (CARD_HEIGHT + AUTO_GAP)
+                      const rect = containerRef.current.getBoundingClientRect()
+                      canvas.zoomToRect(slideX, slideY, CARD_WIDTH, THUMB_HEIGHT, rect.width, rect.height)
+                    }}
                   />
                 )
               })
@@ -1869,6 +1935,7 @@ function BoardPageInner() {
           onPresent={projectId ? handlePresent : undefined}
           onUploadPersonalSlide={projectId && canEdit ? () => setUploadDialogOpen(true) : undefined}
           onSaveVersion={projectId && canEdit ? () => setSaveVersionOpen(true) : undefined}
+          previewUrls={previewUrls}
         />
       </div>}
 
@@ -1881,6 +1948,15 @@ function BoardPageInner() {
           instanceId={editingInstance}
           values={textEdits[editingInstance] ?? {}}
           onChange={(fieldId, value) => handleFieldChange(editingInstance, fieldId, value)}
+        />
+      )}
+
+      {/* Slide preview dialog */}
+      {previewSlideId && (
+        <SlidePreviewDialog
+          open
+          onClose={() => setPreviewSlideId(null)}
+          slide={slideMap.get(previewSlideId) ?? null}
         />
       )}
 

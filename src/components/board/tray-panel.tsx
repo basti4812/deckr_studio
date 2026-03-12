@@ -63,6 +63,7 @@ interface TrayPanelProps {
   onPresent?: () => void
   onUploadPersonalSlide?: () => void
   onSaveVersion?: () => void
+  previewUrls?: Record<string, string>
 }
 
 export function TrayPanel({
@@ -89,6 +90,7 @@ export function TrayPanel({
   onPresent,
   onUploadPersonalSlide,
   onSaveVersion,
+  previewUrls,
 }: TrayPanelProps) {
   const { t } = useTranslation()
   const sensors = useSensors(
@@ -311,6 +313,7 @@ export function TrayPanel({
                       isMandatory={isMandatory}
                       instanceEdits={textEdits[item.id] ?? {}}
                       projectUpdatedAt={projectUpdatedAt}
+                      previewUrl={previewUrls?.[item.id]}
                       commentCount={commentCounts?.[item.slide_id] ?? 0}
                       hasNote={notesExist?.[item.slide_id] ?? false}
                       onRemove={onRemove}

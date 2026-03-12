@@ -18,7 +18,7 @@ function InnerLayout({ children }: { children: React.ReactNode }) {
   if (isFullscreen) {
     return (
       <div className="flex h-screen flex-col">
-        <main className="flex flex-1 flex-col overflow-hidden">{children}</main>
+        <main className="flex flex-1 flex-col overflow-hidden p-2">{children}</main>
       </div>
     )
   }

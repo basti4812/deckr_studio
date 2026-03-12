@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ChevronLeft, ChevronRight, Download, LayoutTemplate, Loader2, Maximize2, Minimize2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -34,6 +35,7 @@ export function ViewerSlideshow({
   tenantPrimaryColor,
   shareToken,
 }: ViewerSlideshowProps) {
+  const { t } = useTranslation()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [downloading, setDownloading] = useState(false)
   const [downloadError, setDownloadError] = useState(false)
@@ -183,7 +185,7 @@ export function ViewerSlideshow({
               className="flex items-center gap-2 rounded-lg bg-black/60 px-3 py-2 text-sm text-white backdrop-blur-sm hover:bg-black/80 transition-colors"
             >
               <X className="h-4 w-4" />
-              Exit
+              {t('viewer.exit')}
             </button>
             <span className="rounded-lg bg-black/60 px-3 py-2 text-sm text-white tabular-nums backdrop-blur-sm">
               {currentIndex + 1} / {slides.length}
@@ -260,10 +262,10 @@ export function ViewerSlideshow({
             onClick={toggleFullscreen}
             variant="outline"
             size="sm"
-            title="Fullscreen (F)"
+            title={t('viewer.fullscreen_tooltip')}
           >
             <Maximize2 className="mr-1.5 h-3.5 w-3.5" />
-            Fullscreen
+            {t('viewer.fullscreen')}
           </Button>
 
           <Button
@@ -278,7 +280,7 @@ export function ViewerSlideshow({
             ) : (
               <Download className="mr-1.5 h-3.5 w-3.5" />
             )}
-            Download PDF
+            {t('viewer.download_pdf')}
           </Button>
         </div>
       </header>
@@ -286,12 +288,12 @@ export function ViewerSlideshow({
       {/* Download error banner */}
       {downloadError && (
         <div className="flex items-center justify-center gap-2 bg-destructive/10 px-4 py-2 text-sm text-destructive">
-          PDF download failed. Please try again.
+          {t('viewer.pdf_failed')}
           <button
             onClick={() => setDownloadError(false)}
             className="ml-2 underline hover:no-underline"
           >
-            Dismiss
+            {t('viewer.dismiss')}
           </button>
         </div>
       )}

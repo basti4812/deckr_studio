@@ -204,7 +204,11 @@
     "use_this_template": "Diese Vorlage verwenden",
     "creating": "Wird erstellt…",
     "template_no_slides": "Dieser Vorlagensatz enthält keine Folien.",
-    "deprecated_badge": "Veraltet"
+    "deprecated_badge": "Veraltet",
+    "slide_count_one": "{{count}} Folie",
+    "slide_count_other": "{{count}} Folien",
+    "back_to_name": "Zurück zum Namen",
+    "back_to_templates": "Zurück zu Vorlagen"
   },
   "profile": {
     "title": "Profil & Einstellungen",
@@ -418,9 +422,11 @@
   },
   "fill_warning": {
     "title": "Erforderliche Felder sind leer",
-    "description": "Die folgenden erforderlichen Felder müssen vor dem Export ausgefüllt werden:",
+    "description": "Die folgenden erforderlichen Felder sind noch nicht ausgefüllt. Sie können trotzdem {{action}}, aber die Felder bleiben leer.",
+    "slide_position": "Folie #{{position}}",
+    "field_required": "\"{{label}}\" — erforderlich",
     "fill_in": "Ausfüllen",
-    "proceed_anyway": "Trotzdem exportieren"
+    "proceed_anyway": "Trotzdem {{action}}"
   },
   "save_version_dialog": {
     "title": "Version speichern",
@@ -451,14 +457,25 @@
   },
   "presentation": {
     "exit": "Beenden",
-    "exit_tooltip": "Präsentation beenden (Esc)"
+    "exit_tooltip": "Präsentation beenden (Esc)",
+    "text_edited": "Text bearbeitet"
+  },
+  "slide_preview": {
+    "title": "Folienvorschau",
+    "text_fields": "Textfelder",
+    "no_text_edits": "Keine Textbearbeitungen für diese Folie.",
+    "field_empty": "Leer",
+    "close": "Schließen"
   },
   "edit_fields": {
     "title": "Textfelder bearbeiten",
     "required": "Erforderlich",
     "save": "Speichern",
     "saving": "Wird gespeichert…",
-    "cancel": "Abbrechen"
+    "cancel": "Abbrechen",
+    "done": "Fertig",
+    "auto_saved": "Änderungen werden automatisch gespeichert",
+    "no_editable_fields": "Diese Folie hat keine bearbeitbaren Textfelder."
   },
   "comments": {
     "title": "Kommentare",
@@ -736,6 +753,23 @@
     "remove_field": "Feld entfernen",
     "all_fields_must_have_label": "Alle bearbeitbaren Felder müssen eine Bezeichnung haben",
     "save": "Speichern",
+    "replace_pptx": "PPTX-Datei ersetzen…",
+    "replace_warning": "Das Hochladen einer neuen Datei aktualisiert alle Projekte, die diese Folie verwenden.",
+    "editable_text_fields": "Bearbeitbare Textfelder",
+    "rescan_pptx": "PPTX neu scannen",
+    "scanning": "Wird gescannt…",
+    "no_editable_fields": "Keine bearbeitbaren Felder. Mitarbeiter können keinen Text auf dieser Folie ändern.",
+    "field_number": "Feld {{number}}",
+    "auto_detected": "Automatisch erkannt",
+    "label_placeholder": "z. B. Kundenname",
+    "placeholder_placeholder": "z. B. Kundennamen eingeben",
+    "required_description": "Erforderlich — Warnung vor Export wenn leer",
+    "cancel": "Abbrechen",
+    "saving": "Wird gespeichert…",
+    "save_changes": "Änderungen speichern",
+    "title_required": "Titel ist erforderlich",
+    "all_fields_need_label": "Alle bearbeitbaren Felder müssen ein Label haben",
+    "scan_error": "Textfelder konnten nicht aus der Datei gelesen werden",
     "upload_slide": "Folie hochladen",
     "upload_slide_description": "Laden Sie eine PowerPoint-Datei (.pptx) hoch, um sie zur Folienbibliothek hinzuzufügen.",
     "powerpoint_file_label": "PowerPoint-Datei",
@@ -920,6 +954,11 @@
   },
   "viewer": {
     "download_pdf": "PDF herunterladen",
+    "exit": "Beenden",
+    "fullscreen": "Vollbild",
+    "fullscreen_tooltip": "Vollbild (F)",
+    "pdf_failed": "PDF-Download fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "dismiss": "Schließen",
     "link_not_found": "Link nicht gefunden",
     "link_not_found_desc": "Dieser Link wurde möglicherweise widerrufen oder die Präsentation gelöscht.",
     "link_expired": "Dieser Link ist abgelaufen",

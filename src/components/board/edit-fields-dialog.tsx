@@ -2,9 +2,11 @@
 
 import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -67,6 +69,15 @@ export function EditFieldsDialog({
             ))}
           </div>
         )}
+
+        <DialogFooter className="flex items-center justify-between sm:justify-between">
+          <p className="text-xs text-muted-foreground">
+            {t('edit_fields.auto_saved')}
+          </p>
+          <Button onClick={onClose}>
+            {t('edit_fields.done')}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

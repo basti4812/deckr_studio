@@ -53,7 +53,7 @@ export function FillWarningDialog({
           {t('fill_warning.description', { action: proceedLabel.toLowerCase() })}
         </p>
 
-        <ScrollArea className="max-h-64">
+        <ScrollArea className="max-h-[50vh]">
           <div className="space-y-3 pr-2">
             {Array.from(grouped.entries()).map(([instanceId, fields]) => {
               const first = fields[0]

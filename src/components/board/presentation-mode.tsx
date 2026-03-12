@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ChevronLeft, ChevronRight, LayoutTemplate, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, LayoutTemplate, Pencil, X } from 'lucide-react'
 
 export interface PresentationSlide {
   thumbnail_url: string | null
   title: string
+  hasTextEdits?: boolean
 }
 
 interface PresentationModeProps {
@@ -146,6 +147,14 @@ export function PresentationMode({ slides, onExit }: PresentationModeProps) {
         <div className="flex flex-col items-center gap-4 text-white/30">
           <LayoutTemplate className="h-24 w-24" />
           <p className="text-xl font-medium">{slide.title}</p>
+        </div>
+      )}
+
+      {/* Text edited indicator */}
+      {slide.hasTextEdits && showUI && (
+        <div className="pointer-events-none fixed top-4 right-20 z-[56] flex items-center gap-1.5 rounded-lg bg-black/60 px-3 py-1.5 text-xs text-white/80 backdrop-blur-sm transition-opacity">
+          <Pencil className="h-3 w-3" />
+          {t('presentation.text_edited')}
         </div>
       )}
 

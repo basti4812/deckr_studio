@@ -2,7 +2,7 @@
 
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AlertTriangle, ArrowRightLeft, LayoutTemplate, Lock, MessageSquare, Plus, RotateCcw } from 'lucide-react'
+import { AlertTriangle, ArrowRightLeft, Eye, LayoutTemplate, Lock, MessageSquare, Pencil, Plus, RotateCcw } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import {
   ContextMenu,
@@ -26,8 +26,11 @@ export interface MoveTarget {
 
 interface CanvasSlideCardProps {
   slide: Slide
+  zoom?: number
   onClick?: (slide: Slide) => void
   onAddToTray?: (slide: Slide) => void
+  onPreview?: (slide: Slide) => void
+  onDoubleClick?: (slide: Slide) => void
   annotation?: string
   onAnnotationClick?: (slideId: string) => void
   moveTargets?: MoveTarget[]
@@ -60,8 +63,11 @@ function StatusBadge({ status }: { status: Slide['status'] }) {
 
 export const CanvasSlideCard = memo(function CanvasSlideCard({
   slide,
+  zoom = 1,
   onClick,
   onAddToTray,
+  onPreview,
+  onDoubleClick,
   annotation,
   onAnnotationClick,
   moveTargets,
@@ -80,30 +86,24 @@ export const CanvasSlideCard = memo(function CanvasSlideCard({
   }
 
   const hasContextMenu = onAnnotationClick || (moveTargets && moveTargets.length > 0)
+  const hasEditableFields = slide.editable_fields && slide.editable_fields.length > 0
+
+  // Counter-scale factor so label stays constant size on screen
+  const labelScale = 1 / zoom
 
   const cardContent = (
     <div style={{ width: CARD_WIDTH }}>
-      {/* Annotation label */}
-      {annotation && (
-        <div
-          data-no-pan
-          className="mb-1 truncate text-[10px] font-medium text-primary/80 bg-primary/5 border border-primary/20 rounded px-1.5 py-0.5 cursor-pointer hover:bg-primary/10 transition-colors"
-          title={annotation}
-          onClick={(e) => { e.stopPropagation(); onAnnotationClick?.(slide.id) }}
-        >
-          {annotation}
-        </div>
-      )}
       <div
         data-no-pan
         style={{ width: CARD_WIDTH }}
         className="select-none rounded-lg border bg-background shadow-sm overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/40 transition-shadow group/card"
         onClick={handleClick}
+        onDoubleClick={onDoubleClick ? (e) => { e.stopPropagation(); onDoubleClick(slide) } : undefined}
       >
         {/* Thumbnail */}
         <div
           style={{ height: THUMB_HEIGHT }}
-          className="relative bg-muted flex items-center justify-center border-b"
+          className="relative bg-muted flex items-center justify-center"
         >
           {slide.thumbnail_url ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -126,32 +126,57 @@ export const CanvasSlideCard = memo(function CanvasSlideCard({
               </div>
             </div>
           )}
-        </div>
-
-        {/* Info */}
-        <div className="p-2 space-y-1">
-          <p
-            className="text-xs font-medium leading-tight truncate"
-            title={slide.title}
-          >
-            {slide.title}
-          </p>
-          <StatusBadge status={slide.status} />
-          {slide.tags && slide.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 pt-0.5">
-              {slide.tags.slice(0, 3).map((tag) => (
-                <span key={tag} className="inline-block rounded-full bg-secondary px-1.5 py-0 text-[10px] font-medium text-secondary-foreground leading-5">
-                  {tag}
-                </span>
-              ))}
-              {slide.tags.length > 3 && (
-                <span className="inline-block rounded-full bg-secondary px-1.5 py-0 text-[10px] font-medium text-secondary-foreground leading-5">
-                  +{slide.tags.length - 3}
-                </span>
-              )}
+          {onPreview && (
+            <button
+              data-no-pan
+              className="absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-md bg-black/50 text-white opacity-0 group-hover/card:opacity-100 transition-opacity hover:bg-black/70"
+              onClick={(e) => { e.stopPropagation(); onPreview(slide) }}
+              title={t('slide_preview.title')}
+            >
+              <Eye className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {/* Editable fields indicator */}
+          {hasEditableFields && (
+            <div className="absolute bottom-1.5 left-1.5 flex h-5 w-5 items-center justify-center rounded bg-amber-500/90 text-white shadow-sm">
+              <Pencil className="h-3 w-3" />
+            </div>
+          )}
+          {/* Status badge overlay */}
+          {slide.status !== 'standard' && (
+            <div className="absolute top-1.5 left-1.5">
+              <StatusBadge status={slide.status} />
             </div>
           )}
         </div>
+      </div>
+
+      {/* Freestanding label below card — counter-scaled to stay constant size */}
+      <div
+        style={{
+          transformOrigin: '0 0',
+          transform: `scale(${labelScale})`,
+          width: CARD_WIDTH * zoom,
+        }}
+        className="mt-1 pointer-events-none"
+      >
+        {/* Annotation */}
+        {annotation && (
+          <div
+            data-no-pan
+            className="mb-0.5 truncate text-[10px] font-medium text-primary/80 cursor-pointer hover:text-primary pointer-events-auto"
+            title={annotation}
+            onClick={(e) => { e.stopPropagation(); onAnnotationClick?.(slide.id) }}
+          >
+            {annotation}
+          </div>
+        )}
+        <p
+          className="text-[11px] font-medium leading-tight text-muted-foreground truncate"
+          title={slide.title}
+        >
+          {slide.title}
+        </p>
       </div>
     </div>
   )

@@ -13,6 +13,7 @@ interface TraySlideItemProps {
   isMandatory: boolean
   instanceEdits: Record<string, string>
   projectUpdatedAt?: string | null
+  previewUrl?: string
   commentCount?: number
   hasNote?: boolean
   onRemove?: (instanceId: string) => void
@@ -50,6 +51,7 @@ export function TraySlideItem({
   isMandatory,
   instanceEdits,
   projectUpdatedAt,
+  previewUrl,
   commentCount = 0,
   hasNote = false,
   onRemove,
@@ -93,11 +95,11 @@ export function TraySlideItem({
         </button>
       )}
 
-      {/* Thumbnail */}
+      {/* Thumbnail — use rendered preview if available */}
       <div className="flex h-8 w-14 shrink-0 items-center justify-center rounded bg-muted overflow-hidden">
-        {slide.thumbnail_url ? (
+        {(previewUrl ?? slide.thumbnail_url) ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={slide.thumbnail_url} alt="" className="h-full w-full object-cover" />
+          <img src={(previewUrl ?? slide.thumbnail_url)!} alt="" className="h-full w-full object-cover" />
         ) : (
           <LayoutTemplate className="h-3.5 w-3.5 text-muted-foreground/50" />
         )}

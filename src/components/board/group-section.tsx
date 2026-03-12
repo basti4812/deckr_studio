@@ -37,6 +37,12 @@ interface GroupSectionProps {
   isCollapsed?: boolean
   /** Toggle collapse callback */
   onToggleCollapse?: () => void
+  /** Preview callback for slide cards */
+  onPreview?: (slide: Slide) => void
+  /** Double-click callback for zoom-to-slide */
+  onDoubleClick?: (slide: Slide) => void
+  /** Current canvas zoom level (passed to cards for counter-scaling labels) */
+  zoom?: number
 }
 
 export const GroupSection = memo(function GroupSection({
@@ -59,6 +65,9 @@ export const GroupSection = memo(function GroupSection({
   onGroupPointerDown,
   isCollapsed,
   onToggleCollapse,
+  onPreview,
+  onDoubleClick,
+  zoom,
 }: GroupSectionProps) {
   const { t } = useTranslation()
   const [editing, setEditing] = useState(false)
@@ -164,6 +173,23 @@ export const GroupSection = memo(function GroupSection({
             )}
           </>
         )}
+        {/* Collapsed thumbnail preview — counter-scaled to stay constant size */}
+        {isCollapsed && slides.length > 0 && slides[0].thumbnail_url && (
+          <div
+            className="shrink-0"
+            style={{
+              transformOrigin: 'center center',
+              transform: zoom ? `scale(${1 / zoom})` : undefined,
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={slides[0].thumbnail_url}
+              alt={slides[0].title}
+              className="h-10 w-[72px] shrink-0 rounded border object-cover"
+            />
+          </div>
+        )}
         <div className="flex-1 h-px bg-border" style={{ minWidth: 40 }} />
         <span className="text-xs text-muted-foreground">{slides.length}</span>
       </div>
@@ -192,7 +218,10 @@ export const GroupSection = memo(function GroupSection({
                 <CanvasSlideCard
                   key={slide.id}
                   slide={slide}
+                  zoom={zoom}
                   onAddToTray={onAddToTray}
+                  onPreview={onPreview}
+                  onDoubleClick={onDoubleClick}
                   annotation={annotations?.[slide.id]}
                   onAnnotationClick={onAnnotationClick}
                   moveTargets={moveTargets}

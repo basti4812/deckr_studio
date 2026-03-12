@@ -286,14 +286,14 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                   type="button"
                   onClick={handleBackToName}
                   className="text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label="Back to name"
+                  aria-label={t('create_project.back_to_name')}
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </button>
                 <div>
-                  <DialogTitle>Choose a template</DialogTitle>
+                  <DialogTitle>{t('create_project.choose_template')}</DialogTitle>
                   <DialogDescription>
-                    Start from a curated slide selection or begin from scratch.
+                    {t('create_project.template_description')}
                   </DialogDescription>
                 </div>
               </div>
@@ -338,8 +338,8 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                   >
                     <FileStack className="h-8 w-8 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium">Start from scratch</p>
-                      <p className="text-xs text-muted-foreground">Only mandatory slides</p>
+                      <p className="text-sm font-medium">{t('create_project.start_from_scratch')}</p>
+                      <p className="text-xs text-muted-foreground">{t('create_project.only_mandatory_slides')}</p>
                     </div>
                   </button>
 
@@ -356,7 +356,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
 
               {!loadingSets && filteredSets.length === 0 && (
                 <p className="py-6 text-center text-sm text-muted-foreground">
-                  No template sets available. Start from scratch to continue.
+                  {t('create_project.no_templates')}
                 </p>
               )}
             </ScrollArea>
@@ -365,7 +365,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
 
             {creating && (
               <div className="flex items-center justify-center py-2">
-                <p className="text-sm text-muted-foreground">Creating project…</p>
+                <p className="text-sm text-muted-foreground">{t('create_project.creating_project')}</p>
               </div>
             )}
           </>
@@ -380,7 +380,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                   type="button"
                   onClick={handleBackToPicker}
                   className="text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label="Back to templates"
+                  aria-label={t('create_project.back_to_templates')}
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </button>
@@ -393,7 +393,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                       </Badge>
                     )}
                     <span>
-                      {selectedSet.slide_count} slide{selectedSet.slide_count !== 1 ? 's' : ''}
+                      {t('create_project.slide_count', { count: selectedSet.slide_count })}
                     </span>
                   </div>
                 </div>
@@ -413,7 +413,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                 </div>
               ) : previewSlides.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">
-                  This template set has no slides.
+                  {t('create_project.template_no_slides')}
                 </p>
               ) : (
                 <div className="space-y-2">
@@ -446,7 +446,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                             variant="secondary"
                             className="shrink-0 text-[10px] text-orange-600 dark:text-orange-400"
                           >
-                            Deprecated
+                            {t('create_project.deprecated_badge')}
                           </Badge>
                         )}
                       </div>
@@ -460,10 +460,10 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
 
             <DialogFooter>
               <Button variant="outline" onClick={handleBackToPicker} disabled={creating}>
-                Back
+                {t('create_project.back')}
               </Button>
               <Button onClick={() => handleCreate(selectedSet.id)} disabled={creating}>
-                {creating ? 'Creating…' : 'Use this template'}
+                {creating ? t('create_project.creating') : t('create_project.use_this_template')}
               </Button>
             </DialogFooter>
           </>
@@ -484,6 +484,7 @@ function TemplatePickerCard({
   templateSet: TemplateSet
   onClick: () => void
 }) {
+  const { t } = useTranslation()
   const coverSrc = templateSet.cover_image_url ?? templateSet.first_slide_thumbnail
 
   return (
@@ -493,7 +494,7 @@ function TemplatePickerCard({
       className="flex flex-col overflow-hidden rounded-lg border bg-background text-left transition-colors hover:border-primary hover:bg-accent"
     >
       {/* Cover image */}
-      <div className="relative aspect-video w-full bg-muted flex items-center justify-center">
+      <div className="relative aspect-video w-full max-h-[140px] bg-muted flex items-center justify-center overflow-hidden">
         {coverSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={coverSrc} alt={templateSet.name} className="h-full w-full object-cover" />
@@ -512,7 +513,7 @@ function TemplatePickerCard({
             </Badge>
           )}
           <span className="text-xs text-muted-foreground">
-            {templateSet.slide_count} slide{templateSet.slide_count !== 1 ? 's' : ''}
+            {t('create_project.slide_count', { count: templateSet.slide_count })}
           </span>
         </div>
         {templateSet.description && (

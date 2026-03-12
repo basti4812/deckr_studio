@@ -85,8 +85,8 @@ export async function POST(request: NextRequest) {
           body: JSON.stringify({
             Parameters: [
               { Name: 'File', FileValue: { Url: pptxUrl } },
-              { Name: 'ImageHeight', Value: '540' },
-              { Name: 'ImageWidth', Value: '960' },
+              { Name: 'ImageHeight', Value: '1080' },
+              { Name: 'ImageWidth', Value: '1920' },
             ],
           }),
         }
