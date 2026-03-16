@@ -47,10 +47,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // If there is a specific redirect target, use it
+  // SEC-1: Validate redirect target is same-origin (prevent open redirect)
   if (redirectTo) {
     const url = new URL(redirectTo, origin)
-    return NextResponse.redirect(url)
+    if (url.origin === origin) {
+      return NextResponse.redirect(url)
+    }
+    // Ignore off-site redirects — fall through to role-based redirect
   }
 
   // Otherwise, determine redirect based on user role

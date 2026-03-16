@@ -16,16 +16,18 @@ export async function checkRateLimit(
   userId: string,
   endpoint: string,
   maxRequests: number,
-  windowMs: number,
+  windowMs: number
 ): Promise<NextResponse | null> {
   const supabase = createServiceClient()
 
-  const { data, error } = await supabase.rpc('increment_rate_limit', {
-    p_user_id: userId,
-    p_endpoint: endpoint,
-    p_max_requests: maxRequests,
-    p_window_ms: windowMs,
-  }).single() as { data: RateLimitResult | null; error: unknown }
+  const { data, error } = (await supabase
+    .rpc('increment_rate_limit', {
+      p_user_id: userId,
+      p_endpoint: endpoint,
+      p_max_requests: maxRequests,
+      p_window_ms: windowMs,
+    })
+    .single()) as { data: RateLimitResult | null; error: unknown }
 
   if (error || !data) {
     // If the RPC fails, allow the request through rather than blocking
@@ -36,7 +38,7 @@ export async function checkRateLimit(
   if (data.is_limited) {
     return NextResponse.json(
       { error: 'Too many requests. Please try again later.' },
-      { status: 429, headers: { 'Retry-After': String(data.retry_after_sec) } },
+      { status: 429, headers: { 'Retry-After': String(data.retry_after_sec) } }
     )
   }
 
@@ -52,7 +54,7 @@ export async function checkIpRateLimit(
   request: NextRequest,
   endpoint: string,
   maxRequests: number,
-  windowMs: number,
+  windowMs: number
 ): Promise<NextResponse | null> {
   const ip =
     request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
@@ -61,12 +63,14 @@ export async function checkIpRateLimit(
 
   const supabase = createServiceClient()
 
-  const { data, error } = await supabase.rpc('increment_ip_rate_limit', {
-    p_ip: ip,
-    p_endpoint: endpoint,
-    p_max_requests: maxRequests,
-    p_window_ms: windowMs,
-  }).single() as { data: RateLimitResult | null; error: unknown }
+  const { data, error } = (await supabase
+    .rpc('increment_ip_rate_limit', {
+      p_ip: ip,
+      p_endpoint: endpoint,
+      p_max_requests: maxRequests,
+      p_window_ms: windowMs,
+    })
+    .single()) as { data: RateLimitResult | null; error: unknown }
 
   if (error || !data) {
     console.error('IP rate limit RPC error:', error)
@@ -76,7 +80,7 @@ export async function checkIpRateLimit(
   if (data.is_limited) {
     return NextResponse.json(
       { error: 'Too many requests. Please try again later.' },
-      { status: 429, headers: { 'Retry-After': String(data.retry_after_sec) } },
+      { status: 429, headers: { 'Retry-After': String(data.retry_after_sec) } }
     )
   }
 

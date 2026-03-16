@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { getAuthenticatedUser, getUserProfile } from '@/lib/auth-helpers'
+import { requireActiveUser } from '@/lib/auth-helpers'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { createServiceClient } from '@/lib/supabase'
+import { isAllowedStorageUrl } from '@/lib/url-validation'
 import JSZip from 'jszip'
 
 const RequestSchema = z.object({
@@ -20,14 +21,11 @@ const RequestSchema = z.object({
  * via ConvertAPI, stores in Supabase Storage, and returns the URL.
  */
 export async function POST(request: NextRequest) {
-  const user = await getAuthenticatedUser(request)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireActiveUser(request)
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-  const limited = await checkRateLimit(user.id, 'slides:render-preview', 10, 60_000)
+  const limited = await checkRateLimit(auth.user.id, 'slides:render-preview', 10, 60_000)
   if (limited) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
-
-  const profile = await getUserProfile(user.id)
-  if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
 
   const secret = process.env.CONVERTAPI_SECRET
   if (!secret) {
@@ -54,7 +52,7 @@ export async function POST(request: NextRequest) {
     .from('slides')
     .select('id, pptx_url, page_index, page_count, tenant_id, editable_fields')
     .eq('id', slideId)
-    .eq('tenant_id', profile.tenant_id)
+    .eq('tenant_id', auth.profile.tenant_id)
     .single()
 
   if (slideErr || !slide) {
@@ -70,14 +68,21 @@ export async function POST(request: NextRequest) {
     .from('projects')
     .select('id')
     .eq('id', projectId)
-    .eq('tenant_id', profile.tenant_id)
+    .eq('tenant_id', auth.profile.tenant_id)
     .single()
 
   if (projErr || !project) {
     return NextResponse.json({ error: 'Project not found' }, { status: 404 })
   }
 
-  const fields = Array.isArray(slide.editable_fields) ? slide.editable_fields as { id: string; label: string; placeholder: string; required: boolean }[] : []
+  const fields = Array.isArray(slide.editable_fields)
+    ? (slide.editable_fields as {
+        id: string
+        label: string
+        placeholder: string
+        required: boolean
+      }[])
+    : []
   const hasEdits = fields.some((f) => edits[f.id]?.trim())
   if (!hasEdits) {
     // No actual edits — return original thumbnail
@@ -87,6 +92,11 @@ export async function POST(request: NextRequest) {
       .eq('id', slideId)
       .single()
     return NextResponse.json({ previewUrl: original?.thumbnail_url ?? null })
+  }
+
+  // SEC-9: Validate pptx_url points to Supabase storage (prevent SSRF)
+  if (!isAllowedStorageUrl(slide.pptx_url)) {
+    return NextResponse.json({ error: 'Invalid slide URL' }, { status: 422 })
   }
 
   try {
@@ -132,7 +142,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Thumbnail rendering failed' }, { status: 502 })
     }
 
-    const convertData = await convertRes.json() as {
+    const convertData = (await convertRes.json()) as {
       Files: { FileName: string; FileData: string }[]
     }
 
@@ -143,7 +153,7 @@ export async function POST(request: NextRequest) {
 
     // Upload preview PNG to storage
     const pngBuffer = Buffer.from(pageFile.FileData, 'base64')
-    const storagePath = `${profile.tenant_id}/previews/${projectId}/${instanceId}.png`
+    const storagePath = `${auth.profile.tenant_id}/previews/${projectId}/${instanceId}.png`
 
     const { error: uploadErr } = await supabase.storage
       .from('slide-thumbnails')
@@ -181,9 +191,7 @@ async function applyTextEdits(
   edits: Record<string, string>
 ): Promise<Uint8Array> {
   const zip = await JSZip.loadAsync(buffer)
-  const slideFiles = Object.keys(zip.files).filter((f) =>
-    /^ppt\/slides\/slide\d+\.xml$/.test(f)
-  )
+  const slideFiles = Object.keys(zip.files).filter((f) => /^ppt\/slides\/slide\d+\.xml$/.test(f))
 
   for (const slideFile of slideFiles) {
     let xml = await zip.file(slideFile)!.async('string')
@@ -210,7 +218,9 @@ async function extractSinglePage(buffer: ArrayBuffer, pageIndex: number): Promis
   const presRelsXml = await presRelsFile.async('string')
 
   const ridToTarget = new Map<string, string>()
-  for (const m of presRelsXml.matchAll(/<Relationship[^>]+Id="(rId\d+)"[^>]+Target="([^"]+)"[^>]*\/>/g)) {
+  for (const m of presRelsXml.matchAll(
+    /<Relationship[^>]+Id="(rId\d+)"[^>]+Target="([^"]+)"[^>]*\/>/g
+  )) {
     ridToTarget.set(m[1], m[2])
   }
 
@@ -260,10 +270,7 @@ async function extractSinglePage(buffer: ArrayBuffer, pageIndex: number): Promis
   )
   outZip.file('ppt/presentation.xml', newPresXml)
 
-  let newPresRels = presRelsXml.replace(
-    /<Relationship[^>]*Type="[^"]*\/slide"[^>]*\/>\s*/g,
-    ''
-  )
+  let newPresRels = presRelsXml.replace(/<Relationship[^>]*Type="[^"]*\/slide"[^>]*\/>\s*/g, '')
   const slideRelType = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide'
   newPresRels = newPresRels.replace(
     '</Relationships>',
@@ -286,7 +293,11 @@ async function extractSinglePage(buffer: ArrayBuffer, pageIndex: number): Promis
   return result.buffer as ArrayBuffer
 }
 
-function normalizeCrossRunPlaceholder(xml: string, placeholder: string, escapedValue: string): string {
+function normalizeCrossRunPlaceholder(
+  xml: string,
+  placeholder: string,
+  escapedValue: string
+): string {
   return xml.replace(/<a:p\b[^>]*>[\s\S]*?<\/a:p>/g, (paragraph) => {
     const runPattern = /<a:r\b[^>]*>[\s\S]*?<a:t[^>]*>([\s\S]*?)<\/a:t>[\s\S]*?<\/a:r>/g
     const runs: string[] = []
@@ -300,7 +311,10 @@ function normalizeCrossRunPlaceholder(xml: string, placeholder: string, escapedV
     const newText = combined.replace(new RegExp(escapeRegex(placeholder), 'g'), escapedValue)
     const pOpen = (paragraph.match(/^(<a:p\b[^>]*>)/) || ['', '<a:p>'])[1]
     const pPr = (paragraph.match(/<a:pPr[^>]*(?:\/>|>[\s\S]*?<\/a:pPr>)/) || [''])[0]
-    const rPr = (paragraph.match(/<a:r\b[^>]*>[\s\S]*?(<a:rPr[^>]*(?:\/>|>[\s\S]*?<\/a:rPr>))/) || ['', ''])[1]
+    const rPr = (paragraph.match(/<a:r\b[^>]*>[\s\S]*?(<a:rPr[^>]*(?:\/>|>[\s\S]*?<\/a:rPr>))/) || [
+      '',
+      '',
+    ])[1]
     const newRun = rPr
       ? `<a:r>${rPr}<a:t>${newText}</a:t></a:r>`
       : `<a:r><a:t>${newText}</a:t></a:r>`
@@ -313,5 +327,10 @@ function escapeRegex(str: string): string {
 }
 
 function escapeXml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
 }

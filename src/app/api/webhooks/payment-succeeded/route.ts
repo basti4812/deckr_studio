@@ -14,15 +14,16 @@ import { verifyWebhookSecret } from '@/lib/webhook-auth'
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
+  // SEC-14: Verify webhook secret BEFORE parsing body
+  const authError = verifyWebhookSecret(request)
+  if (authError) return authError
+
   let body: unknown
   try {
     body = await request.json()
   } catch {
     body = null
   }
-
-  const authError = verifyWebhookSecret(request)
-  if (authError) return authError
 
   // TODO: Replace verifyWebhookSecret with provider HMAC signature verification and DB update
   console.log('[webhook] payment-succeeded received', JSON.stringify(body))

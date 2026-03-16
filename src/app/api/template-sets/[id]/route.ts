@@ -8,10 +8,7 @@ import { logActivity } from '@/lib/activity-log'
 // PATCH /api/template-sets/[id] — update metadata
 // ---------------------------------------------------------------------------
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin(request)
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
@@ -20,8 +17,15 @@ export async function PATCH(
 
   const { id } = await params
 
-  let body: { name?: string; description?: string; category?: string; cover_image_url?: string | null } = {}
-  try { body = await request.json() } catch {
+  let body: {
+    name?: string
+    description?: string
+    category?: string
+    cover_image_url?: string | null
+  } = {}
+  try {
+    body = await request.json()
+  } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
@@ -41,7 +45,8 @@ export async function PATCH(
   if (body.name !== undefined) {
     const name = body.name.trim()
     if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
-    if (name.length > 100) return NextResponse.json({ error: 'Name max 100 characters' }, { status: 400 })
+    if (name.length > 100)
+      return NextResponse.json({ error: 'Name max 100 characters' }, { status: 400 })
     updates.name = name
   }
   if (body.description !== undefined) {
@@ -59,6 +64,14 @@ export async function PATCH(
     updates.category = category
   }
   if (body.cover_image_url !== undefined) {
+    // SEC-13: Validate URL format (null allowed to clear)
+    if (body.cover_image_url !== null && typeof body.cover_image_url === 'string') {
+      try {
+        new URL(body.cover_image_url)
+      } catch {
+        return NextResponse.json({ error: 'Invalid cover_image_url' }, { status: 400 })
+      }
+    }
     updates.cover_image_url = body.cover_image_url
   }
 

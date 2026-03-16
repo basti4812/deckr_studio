@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { z } from 'zod'
+import { checkIpRateLimit } from '@/lib/rate-limit'
 
 // ---------------------------------------------------------------------------
 // Input validation
@@ -17,6 +18,10 @@ const ForgotPasswordSchema = z.object({
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
+  // SEC-5: Rate limit by IP — 5 requests per 15 minutes
+  const limited = await checkIpRateLimit(request, 'auth:forgot-password', 5, 15 * 60 * 1000)
+  if (limited) return limited
+
   // Parse and validate body
   let body: unknown
   try {
@@ -39,8 +44,7 @@ export async function POST(request: NextRequest) {
 
   const response = NextResponse.json(
     {
-      message:
-        'If an account with that email exists, a password reset link has been sent.',
+      message: 'If an account with that email exists, a password reset link has been sent.',
     },
     { status: 200 }
   )

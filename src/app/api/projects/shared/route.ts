@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthenticatedUser, getUserProfile } from '@/lib/auth-helpers'
+import { requireActiveUser } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase'
 import { checkRateLimit } from '@/lib/rate-limit'
 
@@ -8,14 +8,11 @@ import { checkRateLimit } from '@/lib/rate-limit'
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest) {
-  const user = await getAuthenticatedUser(request)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireActiveUser(request)
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-  const limited = await checkRateLimit(user.id, 'projects-shared', 30, 60_000)
+  const limited = await checkRateLimit(auth.user.id, 'projects-shared', 30, 60_000)
   if (limited) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
-
-  const profile = await getUserProfile(user.id)
-  if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
 
   const supabase = createServiceClient()
 
@@ -23,7 +20,7 @@ export async function GET(request: NextRequest) {
   const { data: shareRecords, error: sharesError } = await supabase
     .from('project_shares')
     .select('project_id, permission')
-    .eq('user_id', user.id)
+    .eq('user_id', auth.user.id)
 
   if (sharesError) return NextResponse.json({ error: sharesError.message }, { status: 500 })
   if (!shareRecords || shareRecords.length === 0) {

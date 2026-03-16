@@ -65,9 +65,7 @@ export async function getAuthenticatedUser(
 // Returns null if the user has no profile row.
 // ---------------------------------------------------------------------------
 
-export async function getUserProfile(
-  userId: string
-): Promise<UserProfile | null> {
+export async function getUserProfile(userId: string): Promise<UserProfile | null> {
   const supabaseAdmin = createServiceClient()
 
   const { data, error } = await supabaseAdmin
@@ -84,12 +82,43 @@ export async function getUserProfile(
 }
 
 // ---------------------------------------------------------------------------
+// requireActiveUser
+// Convenience helper: authenticates the request AND verifies is_active.
+// Returns { user, profile } on success, or { error, status } on failure.
+// ---------------------------------------------------------------------------
+
+export async function requireActiveUser(
+  request: NextRequest
+): Promise<
+  | { user: AuthenticatedUser; profile: UserProfile; error?: never; status?: never }
+  | { error: string; status: number; user?: never; profile?: never }
+> {
+  const user = await getAuthenticatedUser(request)
+  if (!user) {
+    return { error: 'Unauthorized', status: 401 }
+  }
+
+  const profile = await getUserProfile(user.id)
+  if (!profile) {
+    return { error: 'User profile not found', status: 404 }
+  }
+
+  if (!profile.is_active) {
+    return { error: 'Account has been deactivated', status: 403 }
+  }
+
+  return { user, profile }
+}
+
+// ---------------------------------------------------------------------------
 // requireAdmin
 // Convenience helper: authenticates the request AND verifies admin role.
 // Returns { user, profile } on success, or { error, status } on failure.
 // ---------------------------------------------------------------------------
 
-export async function requireAdmin(request: NextRequest): Promise<
+export async function requireAdmin(
+  request: NextRequest
+): Promise<
   | { user: AuthenticatedUser; profile: UserProfile; error?: never; status?: never }
   | { error: string; status: number; user?: never; profile?: never }
 > {

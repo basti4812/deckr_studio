@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthenticatedUser, getUserProfile } from '@/lib/auth-helpers'
+import { requireActiveUser } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { logActivity } from '@/lib/activity-log'
 import { onProjectExported } from '@/lib/crm-hooks'
+import { isAllowedStorageUrl } from '@/lib/url-validation'
 import JSZip from 'jszip'
 
 type Params = Promise<{ id: string }>
@@ -35,18 +36,12 @@ interface SlideRecord {
 // POST /api/projects/[id]/export — assemble + download .pptx
 // ---------------------------------------------------------------------------
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Params }
-) {
-  const user = await getAuthenticatedUser(request)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+export async function POST(request: NextRequest, { params }: { params: Params }) {
+  const auth = await requireActiveUser(request)
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-  const limited = await checkRateLimit(user.id, 'project-export-pptx', 10, 300_000)
+  const limited = await checkRateLimit(auth.user.id, 'project-export-pptx', 10, 300_000)
   if (limited) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
-
-  const profile = await getUserProfile(user.id)
-  if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
 
   const { id } = await params
   const supabase = createServiceClient()
@@ -54,19 +49,21 @@ export async function POST(
   // Load project
   const { data: project } = await supabase
     .from('projects')
-    .select('id, name, owner_id, tenant_id, slide_order, text_edits, crm_customer_name, crm_company_name, crm_deal_id')
+    .select(
+      'id, name, owner_id, tenant_id, slide_order, text_edits, crm_customer_name, crm_company_name, crm_deal_id'
+    )
     .eq('id', id)
     .single()
 
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
   // Verify access: owner or shared user with 'edit' permission
-  if (project.owner_id !== user.id) {
+  if (project.owner_id !== auth.user.id) {
     const { data: share } = await supabase
       .from('project_shares')
       .select('permission')
       .eq('project_id', id)
-      .eq('user_id', user.id)
+      .eq('user_id', auth.user.id)
       .single()
     if (!share || share.permission !== 'edit') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -78,10 +75,10 @@ export async function POST(
     return NextResponse.json({ error: 'Add slides to export' }, { status: 400 })
   }
 
-  const textEdits: Record<string, Record<string, string>> =
-    project.text_edits && typeof project.text_edits === 'object'
-      ? (project.text_edits as Record<string, Record<string, string>>)
-      : {}
+  const textEdits: Record<string, Record<string, string>> = project.text_edits &&
+  typeof project.text_edits === 'object'
+    ? (project.text_edits as Record<string, Record<string, string>>)
+    : {}
 
   // Load all referenced library slides in one query (scoped to tenant)
   const libraryItems = trayItems.filter((t) => !t.is_personal)
@@ -93,7 +90,7 @@ export async function POST(
       .from('slides')
       .select('id, title, pptx_url, page_index, page_count, editable_fields')
       .in('id', slideIds)
-      .eq('tenant_id', profile.tenant_id)
+      .eq('tenant_id', auth.profile.tenant_id)
 
     if (slidesError || !slidesData) {
       return NextResponse.json({ error: 'Failed to load slides' }, { status: 500 })
@@ -104,7 +101,10 @@ export async function POST(
   // Load personal slides referenced in this project (PROJ-32)
   const personalItems = trayItems.filter((t) => t.is_personal && t.personal_slide_id)
   const personalSlideIds = [...new Set(personalItems.map((t) => t.personal_slide_id!))]
-  const personalSlideMap = new Map<string, { id: string; title: string; pptx_storage_path: string }>()
+  const personalSlideMap = new Map<
+    string,
+    { id: string; title: string; pptx_storage_path: string }
+  >()
 
   if (personalSlideIds.length > 0) {
     const { data: psData } = await supabase
@@ -128,10 +128,7 @@ export async function POST(
     if (item.is_personal && item.personal_slide_id) {
       const ps = personalSlideMap.get(item.personal_slide_id)
       if (!ps) {
-        return NextResponse.json(
-          { error: `Personal slide not found` },
-          { status: 422 }
-        )
+        return NextResponse.json({ error: `Personal slide not found` }, { status: 422 })
       }
 
       const { data: fileData, error: storageError } = await supabase.storage
@@ -153,6 +150,11 @@ export async function POST(
     // Library slide — skip if deleted or missing PPTX
     const slide = slideMap.get(item.slide_id)
     if (!slide || !slide.pptx_url) {
+      continue
+    }
+
+    // SEC-9: Validate pptx_url points to Supabase storage (prevent SSRF)
+    if (!isAllowedStorageUrl(slide.pptx_url)) {
       continue
     }
 
@@ -216,7 +218,11 @@ export async function POST(
 
   // Auto-snapshot (fire-and-forget — PROJ-38)
   const autoLabel = `Export — ${new Date().toLocaleString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
   })}`
   supabase
     .from('project_versions')
@@ -227,11 +233,16 @@ export async function POST(
       text_edits_snapshot: project.text_edits ?? {},
       is_auto: true,
     })
-    .then(() => {}, (err: unknown) => { console.error('[export] auto-snapshot failed', err) })
+    .then(
+      () => {},
+      (err: unknown) => {
+        console.error('[export] auto-snapshot failed', err)
+      }
+    )
 
   logActivity({
-    tenantId: profile.tenant_id,
-    actorId: user.id,
+    tenantId: auth.profile.tenant_id,
+    actorId: auth.user.id,
     eventType: 'project.exported',
     resourceType: 'project',
     resourceId: id,
@@ -256,8 +267,7 @@ export async function POST(
 
   return new NextResponse(Buffer.from(mergedBuffer), {
     headers: {
-      'Content-Type':
-        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
       'Content-Disposition': `attachment; filename="${filename}"`,
       'Content-Length': String(mergedBuffer.length),
     },
@@ -280,9 +290,7 @@ async function applyTextEdits(
   if (!hasEdits) return new Uint8Array(buffer)
 
   const zip = await JSZip.loadAsync(buffer)
-  const slideFiles = Object.keys(zip.files).filter((f) =>
-    /^ppt\/slides\/slide\d+\.xml$/.test(f)
-  )
+  const slideFiles = Object.keys(zip.files).filter((f) => /^ppt\/slides\/slide\d+\.xml$/.test(f))
 
   for (const slideFile of slideFiles) {
     let xml = await zip.file(slideFile)!.async('string')
@@ -346,19 +354,17 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
     if (srcRelsFile) {
       let slideRels = await srcRelsFile.async('string')
 
-      const srcMediaFiles = Object.keys(srcZip.files).filter((f) =>
-        f.startsWith('ppt/media/')
-      )
+      const srcMediaFiles = Object.keys(srcZip.files).filter((f) => f.startsWith('ppt/media/'))
       for (const srcMediaPath of srcMediaFiles) {
         const srcFileName = srcMediaPath.replace('ppt/media/', '')
         const ext = srcFileName.split('.').pop() ?? 'bin'
 
         // Generate a unique name in the base ZIP
         let counter = existingMedia.size + 1
-        let newMediaPath = `ppt/media/deckr${counter}.${ext}`
+        let newMediaPath = `ppt/media/onslide${counter}.${ext}`
         while (existingMedia.has(newMediaPath)) {
           counter++
-          newMediaPath = `ppt/media/deckr${counter}.${ext}`
+          newMediaPath = `ppt/media/onslide${counter}.${ext}`
         }
         existingMedia.add(newMediaPath)
 
@@ -376,20 +382,13 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
     }
 
     // Add slide relationship to presentation.xml.rels
-    const slideRelType =
-      'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide'
+    const slideRelType = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide'
     const newRel = `<Relationship Id="rId${maxRid}" Type="${slideRelType}" Target="slides/slide${slideCount}.xml"/>`
-    presentationRels = presentationRels.replace(
-      '</Relationships>',
-      `  ${newRel}\n</Relationships>`
-    )
+    presentationRels = presentationRels.replace('</Relationships>', `  ${newRel}\n</Relationships>`)
 
     // Add slide to sldIdLst in presentation.xml
     const newSldId = `<p:sldId id="${maxSlideId}" r:id="rId${maxRid}"/>`
-    presentationXml = presentationXml.replace(
-      '</p:sldIdLst>',
-      `  ${newSldId}\n    </p:sldIdLst>`
-    )
+    presentationXml = presentationXml.replace('</p:sldIdLst>', `  ${newSldId}\n    </p:sldIdLst>`)
 
     // Register slide in [Content_Types].xml
     const slideContentType =
@@ -456,7 +455,10 @@ function normalizeCrossRunPlaceholder(
     const newText = combined.replace(new RegExp(escapeRegex(placeholder), 'g'), escapedValue)
     const pOpen = (paragraph.match(/^(<a:p\b[^>]*>)/) || ['', '<a:p>'])[1]
     const pPr = (paragraph.match(/<a:pPr[^>]*(?:\/>|>[\s\S]*?<\/a:pPr>)/) || [''])[0]
-    const rPr = (paragraph.match(/<a:r\b[^>]*>[\s\S]*?(<a:rPr[^>]*(?:\/>|>[\s\S]*?<\/a:rPr>))/) || ['', ''])[1]
+    const rPr = (paragraph.match(/<a:r\b[^>]*>[\s\S]*?(<a:rPr[^>]*(?:\/>|>[\s\S]*?<\/a:rPr>))/) || [
+      '',
+      '',
+    ])[1]
     const newRun = rPr
       ? `<a:r>${rPr}<a:t>${newText}</a:t></a:r>`
       : `<a:r><a:t>${newText}</a:t></a:r>`
@@ -469,10 +471,7 @@ function normalizeCrossRunPlaceholder(
  * returning a new single-slide PPTX. Uses presentation.xml to determine
  * the actual slide order (file names like slide3.xml don't imply order).
  */
-async function extractSinglePage(
-  buffer: ArrayBuffer,
-  pageIndex: number
-): Promise<ArrayBuffer> {
+async function extractSinglePage(buffer: ArrayBuffer, pageIndex: number): Promise<ArrayBuffer> {
   const srcZip = await JSZip.loadAsync(buffer)
 
   // Read presentation.xml.rels to map rId → slide file target
@@ -481,7 +480,9 @@ async function extractSinglePage(
   const presRelsXml = await presRelsFile.async('string')
 
   const ridToTarget = new Map<string, string>()
-  for (const m of presRelsXml.matchAll(/<Relationship[^>]+Id="(rId\d+)"[^>]+Target="([^"]+)"[^>]*\/>/g)) {
+  for (const m of presRelsXml.matchAll(
+    /<Relationship[^>]+Id="(rId\d+)"[^>]+Target="([^"]+)"[^>]*\/>/g
+  )) {
     ridToTarget.set(m[1], m[2])
   }
 
@@ -539,12 +540,8 @@ async function extractSinglePage(
   outZip.file('ppt/presentation.xml', newPresXml)
 
   // Fix presentation.xml.rels: keep one slide relationship
-  let newPresRels = presRelsXml.replace(
-    /<Relationship[^>]*Type="[^"]*\/slide"[^>]*\/>\s*/g,
-    ''
-  )
-  const slideRelType =
-    'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide'
+  let newPresRels = presRelsXml.replace(/<Relationship[^>]*Type="[^"]*\/slide"[^>]*\/>\s*/g, '')
+  const slideRelType = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide'
   newPresRels = newPresRels.replace(
     '</Relationships>',
     `<Relationship Id="rId2" Type="${slideRelType}" Target="slides/slide1.xml"/>\n</Relationships>`
@@ -555,10 +552,7 @@ async function extractSinglePage(
   const ctFile = outZip.file('[Content_Types].xml')
   if (ctFile) {
     let ctXml = await ctFile.async('string')
-    ctXml = ctXml.replace(
-      /<Override[^>]*PartName="\/ppt\/slides\/slide\d+\.xml"[^>]*\/>\s*/g,
-      ''
-    )
+    ctXml = ctXml.replace(/<Override[^>]*PartName="\/ppt\/slides\/slide\d+\.xml"[^>]*\/>\s*/g, '')
     const slideContentType =
       'application/vnd.openxmlformats-officedocument.presentationml.slide+xml'
     ctXml = ctXml.replace(

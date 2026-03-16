@@ -7,10 +7,14 @@ import { createServerClient } from '@supabase/ssr'
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
-  const response = NextResponse.json(
-    { message: 'Logged out successfully' },
-    { status: 200 }
-  )
+  // SEC-10: Verify request originates from our own site (CSRF protection)
+  const origin = request.headers.get('origin')
+  const expectedOrigin = process.env.NEXT_PUBLIC_SITE_URL
+  if (expectedOrigin && origin && origin !== expectedOrigin) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const response = NextResponse.json({ message: 'Logged out successfully' }, { status: 200 })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

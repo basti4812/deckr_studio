@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { getAuthenticatedUser, getUserProfile } from '@/lib/auth-helpers'
+import { requireActiveUser } from '@/lib/auth-helpers'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { createServiceClient } from '@/lib/supabase'
 import { onProjectCreated } from '@/lib/crm-hooks'
@@ -10,17 +10,14 @@ import { onProjectCreated } from '@/lib/crm-hooks'
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest) {
-  const user = await getAuthenticatedUser(request)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const profile = await getUserProfile(user.id)
-  if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
+  const auth = await requireActiveUser(request)
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const supabase = createServiceClient()
   const { data, error } = await supabase
     .from('projects')
     .select('*')
-    .eq('owner_id', user.id)
+    .eq('owner_id', auth.user.id)
     .eq('status', 'active')
     .order('updated_at', { ascending: false })
     .limit(100)
@@ -44,17 +41,16 @@ const CreateProjectSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
-  const user = await getAuthenticatedUser(request)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireActiveUser(request)
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-  const profile = await getUserProfile(user.id)
-  if (!profile || !profile.is_active) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-
-  const limited = await checkRateLimit(user.id, 'projects:create', 20, 60 * 1000)
+  const limited = await checkRateLimit(auth.user.id, 'projects:create', 20, 60 * 1000)
   if (limited) return limited
 
   let raw: unknown
-  try { raw = await request.json() } catch {
+  try {
+    raw = await request.json()
+  } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
@@ -72,7 +68,7 @@ export async function POST(request: NextRequest) {
   const { data: mandatorySlides } = await supabase
     .from('slides')
     .select('id')
-    .eq('tenant_id', profile.tenant_id)
+    .eq('tenant_id', auth.profile.tenant_id)
     .eq('status', 'mandatory')
 
   const mandatoryIds = new Set((mandatorySlides ?? []).map((s) => s.id))
@@ -90,7 +86,7 @@ export async function POST(request: NextRequest) {
       .from('template_sets')
       .select('id')
       .eq('id', parsed.data.templateSetId)
-      .eq('tenant_id', profile.tenant_id)
+      .eq('tenant_id', auth.profile.tenant_id)
       .single()
 
     if (set) {
@@ -106,8 +102,11 @@ export async function POST(request: NextRequest) {
         const { data: slides } = await supabase
           .from('slides')
           .select('id, status')
-          .in('id', memberships.map((m) => m.slide_id))
-          .eq('tenant_id', profile.tenant_id)
+          .in(
+            'id',
+            memberships.map((m) => m.slide_id)
+          )
+          .eq('tenant_id', auth.profile.tenant_id)
 
         const slideMap = new Map((slides ?? []).map((s) => [s.id, s]))
 
@@ -124,8 +123,8 @@ export async function POST(request: NextRequest) {
   const { data, error } = await supabase
     .from('projects')
     .insert({
-      tenant_id: profile.tenant_id,
-      owner_id: user.id,
+      tenant_id: auth.profile.tenant_id,
+      owner_id: auth.user.id,
       name,
       slide_order: slideOrder,
       template_set_id: parsed.data.templateSetId ?? null,

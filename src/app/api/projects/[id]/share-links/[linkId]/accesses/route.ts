@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { getAuthenticatedUser, getUserProfile } from '@/lib/auth-helpers'
+import { requireActiveUser } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase'
 import { checkRateLimit } from '@/lib/rate-limit'
 
@@ -21,10 +21,10 @@ const QuerySchema = z.object({
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest, { params }: { params: Params }) {
-  const user = await getAuthenticatedUser(request)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireActiveUser(request)
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-  const limited = await checkRateLimit(user.id, 'share-link-accesses', 30, 60_000)
+  const limited = await checkRateLimit(auth.user.id, 'share-link-accesses', 30, 60_000)
   if (limited) return limited
 
   const { id, linkId } = await params
@@ -60,17 +60,16 @@ export async function GET(request: NextRequest, { params }: { params: Params }) 
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   // Tenant isolation (defense-in-depth)
-  const profile = await getUserProfile(user.id)
-  if (!profile || profile.tenant_id !== project.tenant_id) {
+  if (auth.profile.tenant_id !== project.tenant_id) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  if (project.owner_id !== user.id) {
+  if (project.owner_id !== auth.user.id) {
     const { data: share } = await supabase
       .from('project_shares')
       .select('permission')
       .eq('project_id', id)
-      .eq('user_id', user.id)
+      .eq('user_id', auth.user.id)
       .maybeSingle()
 
     if (share?.permission !== 'edit') {

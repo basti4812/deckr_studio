@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthenticatedUser, getUserProfile, requireAdmin } from '@/lib/auth-helpers'
+import { z } from 'zod'
+import { requireActiveUser, requireAdmin } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase'
 
-export async function GET(request: NextRequest) {
-  const user = await getAuthenticatedUser(request)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+const CreateGroupSchema = z.object({
+  name: z.string().max(120).optional(),
+})
 
-  const profile = await getUserProfile(user.id)
-  if (!profile) return NextResponse.json({ error: 'User profile not found' }, { status: 404 })
+export async function GET(request: NextRequest) {
+  const auth = await requireActiveUser(request)
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const supabase = createServiceClient()
   const { data: groups, error: gErr } = await supabase
     .from('slide_groups')
     .select('*')
-    .eq('tenant_id', profile.tenant_id)
+    .eq('tenant_id', auth.profile.tenant_id)
     .order('position', { ascending: true })
 
   if (gErr) return NextResponse.json({ error: gErr.message }, { status: 500 })
@@ -21,7 +23,10 @@ export async function GET(request: NextRequest) {
   const { data: memberships, error: mErr } = await supabase
     .from('slide_group_memberships')
     .select('id, slide_id, group_id, position, x, y')
-    .in('group_id', (groups ?? []).map((g) => g.id))
+    .in(
+      'group_id',
+      (groups ?? []).map((g) => g.id)
+    )
     .order('position', { ascending: true })
 
   if (mErr) return NextResponse.json({ error: mErr.message }, { status: 500 })
@@ -33,10 +38,16 @@ export async function POST(request: NextRequest) {
   const auth = await requireAdmin(request)
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-  let body: { name?: string } = {}
-  try { body = await request.json() } catch { /* empty body ok */ }
+  let rawBody: unknown
+  try {
+    rawBody = await request.json()
+  } catch {
+    rawBody = {}
+  }
 
-  const name = body.name?.trim() || 'New Group'
+  // SEC-8: Validate group name with Zod
+  const parsed = CreateGroupSchema.safeParse(rawBody)
+  const name = parsed.success ? parsed.data.name?.trim() || 'New Group' : 'New Group'
 
   const supabase = createServiceClient()
 

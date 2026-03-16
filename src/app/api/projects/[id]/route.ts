@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { getAuthenticatedUser, getUserProfile } from '@/lib/auth-helpers'
+import { getAuthenticatedUser, getUserProfile, requireActiveUser } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase'
 import { checkRateLimit } from '@/lib/rate-limit'
 
-const SlideOrderSchema = z.array(
-  z.object({ id: z.string().min(1), slide_id: z.string().min(1) })
-).max(500)
+const SlideOrderSchema = z
+  .array(z.object({ id: z.string().min(1), slide_id: z.string().min(1) }))
+  .max(500)
 
 const TextEditsSchema = z
   .record(z.string(), z.record(z.string(), z.string().max(10_000)))
@@ -21,37 +21,33 @@ type Params = Promise<{ id: string }>
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest, { params }: { params: Params }) {
-  const user = await getAuthenticatedUser(request)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // SEC-2 + SEC-3: Use requireActiveUser for is_active check + tenant isolation
+  const auth = await requireActiveUser(request)
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-  const limited = await checkRateLimit(user.id, 'project-get', 60, 60_000)
+  const limited = await checkRateLimit(auth.user.id, 'project-get', 60, 60_000)
   if (limited) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
 
   const { id } = await params
   const supabase = createServiceClient()
 
-  // Try to fetch the project
+  // SEC-2: Filter by tenant_id to prevent cross-tenant probing
   const { data, error } = await supabase
     .from('projects')
     .select('*')
     .eq('id', id)
+    .eq('tenant_id', auth.profile.tenant_id)
     .single()
 
   if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   // Determine permission level
-  if (data.owner_id === user.id) {
-    // Fetch owner display name
-    const { data: ownerProfile } = await supabase
-      .from('users')
-      .select('display_name')
-      .eq('id', user.id)
-      .single()
+  if (data.owner_id === auth.user.id) {
     return NextResponse.json({
       project: {
         ...data,
         userPermission: 'owner',
-        owner_name: ownerProfile?.display_name ?? 'Owner',
+        owner_name: auth.profile.display_name ?? 'Owner',
       },
     })
   }
@@ -61,7 +57,7 @@ export async function GET(request: NextRequest, { params }: { params: Params }) 
     .from('project_shares')
     .select('permission')
     .eq('project_id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', auth.user.id)
     .single()
 
   if (!share) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -103,7 +99,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Params }
     crm_company_name?: string
     crm_deal_id?: string
   } = {}
-  try { body = await request.json() } catch { /* ok */ }
+  try {
+    body = await request.json()
+  } catch {
+    /* ok */
+  }
 
   const supabase = createServiceClient()
 
@@ -140,9 +140,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Params }
   const updates: Record<string, unknown> = {}
   if (body.name !== undefined) {
     // Only the owner or admin can rename
-    if (!isOwner && !isAdmin) return NextResponse.json({ error: 'Only the owner can rename projects' }, { status: 403 })
+    if (!isOwner && !isAdmin)
+      return NextResponse.json({ error: 'Only the owner can rename projects' }, { status: 403 })
     const name = body.name.trim()
-    if (!name || name.length > 120) return NextResponse.json({ error: 'Invalid name' }, { status: 400 })
+    if (!name || name.length > 120)
+      return NextResponse.json({ error: 'Invalid name' }, { status: 400 })
     updates.name = name
   }
   if (body.slide_order !== undefined) {
@@ -156,28 +158,36 @@ export async function PATCH(request: NextRequest, { params }: { params: Params }
     updates.text_edits = parsed.data
   }
   if (body.status !== undefined) {
-    if (!isOwner && !isAdmin) return NextResponse.json({ error: 'Only the owner can archive or restore projects' }, { status: 403 })
+    if (!isOwner && !isAdmin)
+      return NextResponse.json(
+        { error: 'Only the owner can archive or restore projects' },
+        { status: 403 }
+      )
     const parsed = z.enum(['active', 'archived']).safeParse(body.status)
     if (!parsed.success) return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
     updates.status = parsed.data
   }
   if (body.crm_customer_name !== undefined) {
     const parsed = z.string().max(200).safeParse(body.crm_customer_name)
-    if (!parsed.success) return NextResponse.json({ error: 'crm_customer_name too long (max 200)' }, { status: 400 })
+    if (!parsed.success)
+      return NextResponse.json({ error: 'crm_customer_name too long (max 200)' }, { status: 400 })
     updates.crm_customer_name = parsed.data || null
   }
   if (body.crm_company_name !== undefined) {
     const parsed = z.string().max(200).safeParse(body.crm_company_name)
-    if (!parsed.success) return NextResponse.json({ error: 'crm_company_name too long (max 200)' }, { status: 400 })
+    if (!parsed.success)
+      return NextResponse.json({ error: 'crm_company_name too long (max 200)' }, { status: 400 })
     updates.crm_company_name = parsed.data || null
   }
   if (body.crm_deal_id !== undefined) {
     const parsed = z.string().max(100).safeParse(body.crm_deal_id)
-    if (!parsed.success) return NextResponse.json({ error: 'crm_deal_id too long (max 100)' }, { status: 400 })
+    if (!parsed.success)
+      return NextResponse.json({ error: 'crm_deal_id too long (max 100)' }, { status: 400 })
     updates.crm_deal_id = parsed.data || null
   }
 
-  if (!Object.keys(updates).length) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
+  if (!Object.keys(updates).length)
+    return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
 
   const { data, error } = await supabase
     .from('projects')
@@ -215,7 +225,12 @@ export async function DELETE(request: NextRequest, { params }: { params: Params 
   const isOwner = existing.owner_id === user.id
   if (!isOwner) {
     const profile = await getUserProfile(user.id)
-    if (!profile || !profile.is_active || profile.role !== 'admin' || profile.tenant_id !== existing.tenant_id) {
+    if (
+      !profile ||
+      !profile.is_active ||
+      profile.role !== 'admin' ||
+      profile.tenant_id !== existing.tenant_id
+    ) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
   }

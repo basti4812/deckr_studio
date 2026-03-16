@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { z } from 'zod'
-import { getAuthenticatedUser, getUserProfile } from '@/lib/auth-helpers'
+import { requireActiveUser } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { logActivity } from '@/lib/activity-log'
@@ -14,10 +14,10 @@ type Params = Promise<{ id: string }>
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest, { params }: { params: Params }) {
-  const user = await getAuthenticatedUser(request)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireActiveUser(request)
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-  const limited = await checkRateLimit(user.id, 'share-links-list', 30, 60_000)
+  const limited = await checkRateLimit(auth.user.id, 'share-links-list', 30, 60_000)
   if (limited) return limited
 
   const { id } = await params
@@ -32,12 +32,12 @@ export async function GET(request: NextRequest, { params }: { params: Params }) 
 
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  if (project.owner_id !== user.id) {
+  if (project.owner_id !== auth.user.id) {
     const { data: share } = await supabase
       .from('project_shares')
       .select('permission')
       .eq('project_id', id)
-      .eq('user_id', user.id)
+      .eq('user_id', auth.user.id)
       .maybeSingle()
 
     if (share?.permission !== 'edit') {
@@ -75,19 +75,23 @@ const EXPIRY_MS: Record<string, number | null> = {
   '1d': 86_400_000,
   '7d': 604_800_000,
   '30d': 2_592_000_000,
-  'never': null,
+  never: null,
 }
 
 export async function POST(request: NextRequest, { params }: { params: Params }) {
-  const user = await getAuthenticatedUser(request)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireActiveUser(request)
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-  const limited = await checkRateLimit(user.id, 'share-links-create', 10, 60_000)
+  const limited = await checkRateLimit(auth.user.id, 'share-links-create', 10, 60_000)
   if (limited) return limited
 
   const { id } = await params
   let body: unknown = {}
-  try { body = await request.json() } catch { /* ok */ }
+  try {
+    body = await request.json()
+  } catch {
+    /* ok */
+  }
 
   const parsed = CreateSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
@@ -103,17 +107,16 @@ export async function POST(request: NextRequest, { params }: { params: Params })
 
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const profile = await getUserProfile(user.id)
-  if (!profile || profile.tenant_id !== project.tenant_id) {
+  if (auth.profile.tenant_id !== project.tenant_id) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  if (project.owner_id !== user.id) {
+  if (project.owner_id !== auth.user.id) {
     const { data: share } = await supabase
       .from('project_shares')
       .select('permission')
       .eq('project_id', id)
-      .eq('user_id', user.id)
+      .eq('user_id', auth.user.id)
       .maybeSingle()
 
     if (share?.permission !== 'edit') {
@@ -132,7 +135,7 @@ export async function POST(request: NextRequest, { params }: { params: Params })
     .insert({
       project_id: id,
       tenant_id: project.tenant_id,
-      created_by: user.id,
+      created_by: auth.user.id,
       token,
       expires_at,
     })
@@ -143,7 +146,7 @@ export async function POST(request: NextRequest, { params }: { params: Params })
 
   logActivity({
     tenantId: project.tenant_id,
-    actorId: user.id,
+    actorId: auth.user.id,
     eventType: 'share_link.created',
     resourceType: 'project',
     resourceId: id,
@@ -165,10 +168,13 @@ export async function POST(request: NextRequest, { params }: { params: Params })
       token: link.token,
       project_id: id,
       expires_at: link.expires_at,
-    },
+    }
   ).catch((err) => console.error('[crm-hooks] onShareLinkGenerated failed:', err))
 
-  return NextResponse.json({
-    link: { ...link, status: 'active' as const },
-  }, { status: 201 })
+  return NextResponse.json(
+    {
+      link: { ...link, status: 'active' as const },
+    },
+    { status: 201 }
+  )
 }

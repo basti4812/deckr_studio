@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { createServiceClient } from '@/lib/supabase'
+import { isAllowedStorageUrl } from '@/lib/url-validation'
 
 const RequestSchema = z.object({
   slideIds: z.array(z.string().uuid()).min(1).max(100),
@@ -25,10 +26,7 @@ export async function POST(request: NextRequest) {
 
   const secret = process.env.CONVERTAPI_SECRET
   if (!secret) {
-    return NextResponse.json(
-      { error: 'CONVERTAPI_SECRET not configured' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'CONVERTAPI_SECRET not configured' }, { status: 500 })
   }
 
   let body: unknown
@@ -72,36 +70,49 @@ export async function POST(request: NextRequest) {
   const results: { slideId: string; thumbnailUrl: string | null; error?: string }[] = []
 
   for (const [pptxUrl, groupSlides] of pptxGroups) {
+    // SEC-7: Validate pptx_url points to Supabase storage (prevent SSRF)
+    if (!isAllowedStorageUrl(pptxUrl)) {
+      for (const slide of groupSlides) {
+        results.push({ slideId: slide.id, thumbnailUrl: null, error: 'Invalid slide URL' })
+      }
+      continue
+    }
+
     try {
       // Call ConvertAPI: PPTX → PNG (all pages)
-      const convertRes = await fetch(
-        'https://v2.convertapi.com/convert/pptx/to/png',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${secret}`,
-          },
-          body: JSON.stringify({
-            Parameters: [
-              { Name: 'File', FileValue: { Url: pptxUrl } },
-              { Name: 'ImageHeight', Value: '1080' },
-              { Name: 'ImageWidth', Value: '1920' },
-            ],
-          }),
-        }
-      )
+      const convertRes = await fetch('https://v2.convertapi.com/convert/pptx/to/png', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${secret}`,
+        },
+        body: JSON.stringify({
+          Parameters: [
+            { Name: 'File', FileValue: { Url: pptxUrl } },
+            { Name: 'ImageHeight', Value: '1080' },
+            { Name: 'ImageWidth', Value: '1920' },
+          ],
+        }),
+      })
 
       if (!convertRes.ok) {
         const errText = await convertRes.text()
-        console.error('[generate-thumbnails] ConvertAPI error:', convertRes.status, errText.slice(0, 500))
+        console.error(
+          '[generate-thumbnails] ConvertAPI error:',
+          convertRes.status,
+          errText.slice(0, 500)
+        )
         for (const slide of groupSlides) {
-          results.push({ slideId: slide.id, thumbnailUrl: null, error: 'Thumbnail generation failed' })
+          results.push({
+            slideId: slide.id,
+            thumbnailUrl: null,
+            error: 'Thumbnail generation failed',
+          })
         }
         continue
       }
 
-      const convertData = await convertRes.json() as {
+      const convertData = (await convertRes.json()) as {
         Files: { FileName: string; FileData: string }[]
       }
 
@@ -109,7 +120,11 @@ export async function POST(request: NextRequest) {
       for (const slide of groupSlides) {
         const pageFile = convertData.Files[slide.page_index ?? 0]
         if (!pageFile) {
-          results.push({ slideId: slide.id, thumbnailUrl: null, error: `Page ${slide.page_index} not found in conversion result` })
+          results.push({
+            slideId: slide.id,
+            thumbnailUrl: null,
+            error: `Page ${slide.page_index} not found in conversion result`,
+          })
           continue
         }
 
@@ -126,7 +141,11 @@ export async function POST(request: NextRequest) {
           })
 
         if (uploadErr) {
-          results.push({ slideId: slide.id, thumbnailUrl: null, error: `Storage upload failed: ${uploadErr.message}` })
+          results.push({
+            slideId: slide.id,
+            thumbnailUrl: null,
+            error: `Storage upload failed: ${uploadErr.message}`,
+          })
           continue
         }
 
@@ -144,7 +163,11 @@ export async function POST(request: NextRequest) {
           .eq('id', slide.id)
 
         if (updateErr) {
-          results.push({ slideId: slide.id, thumbnailUrl: null, error: `DB update failed: ${updateErr.message}` })
+          results.push({
+            slideId: slide.id,
+            thumbnailUrl: null,
+            error: `DB update failed: ${updateErr.message}`,
+          })
         } else {
           results.push({ slideId: slide.id, thumbnailUrl })
         }

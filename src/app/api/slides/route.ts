@@ -1,16 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { getAuthenticatedUser, getUserProfile, requireAdmin } from '@/lib/auth-helpers'
+import { requireActiveUser, requireAdmin } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase'
 import { logActivity } from '@/lib/activity-log'
+import { isAllowedStorageUrl } from '@/lib/url-validation'
+
+const EditableFieldSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1).max(100),
+  placeholder: z.string().max(200).default(''),
+  required: z.boolean(),
+})
 
 const CreateSlideSchema = z.object({
   title: z.string().min(1, 'title is required').max(255),
   status: z.enum(['standard', 'mandatory', 'deprecated']).default('standard'),
   tags: z.array(z.string().trim().min(1).max(50)).max(20).default([]),
-  pptx_url: z.string().url().optional().nullable(),
+  pptx_url: z
+    .string()
+    .url()
+    .refine(isAllowedStorageUrl, 'pptx_url must point to Supabase storage')
+    .optional()
+    .nullable(),
   thumbnail_url: z.string().url().optional().nullable(),
-  editable_fields: z.array(z.unknown()).default([]),
+  editable_fields: z.array(EditableFieldSchema).default([]),
   page_index: z.number().int().min(0).default(0),
   page_count: z.number().int().min(1).default(1),
   source_filename: z.string().max(255).optional().nullable(),
@@ -21,17 +34,14 @@ const CreateSlideSchema = z.object({
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest) {
-  const user = await getAuthenticatedUser(request)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const profile = await getUserProfile(user.id)
-  if (!profile) return NextResponse.json({ error: 'User profile not found' }, { status: 404 })
+  const auth = await requireActiveUser(request)
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const supabase = createServiceClient()
   const { data, error } = await supabase
     .from('slides')
     .select('*')
-    .eq('tenant_id', profile.tenant_id)
+    .eq('tenant_id', auth.profile.tenant_id)
     .order('created_at', { ascending: false })
     .limit(500)
 
@@ -68,7 +78,17 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const { title, status, tags, pptx_url, thumbnail_url, editable_fields, page_index, page_count, source_filename } = parsed.data
+  const {
+    title,
+    status,
+    tags,
+    pptx_url,
+    thumbnail_url,
+    editable_fields,
+    page_index,
+    page_count,
+    source_filename,
+  } = parsed.data
 
   const supabase = createServiceClient()
   const { data, error } = await supabase

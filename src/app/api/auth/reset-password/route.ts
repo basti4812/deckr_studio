@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { z } from 'zod'
+import { checkIpRateLimit } from '@/lib/rate-limit'
 
 // ---------------------------------------------------------------------------
 // Input validation
@@ -17,6 +18,10 @@ const ResetPasswordSchema = z.object({
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
+  // SEC-5: Rate limit by IP — 5 requests per 15 minutes
+  const limited = await checkIpRateLimit(request, 'auth:reset-password', 5, 15 * 60 * 1000)
+  if (limited) return limited
+
   // Parse and validate body
   let body: unknown
   try {
@@ -75,8 +80,5 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  return NextResponse.json(
-    { message: 'Password updated successfully' },
-    { status: 200 }
-  )
+  return NextResponse.json({ message: 'Password updated successfully' }, { status: 200 })
 }

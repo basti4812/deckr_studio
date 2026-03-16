@@ -1,16 +1,21 @@
-import { Resend } from 'resend'
+import nodemailer from 'nodemailer'
 
 // ---------------------------------------------------------------------------
-// Email helper — sends transactional emails via Resend
+// Email helper — sends transactional emails via Gmail SMTP
 // ---------------------------------------------------------------------------
 
-// Lazy client — only instantiated when RESEND_API_KEY is present at call time
-function getResend(): Resend | null {
-  if (!process.env.RESEND_API_KEY) return null
-  return new Resend(process.env.RESEND_API_KEY)
+// Lazy transporter — only created when SMTP credentials are present
+function getTransporter(): nodemailer.Transporter | null {
+  const user = process.env.SMTP_USER
+  const pass = process.env.SMTP_PASS
+  if (!user || !pass) return null
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user, pass },
+  })
 }
 
-const FROM_EMAIL = process.env.FROM_EMAIL ?? 'noreply@deckr.io'
+const FROM_EMAIL = process.env.SMTP_USER ?? 'onslide.studio@gmail.com'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
 export type NotificationEmailType =
@@ -63,12 +68,13 @@ function buildEmailHtml(params: SendEmailParams): string {
   const message = escapeHtml(params.message)
   const resourceUrl = buildResourceUrl(resourceType, resourceId)
   const isMandatory = MANDATORY_EMAIL_TYPES.includes(type)
-  const unsubscribeUrl = !isMandatory && unsubscribeToken
-    ? `${APP_URL}/api/notifications/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`
-    : null
+  const unsubscribeUrl =
+    !isMandatory && unsubscribeToken
+      ? `${APP_URL}/api/notifications/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`
+      : null
 
   const ctaButton = resourceUrl
-    ? `<a href="${resourceUrl}" style="display:inline-block;background:#18181b;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;font-weight:500;margin-top:16px">View in deckr →</a>`
+    ? `<a href="${resourceUrl}" style="display:inline-block;background:#18181b;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;font-weight:500;margin-top:16px">View in onslide Studio →</a>`
     : ''
 
   const unsubscribeSection = unsubscribeUrl
@@ -102,16 +108,18 @@ function buildEmailHtml(params: SendEmailParams): string {
 // ---------------------------------------------------------------------------
 
 export async function sendNotificationEmail(params: SendEmailParams): Promise<void> {
-  const client = getResend()
-  if (!client) return // Not configured — skip silently
+  const transporter = getTransporter()
+  if (!transporter) return // Not configured — skip silently
 
   const html = buildEmailHtml(params)
-  const subject = `${params.tenantName}: ${params.message}` // plain text, no HTML
-  const fromName = params.tenantName.replace(/[<>"]/g, '') // sanitize for email header
+  // SEC-17: Strip newlines/control chars to prevent email header injection, truncate to 200 chars
+  const sanitize = (s: string) => s.replace(/[\r\n\t]/g, ' ').trim()
+  const subject = `${sanitize(params.tenantName)}: ${sanitize(params.message)}`.slice(0, 200)
+  const fromName = params.tenantName.replace(/[<>"\r\n]/g, '') // sanitize for email header
 
   try {
-    await client.emails.send({
-      from: `${fromName} via deckr <${FROM_EMAIL}>`,
+    await transporter.sendMail({
+      from: `${fromName} via onslide Studio <${FROM_EMAIL}>`,
       to: params.to,
       subject,
       html,

@@ -5,6 +5,7 @@ import { checkRateLimit } from '@/lib/rate-limit'
 import { createServiceClient } from '@/lib/supabase'
 import { createNotifications } from '@/lib/notifications'
 import { logActivity } from '@/lib/activity-log'
+import { isAllowedStorageUrl } from '@/lib/url-validation'
 
 const EditableFieldSchema = z.object({
   id: z.string().min(1),
@@ -17,7 +18,11 @@ const PatchSlideSchema = z.object({
   title: z.string().min(1).max(255).optional(),
   status: z.enum(['standard', 'mandatory', 'deprecated']).optional(),
   tags: z.array(z.string().trim().min(1).max(50)).max(20).optional(),
-  pptx_url: z.string().url().optional(),
+  pptx_url: z
+    .string()
+    .url()
+    .refine(isAllowedStorageUrl, 'pptx_url must point to Supabase storage')
+    .optional(),
   thumbnail_url: z.string().url().optional(),
   editable_fields: z.array(EditableFieldSchema).optional(),
 })
@@ -26,10 +31,7 @@ const PatchSlideSchema = z.object({
 // PATCH /api/slides/[id] — update title, status, editable_fields, pptx_url
 // ---------------------------------------------------------------------------
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin(request)
   if ('error' in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status })
@@ -52,7 +54,7 @@ export async function PATCH(
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message ?? 'Invalid input' },
-      { status: 400 },
+      { status: 400 }
     )
   }
 
@@ -137,7 +139,7 @@ export async function PATCH(
             resourceType: 'project' as const,
             resourceId: affectedProjects.find((p) => p.owner_id === ownerId)?.id,
           }
-        }),
+        })
       ).catch(() => {})
     }
   }
@@ -172,7 +174,7 @@ export async function PATCH(
             resourceType: 'project' as const,
             resourceId: proj.id,
           }
-        }),
+        })
       ).catch(() => {})
     }
   }
@@ -222,7 +224,9 @@ export async function DELETE(
 
   if (projectCount && projectCount > 0) {
     return NextResponse.json(
-      { error: `Slide is used in ${projectCount} project${projectCount !== 1 ? 's' : ''}. Remove it from all projects before deleting.` },
+      {
+        error: `Slide is used in ${projectCount} project${projectCount !== 1 ? 's' : ''}. Remove it from all projects before deleting.`,
+      },
       { status: 409 }
     )
   }
