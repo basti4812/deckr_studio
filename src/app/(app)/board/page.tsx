@@ -1659,7 +1659,6 @@ function BoardPageInner() {
           },
         }))
       }
-       
     },
     [displaySections, groups, isAdmin]
   )

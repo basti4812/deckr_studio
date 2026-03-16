@@ -423,7 +423,6 @@ function DemoPresentationMode({ slides, onClose }: { slides: Slide[]; onClose: (
       className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black"
       tabIndex={0}
       onKeyDown={handleKeyDown}
-       
       autoFocus
       role="dialog"
       aria-label="Presentation mode"

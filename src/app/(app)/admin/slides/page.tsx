@@ -117,7 +117,6 @@ export default function SlideLibraryPage() {
         pollRef.current = null
       }
     }
-     
   }, [pendingThumbnails.length, loading])
 
   async function handleDelete() {
