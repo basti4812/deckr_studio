@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthenticatedUser } from '@/lib/auth-helpers'
+import { requireActiveUser } from '@/lib/auth-helpers'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { createServiceClient } from '@/lib/supabase'
 
@@ -11,31 +11,32 @@ type Params = Promise<{ id: string; slideId: string }>
 // ---------------------------------------------------------------------------
 
 export async function DELETE(request: NextRequest, { params }: { params: Params }) {
-  const user = await getAuthenticatedUser(request)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireActiveUser(request)
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-  const limited = await checkRateLimit(user.id, 'personal-slides:delete', 30, 60_000)
+  const limited = await checkRateLimit(auth.user.id, 'personal-slides:delete', 30, 60_000)
   if (limited) return limited
 
   const { id: projectId, slideId } = await params
   const supabase = createServiceClient()
 
-  // Verify project access (owner or editor)
+  // SEC: Verify project access with tenant_id filter (owner or editor)
   const { data: project } = await supabase
     .from('projects')
     .select('id, owner_id, slide_order')
     .eq('id', projectId)
+    .eq('tenant_id', auth.profile.tenant_id)
     .single()
 
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  let canEdit = project.owner_id === user.id
+  let canEdit = project.owner_id === auth.user.id
   if (!canEdit) {
     const { data: share } = await supabase
       .from('project_shares')
       .select('permission')
       .eq('project_id', projectId)
-      .eq('user_id', user.id)
+      .eq('user_id', auth.user.id)
       .maybeSingle()
 
     canEdit = share?.permission === 'edit'

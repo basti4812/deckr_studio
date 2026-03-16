@@ -99,8 +99,8 @@ export async function proxy(request: NextRequest) {
       csrfPath === '/api/beta-access'
 
     if (isMutatingApiCall && !isCsrfExempt) {
-      const origin = request.headers.get('origin')
-      const expectedOrigin = process.env.NEXT_PUBLIC_SITE_URL
+      const origin = request.headers.get('origin')?.replace(/\/$/, '')
+      const expectedOrigin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '')
       if (expectedOrigin && origin && origin !== expectedOrigin) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }

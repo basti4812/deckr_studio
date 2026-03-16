@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthenticatedUser, getUserProfile } from '@/lib/auth-helpers'
+import { requireActiveUser } from '@/lib/auth-helpers'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { createServiceClient } from '@/lib/supabase'
 
@@ -11,16 +11,16 @@ type Params = Promise<{ id: string; commentId: string }>
 // ---------------------------------------------------------------------------
 
 export async function DELETE(request: NextRequest, { params }: { params: Params }) {
-  const user = await getAuthenticatedUser(request)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireActiveUser(request)
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-  const limited = await checkRateLimit(user.id, 'comments:delete', 30, 60_000)
+  const limited = await checkRateLimit(auth.user.id, 'comments:delete', 30, 60_000)
   if (limited) return limited
 
   const { id: projectId, commentId } = await params
   const supabase = createServiceClient()
 
-  // Fetch comment + project in parallel
+  // Fetch comment + project in parallel (SEC: tenant_id filter)
   const [{ data: comment }, { data: project }] = await Promise.all([
     supabase
       .from('comments')
@@ -28,7 +28,12 @@ export async function DELETE(request: NextRequest, { params }: { params: Params 
       .eq('id', commentId)
       .eq('project_id', projectId)
       .single(),
-    supabase.from('projects').select('id, owner_id, tenant_id').eq('id', projectId).single(),
+    supabase
+      .from('projects')
+      .select('id, owner_id, tenant_id')
+      .eq('id', projectId)
+      .eq('tenant_id', auth.profile.tenant_id)
+      .single(),
   ])
 
   if (!comment || !project) {
@@ -40,12 +45,11 @@ export async function DELETE(request: NextRequest, { params }: { params: Params 
   }
 
   // Permission: own comment, project owner, or tenant admin
-  const isAuthor = comment.author_id === user.id
-  const isProjectOwner = project.owner_id === user.id
+  const isAuthor = comment.author_id === auth.user.id
+  const isProjectOwner = project.owner_id === auth.user.id
 
   if (!isAuthor && !isProjectOwner) {
-    const profile = await getUserProfile(user.id)
-    const isAdmin = profile?.role === 'admin' && profile?.tenant_id === project.tenant_id
+    const isAdmin = auth.profile.role === 'admin'
     if (!isAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }

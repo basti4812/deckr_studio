@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { getAuthenticatedUser, getUserProfile } from '@/lib/auth-helpers'
+import { requireActiveUser } from '@/lib/auth-helpers'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { createServiceClient } from '@/lib/supabase'
 
@@ -14,13 +14,16 @@ const MAX_PERSONAL_SLIDES_PER_PROJECT = 20
 
 async function getProjectPermission(
   projectId: string,
-  userId: string
+  userId: string,
+  tenantId: string
 ): Promise<'owner' | 'view' | 'edit' | null> {
   const supabase = createServiceClient()
+  // SEC: Filter by tenant_id to prevent cross-tenant access
   const { data: project } = await supabase
     .from('projects')
     .select('id, owner_id')
     .eq('id', projectId)
+    .eq('tenant_id', tenantId)
     .single()
 
   if (!project) return null
@@ -42,15 +45,15 @@ async function getProjectPermission(
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest, { params }: { params: Params }) {
-  const user = await getAuthenticatedUser(request)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireActiveUser(request)
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-  const limited = await checkRateLimit(user.id, 'personal-slides:list', 60, 60_000)
+  const limited = await checkRateLimit(auth.user.id, 'personal-slides:list', 60, 60_000)
   if (limited) return limited
 
   const { id: projectId } = await params
 
-  const permission = await getProjectPermission(projectId, user.id)
+  const permission = await getProjectPermission(projectId, auth.user.id, auth.profile.tenant_id)
   if (!permission) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const supabase = createServiceClient()
@@ -85,18 +88,15 @@ const CreateSchema = z.object({
 })
 
 export async function POST(request: NextRequest, { params }: { params: Params }) {
-  const user = await getAuthenticatedUser(request)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireActiveUser(request)
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-  const limited = await checkRateLimit(user.id, 'personal-slides:create', 20, 60_000)
+  const limited = await checkRateLimit(auth.user.id, 'personal-slides:create', 20, 60_000)
   if (limited) return limited
-
-  const profile = await getUserProfile(user.id)
-  if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
 
   const { id: projectId } = await params
 
-  const permission = await getProjectPermission(projectId, user.id)
+  const permission = await getProjectPermission(projectId, auth.user.id, auth.profile.tenant_id)
   if (!permission) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   if (permission === 'view') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest, { params }: { params: Params })
   const { title, filename, pptx_storage_path, file_size_bytes } = parsed.data
 
   // Verify the storage path belongs to this project + user
-  const expectedPrefix = `${projectId}/${user.id}/`
+  const expectedPrefix = `${projectId}/${auth.user.id}/`
   if (!pptx_storage_path.startsWith(expectedPrefix)) {
     return NextResponse.json({ error: 'Invalid storage path' }, { status: 400 })
   }
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest, { params }: { params: Params })
     .from('project_personal_slides')
     .insert({
       project_id: projectId,
-      user_id: user.id,
+      user_id: auth.user.id,
       title: title.trim(),
       filename,
       pptx_storage_path,

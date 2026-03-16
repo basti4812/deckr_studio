@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthenticatedUser } from '@/lib/auth-helpers'
+import { requireActiveUser } from '@/lib/auth-helpers'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { createServiceClient } from '@/lib/supabase'
 
@@ -11,30 +11,31 @@ type Params = Promise<{ id: string }>
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest, { params }: { params: Params }) {
-  const user = await getAuthenticatedUser(request)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireActiveUser(request)
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-  const limited = await checkRateLimit(user.id, 'notes:has', 60, 60_000)
+  const limited = await checkRateLimit(auth.user.id, 'notes:has', 60, 60_000)
   if (limited) return limited
 
   const { id: projectId } = await params
   const supabase = createServiceClient()
 
-  // Verify project access
+  // SEC: Verify project access with tenant_id filter
   const { data: project } = await supabase
     .from('projects')
     .select('id, owner_id')
     .eq('id', projectId)
+    .eq('tenant_id', auth.profile.tenant_id)
     .single()
 
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  if (project.owner_id !== user.id) {
+  if (project.owner_id !== auth.user.id) {
     const { data: share } = await supabase
       .from('project_shares')
       .select('id')
       .eq('project_id', projectId)
-      .eq('user_id', user.id)
+      .eq('user_id', auth.user.id)
       .maybeSingle()
 
     if (!share) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest, { params }: { params: Params }) 
     .from('slide_notes')
     .select('slide_id')
     .eq('project_id', projectId)
-    .eq('user_id', user.id)
+    .eq('user_id', auth.user.id)
     .neq('body', '')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
