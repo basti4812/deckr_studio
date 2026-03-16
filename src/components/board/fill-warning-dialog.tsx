@@ -96,16 +96,20 @@ export function FillWarningDialog({
           </div>
         </ScrollArea>
 
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="flex-col gap-2 sm:flex-row sm:gap-2">
           <Button
             variant="ghost"
             size="sm"
+            className="text-muted-foreground"
             onClick={() => {
               onClose()
               onProceedAnyway()
             }}
           >
             {t('fill_warning.proceed_anyway', { action: proceedLabel })}
+          </Button>
+          <Button size="sm" onClick={onClose}>
+            {t('fill_warning.go_back_and_fix')}
           </Button>
         </DialogFooter>
       </DialogContent>

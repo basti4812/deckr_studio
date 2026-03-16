@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { getAuthenticatedUser, getUserProfile, requireActiveUser } from '@/lib/auth-helpers'
+import { requireActiveUser } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase'
 import { checkRateLimit } from '@/lib/rate-limit'
 
@@ -83,10 +83,11 @@ export async function GET(request: NextRequest, { params }: { params: Params }) 
 // ---------------------------------------------------------------------------
 
 export async function PATCH(request: NextRequest, { params }: { params: Params }) {
-  const user = await getAuthenticatedUser(request)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // SEC: requireActiveUser ensures is_active + returns profile with tenant_id
+  const auth = await requireActiveUser(request)
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-  const limited = await checkRateLimit(user.id, 'project-patch', 60, 60_000)
+  const limited = await checkRateLimit(auth.user.id, 'project-patch', 60, 60_000)
   if (limited) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
 
   const { id } = await params
@@ -107,29 +108,24 @@ export async function PATCH(request: NextRequest, { params }: { params: Params }
 
   const supabase = createServiceClient()
 
-  // Check access: owner can do everything, admin can do owner-level actions on
-  // any project in their tenant, shared user with 'edit' can update content
+  // SEC: Filter by tenant_id to prevent cross-tenant access
   const { data: existing } = await supabase
     .from('projects')
     .select('id, owner_id, tenant_id')
     .eq('id', id)
+    .eq('tenant_id', auth.profile.tenant_id)
     .single()
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const profile = await getUserProfile(user.id)
-  if (!profile || !profile.is_active) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
-  const isOwner = existing.owner_id === user.id
-  const isAdmin = profile.role === 'admin' && profile.tenant_id === existing.tenant_id
+  const isOwner = existing.owner_id === auth.user.id
+  const isAdmin = auth.profile.role === 'admin'
 
   if (!isOwner && !isAdmin) {
     const { data: share } = await supabase
       .from('project_shares')
       .select('permission')
       .eq('project_id', id)
-      .eq('user_id', user.id)
+      .eq('user_id', auth.user.id)
       .single()
 
     if (!share || share.permission !== 'edit') {
@@ -205,34 +201,29 @@ export async function PATCH(request: NextRequest, { params }: { params: Params }
 // ---------------------------------------------------------------------------
 
 export async function DELETE(request: NextRequest, { params }: { params: Params }) {
-  const user = await getAuthenticatedUser(request)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // SEC: requireActiveUser ensures is_active + returns profile with tenant_id
+  const auth = await requireActiveUser(request)
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-  const limited = await checkRateLimit(user.id, 'project-delete', 10, 60_000)
+  const limited = await checkRateLimit(auth.user.id, 'project-delete', 10, 60_000)
   if (limited) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
 
   const { id } = await params
   const supabase = createServiceClient()
 
+  // SEC: Filter by tenant_id to prevent cross-tenant access
   const { data: existing } = await supabase
     .from('projects')
     .select('id, owner_id, tenant_id')
     .eq('id', id)
+    .eq('tenant_id', auth.profile.tenant_id)
     .single()
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   // Owner or admin in same tenant can delete
-  const isOwner = existing.owner_id === user.id
-  if (!isOwner) {
-    const profile = await getUserProfile(user.id)
-    if (
-      !profile ||
-      !profile.is_active ||
-      profile.role !== 'admin' ||
-      profile.tenant_id !== existing.tenant_id
-    ) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    }
+  const isOwner = existing.owner_id === auth.user.id
+  if (!isOwner && auth.profile.role !== 'admin') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
   const { error } = await supabase.from('projects').delete().eq('id', id)

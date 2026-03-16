@@ -266,7 +266,11 @@
     "new_password_same": "New password must be different from current password",
     "passwords_no_match": "Passwords do not match",
     "password_changed": "Password changed successfully",
-    "failed_change_password": "Failed to change password"
+    "failed_change_password": "Failed to change password",
+    "failed_update_name": "Failed to update name",
+    "notifications_enabled": "Email notifications enabled",
+    "notifications_disabled": "Email notifications disabled",
+    "failed_update_preference": "Failed to update preference"
   },
   "share": {
     "title": "Share \"{{name}}\"",
@@ -426,7 +430,8 @@
     "slide_position": "Slide #{{position}}",
     "field_required": "\"{{label}}\" — required",
     "fill_in": "Fill in",
-    "proceed_anyway": "{{action}} anyway"
+    "proceed_anyway": "{{action}} anyway",
+    "go_back_and_fix": "Go back and fix"
   },
   "save_version_dialog": {
     "title": "Save Version",
@@ -1099,6 +1104,11 @@
     "cancellation_form_text": "If you prefer to cancel in writing, you may use the following template:\n\nTo: [COMPANY NAME], [ADDRESS], [POSTAL CODE] [CITY], [EMAIL]\n\nI/We hereby give notice that I/we cancel the subscription contract for the provision of the onslide Studio service.\n\nOrdered on / received on: _______________\nCompany name: _______________\nAdmin user name: _______________\nAdmin user email: _______________\nDate: _______________\nSignature (if sent by post): _______________",
     "cancellation_contact": "Contact",
     "cancellation_contact_text": "For questions about cancellation, please contact us at [EMAIL]."
+  },
+  "error": {
+    "generic_title": "Something went wrong",
+    "generic_description": "An unexpected error occurred. Please try again or contact support if the problem persists.",
+    "try_again": "Try again"
   },
   "common": {
     "cancel": "Cancel",

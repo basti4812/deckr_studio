@@ -266,7 +266,11 @@
     "new_password_same": "Neues Passwort muss sich vom aktuellen Passwort unterscheiden",
     "passwords_no_match": "Passwörter stimmen nicht überein",
     "password_changed": "Passwort erfolgreich geändert",
-    "failed_change_password": "Passwort konnte nicht geändert werden"
+    "failed_change_password": "Passwort konnte nicht geändert werden",
+    "failed_update_name": "Name konnte nicht aktualisiert werden",
+    "notifications_enabled": "E-Mail-Benachrichtigungen aktiviert",
+    "notifications_disabled": "E-Mail-Benachrichtigungen deaktiviert",
+    "failed_update_preference": "Einstellung konnte nicht aktualisiert werden"
   },
   "share": {
     "title": "\"{{name}}\" teilen",
@@ -426,7 +430,8 @@
     "slide_position": "Folie #{{position}}",
     "field_required": "\"{{label}}\" — erforderlich",
     "fill_in": "Ausfüllen",
-    "proceed_anyway": "Trotzdem {{action}}"
+    "proceed_anyway": "Trotzdem {{action}}",
+    "go_back_and_fix": "Zurück und korrigieren"
   },
   "save_version_dialog": {
     "title": "Version speichern",
@@ -1099,6 +1104,11 @@
     "cancellation_form_text": "Wenn Sie schriftlich kündigen möchten, können Sie folgende Vorlage verwenden:\n\nAn: [FIRMENNAME], [ADRESSE], [PLZ] [ORT], [E-MAIL]\n\nHiermit kündige(n) ich/wir den Abonnementvertrag für die Nutzung des Dienstes onslide Studio.\n\nBestellt am / erhalten am: _______________\nFirmenname: _______________\nName des Admins: _______________\nE-Mail des Admins: _______________\nDatum: _______________\nUnterschrift (bei postalischem Versand): _______________",
     "cancellation_contact": "Kontakt",
     "cancellation_contact_text": "Bei Fragen zur Kündigung kontaktieren Sie uns bitte unter [E-MAIL]."
+  },
+  "error": {
+    "generic_title": "Etwas ist schiefgelaufen",
+    "generic_description": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut oder kontaktieren Sie den Support, wenn das Problem weiterhin besteht.",
+    "try_again": "Erneut versuchen"
   },
   "common": {
     "cancel": "Abbrechen",

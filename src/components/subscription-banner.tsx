@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useTranslation } from 'react-i18next'
 import { AlertTriangle, Clock } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
@@ -13,6 +14,7 @@ interface SubscriptionResponse {
 }
 
 export function SubscriptionBanner() {
+  const { t } = useTranslation()
   const { isAdmin, loading: userLoading } = useCurrentUser()
   const [subscription, setSubscription] = useState<Subscription | null>(null)
 
@@ -50,14 +52,14 @@ export function SubscriptionBanner() {
         <div className="flex items-center justify-between gap-4 border-b bg-destructive/10 px-4 py-2 text-sm text-destructive">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            <span>Your free trial has ended. Subscribe to continue using onslide Studio.</span>
+            <span>{t('subscription_banner.trial_ended')}</span>
           </div>
           {isAdmin && (
             <Link
               href="/admin/billing"
               className="shrink-0 font-medium underline underline-offset-2 hover:no-underline"
             >
-              Subscribe now
+              {t('subscription_banner.subscribe_now')}
             </Link>
           )}
         </div>
@@ -68,19 +70,14 @@ export function SubscriptionBanner() {
       <div className="flex items-center justify-between gap-4 border-b bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
         <div className="flex items-center gap-2">
           <Clock className="h-4 w-4 shrink-0" />
-          <span>
-            <strong>
-              {daysRemaining} day{daysRemaining !== 1 ? 's' : ''}
-            </strong>{' '}
-            left in your free trial
-          </span>
+          <span>{t('subscription_banner.trial_remaining', { count: daysRemaining })}</span>
         </div>
         {isAdmin && (
           <Link
             href="/admin/billing"
             className="shrink-0 font-medium underline underline-offset-2 hover:no-underline"
           >
-            Subscribe now
+            {t('subscription_banner.subscribe_now')}
           </Link>
         )}
       </div>
@@ -93,16 +90,14 @@ export function SubscriptionBanner() {
       <div className="flex items-center justify-between gap-4 border-b bg-destructive/10 px-4 py-2 text-sm text-destructive">
         <div className="flex items-center gap-2">
           <AlertTriangle className="h-4 w-4 shrink-0" />
-          <span>
-            Your last payment failed. Update your payment method to avoid service interruption.
-          </span>
+          <span>{t('subscription_banner.payment_failed')}</span>
         </div>
         {isAdmin && (
           <Link
             href="/admin/billing"
             className="shrink-0 font-medium underline underline-offset-2 hover:no-underline"
           >
-            Fix billing
+            {t('subscription_banner.fix_billing')}
           </Link>
         )}
       </div>

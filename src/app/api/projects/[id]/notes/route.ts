@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { getAuthenticatedUser } from '@/lib/auth-helpers'
+import { requireActiveUser } from '@/lib/auth-helpers'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { createServiceClient } from '@/lib/supabase'
 
@@ -10,12 +10,18 @@ type Params = Promise<{ id: string }>
 // Verify project access — user must be owner or in project_shares
 // ---------------------------------------------------------------------------
 
-async function verifyProjectAccess(projectId: string, userId: string): Promise<boolean> {
+async function verifyProjectAccess(
+  projectId: string,
+  userId: string,
+  tenantId: string
+): Promise<boolean> {
   const supabase = createServiceClient()
+  // SEC: Filter by tenant_id to prevent cross-tenant access
   const { data: project } = await supabase
     .from('projects')
     .select('id, owner_id')
     .eq('id', projectId)
+    .eq('tenant_id', tenantId)
     .single()
 
   if (!project) return false
@@ -36,10 +42,10 @@ async function verifyProjectAccess(projectId: string, userId: string): Promise<b
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest, { params }: { params: Params }) {
-  const user = await getAuthenticatedUser(request)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireActiveUser(request)
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-  const limited = await checkRateLimit(user.id, 'notes:get', 60, 60_000)
+  const limited = await checkRateLimit(auth.user.id, 'notes:get', 60, 60_000)
   if (limited) return limited
 
   const { id: projectId } = await params
@@ -48,7 +54,7 @@ export async function GET(request: NextRequest, { params }: { params: Params }) 
     return NextResponse.json({ error: 'Valid slide_id is required' }, { status: 400 })
   }
 
-  const hasAccess = await verifyProjectAccess(projectId, user.id)
+  const hasAccess = await verifyProjectAccess(projectId, auth.user.id, auth.profile.tenant_id)
   if (!hasAccess) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const supabase = createServiceClient()
@@ -57,7 +63,7 @@ export async function GET(request: NextRequest, { params }: { params: Params }) 
     .select('body, updated_at')
     .eq('project_id', projectId)
     .eq('slide_id', slideId)
-    .eq('user_id', user.id)
+    .eq('user_id', auth.user.id)
     .maybeSingle()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -76,10 +82,10 @@ const UpsertNoteSchema = z.object({
 })
 
 export async function PUT(request: NextRequest, { params }: { params: Params }) {
-  const user = await getAuthenticatedUser(request)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireActiveUser(request)
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-  const limited = await checkRateLimit(user.id, 'notes:upsert', 60, 60_000)
+  const limited = await checkRateLimit(auth.user.id, 'notes:upsert', 60, 60_000)
   if (limited) return limited
 
   const { id: projectId } = await params
@@ -101,7 +107,7 @@ export async function PUT(request: NextRequest, { params }: { params: Params }) 
 
   const { slide_id, slide_instance_index, body } = parsed.data
 
-  const hasAccess = await verifyProjectAccess(projectId, user.id)
+  const hasAccess = await verifyProjectAccess(projectId, auth.user.id, auth.profile.tenant_id)
   if (!hasAccess) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const supabase = createServiceClient()
@@ -112,7 +118,7 @@ export async function PUT(request: NextRequest, { params }: { params: Params }) 
         project_id: projectId,
         slide_id,
         slide_instance_index,
-        user_id: user.id,
+        user_id: auth.user.id,
         body,
       },
       { onConflict: 'project_id,slide_id,user_id' }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { getAuthenticatedUser, getUserProfile } from '@/lib/auth-helpers'
+import { requireActiveUser } from '@/lib/auth-helpers'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { createServiceClient } from '@/lib/supabase'
 import { createNotifications } from '@/lib/notifications'
@@ -13,15 +13,18 @@ type Params = Promise<{ id: string }>
 
 async function verifyProjectAccess(
   projectId: string,
-  userId: string
+  userId: string,
+  tenantId: string
 ): Promise<{
   project: { id: string; owner_id: string; tenant_id: string; name: string; status: string }
 } | null> {
   const supabase = createServiceClient()
+  // SEC: Filter by tenant_id to prevent cross-tenant access
   const { data: project } = await supabase
     .from('projects')
     .select('id, owner_id, tenant_id, name, status')
     .eq('id', projectId)
+    .eq('tenant_id', tenantId)
     .single()
 
   if (!project) return null
@@ -44,10 +47,10 @@ async function verifyProjectAccess(
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest, { params }: { params: Params }) {
-  const user = await getAuthenticatedUser(request)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireActiveUser(request)
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-  const limited = await checkRateLimit(user.id, 'comments:list', 60, 60_000)
+  const limited = await checkRateLimit(auth.user.id, 'comments:list', 60, 60_000)
   if (limited) return limited
 
   const { id } = await params
@@ -56,7 +59,7 @@ export async function GET(request: NextRequest, { params }: { params: Params }) 
     return NextResponse.json({ error: 'Valid slide_id is required' }, { status: 400 })
   }
 
-  const access = await verifyProjectAccess(id, user.id)
+  const access = await verifyProjectAccess(id, auth.user.id, auth.profile.tenant_id)
   if (!access) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const supabase = createServiceClient()
@@ -109,10 +112,10 @@ const CreateCommentSchema = z.object({
 })
 
 export async function POST(request: NextRequest, { params }: { params: Params }) {
-  const user = await getAuthenticatedUser(request)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireActiveUser(request)
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
-  const limited = await checkRateLimit(user.id, 'comments:create', 30, 60_000)
+  const limited = await checkRateLimit(auth.user.id, 'comments:create', 30, 60_000)
   if (limited) return limited
 
   const { id } = await params
@@ -134,7 +137,7 @@ export async function POST(request: NextRequest, { params }: { params: Params })
 
   const { slide_id, slide_instance_index, parent_comment_id, body } = parsed.data
 
-  const access = await verifyProjectAccess(id, user.id)
+  const access = await verifyProjectAccess(id, auth.user.id, auth.profile.tenant_id)
   if (!access) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   // Archived projects cannot receive new comments
@@ -171,7 +174,7 @@ export async function POST(request: NextRequest, { params }: { params: Params })
       slide_id,
       slide_instance_index,
       parent_comment_id: parent_comment_id ?? null,
-      author_id: user.id,
+      author_id: auth.user.id,
       body: body.trim(),
     })
     .select()
@@ -180,7 +183,7 @@ export async function POST(request: NextRequest, { params }: { params: Params })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Notify all other project participants (fire-and-forget)
-  notifyCommentAdded(access.project, user.id, slide_id, body).catch(() => {})
+  notifyCommentAdded(access.project, auth.user.id, slide_id, body).catch(() => {})
 
   return NextResponse.json({ comment }, { status: 201 })
 }

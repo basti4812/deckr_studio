@@ -84,6 +84,29 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // CSRF protection — reject cross-origin mutating requests to API routes.
+  // Bearer-token auth already mitigates CSRF (tokens aren't auto-sent by
+  // the browser), but this adds defense-in-depth for cookie-based flows.
+  // ---------------------------------------------------------------------------
+  {
+    const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
+    const csrfPath = request.nextUrl.pathname
+    const isMutatingApiCall = csrfPath.startsWith('/api/') && !SAFE_METHODS.has(request.method)
+    const isCsrfExempt =
+      csrfPath.startsWith('/api/webhooks/') ||
+      csrfPath.startsWith('/api/view/') ||
+      csrfPath === '/api/beta-access'
+
+    if (isMutatingApiCall && !isCsrfExempt) {
+      const origin = request.headers.get('origin')
+      const expectedOrigin = process.env.NEXT_PUBLIC_SITE_URL
+      if (expectedOrigin && origin && origin !== expectedOrigin) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+    }
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
