@@ -137,9 +137,12 @@ export async function sendConfirmationEmail(
   to: string,
   confirmUrl: string,
   displayName: string
-): Promise<void> {
+): Promise<{ sent: boolean; error?: string }> {
   const transporter = getTransporter()
-  if (!transporter) return
+  if (!transporter) {
+    console.error('[email] SMTP not configured — SMTP_USER or SMTP_PASS missing')
+    return { sent: false, error: 'SMTP not configured' }
+  }
 
   const name = escapeHtml(displayName)
   const html = `<!DOCTYPE html>
@@ -169,8 +172,11 @@ export async function sendConfirmationEmail(
       subject: 'Confirm your onslide Studio account',
       html,
     })
+    return { sent: true }
   } catch (err) {
-    console.error('[email] Failed to send confirmation email:', err)
+    const message = err instanceof Error ? err.message : 'Unknown SMTP error'
+    console.error('[email] Failed to send confirmation email:', message)
+    return { sent: false, error: message }
   }
 }
 

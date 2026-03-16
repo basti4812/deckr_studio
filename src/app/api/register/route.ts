@@ -132,6 +132,8 @@ export async function POST(request: NextRequest) {
   }
 
   // 7. Send email confirmation link (only when not skipping confirmation)
+  let emailStatus: { sent: boolean; error?: string } = { sent: false, error: 'skipped' }
+
   if (!skipEmailConfirmation) {
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'signup',
@@ -144,9 +146,12 @@ export async function POST(request: NextRequest) {
 
     if (linkError) {
       console.error('Failed to generate confirmation link:', linkError.message)
+      emailStatus = { sent: false, error: `generateLink: ${linkError.message}` }
     } else if (linkData?.properties?.action_link) {
       // generateLink returns the link but does NOT send email — send it ourselves
-      await sendConfirmationEmail(email, linkData.properties.action_link, displayName)
+      emailStatus = await sendConfirmationEmail(email, linkData.properties.action_link, displayName)
+    } else {
+      emailStatus = { sent: false, error: 'generateLink returned no action_link' }
     }
   }
 
@@ -154,10 +159,13 @@ export async function POST(request: NextRequest) {
     {
       message: skipEmailConfirmation
         ? 'Registration successful. You can now sign in.'
-        : 'Registration successful. Please check your email to confirm your account.',
+        : emailStatus.sent
+          ? 'Registration successful. Please check your email to confirm your account.'
+          : 'Registration successful but confirmation email could not be sent.',
       userId,
       tenantId: tenant.id,
       emailConfirmed: skipEmailConfirmation,
+      emailStatus,
     },
     { status: 201 }
   )
