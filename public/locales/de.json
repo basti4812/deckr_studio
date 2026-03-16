@@ -87,6 +87,8 @@
     "password_good": "Gut",
     "password_strong": "Stark",
     "password_very_strong": "Sehr stark",
+    "show_password": "Passwort anzeigen",
+    "hide_password": "Passwort verbergen",
     "confirm_password": "Passwort bestätigen",
     "preferred_language": "Bevorzugte Sprache",
     "english": "English",

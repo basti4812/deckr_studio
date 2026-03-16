@@ -28,6 +28,7 @@ export function LandingNav() {
   const navLinks = [
     { label: t('landing.how_it_works_nav'), href: '#how-it-works' },
     { label: t('landing.pricing_nav'), href: '#pricing' },
+    { label: t('landing.faq_nav'), href: '#faq' },
   ]
 
   return (

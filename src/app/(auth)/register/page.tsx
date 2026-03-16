@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
@@ -254,6 +254,9 @@ export default function RegisterPage() {
                         <button
                           type="button"
                           tabIndex={-1}
+                          aria-label={
+                            showPassword ? t('auth.hide_password') : t('auth.show_password')
+                          }
                           className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                           onClick={() => setShowPassword((v) => !v)}
                         >
