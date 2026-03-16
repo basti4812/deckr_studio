@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { LayoutTemplate, Plus, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -39,6 +40,7 @@ interface SetDialogProps {
 }
 
 function TemplateSetDialog({ open, editTarget, onClose, onSaved }: SetDialogProps) {
+  const { t } = useTranslation()
   const [form, setForm] = useState<SetFormState>({
     name: '',
     description: '',
@@ -142,51 +144,53 @@ function TemplateSetDialog({ open, editTarget, onClose, onSaved }: SetDialogProp
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{editTarget ? 'Edit template set' : 'New template set'}</DialogTitle>
+          <DialogTitle>
+            {editTarget ? t('admin.edit_template_set_dialog') : t('admin.new_template_set_dialog')}
+          </DialogTitle>
           <DialogDescription>
             {editTarget
-              ? 'Update the name, description, category, or cover image.'
-              : 'Create a named collection of slides for a specific presentation type.'}
+              ? t('admin.update_template_description')
+              : t('admin.create_template_description')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
-            <Label htmlFor="ts-name">Name *</Label>
+            <Label htmlFor="ts-name">{t('admin.name_required')}</Label>
             <Input
               id="ts-name"
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="e.g. Sales Pitch, Onboarding, QBR"
+              placeholder={t('admin.template_name_placeholder')}
               maxLength={100}
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="ts-category">Category</Label>
+            <Label htmlFor="ts-category">{t('admin.category')}</Label>
             <Input
               id="ts-category"
               value={form.category}
               onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-              placeholder="e.g. Sales, HR, Marketing"
+              placeholder={t('admin.category_placeholder')}
               maxLength={50}
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="ts-description">Description</Label>
+            <Label htmlFor="ts-description">{t('admin.description_label')}</Label>
             <Textarea
               id="ts-description"
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              placeholder="Briefly describe when to use this template set…"
+              placeholder={t('admin.description_placeholder')}
               maxLength={500}
               rows={3}
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label>Cover image (optional)</Label>
+            <Label>{t('admin.cover_image')}</Label>
             <div
               className="flex cursor-pointer flex-col items-center justify-center rounded-md border border-dashed px-4 py-4 text-center hover:border-muted-foreground/50"
               onClick={() => fileInputRef.current?.click()}
@@ -197,7 +201,7 @@ function TemplateSetDialog({ open, editTarget, onClose, onSaved }: SetDialogProp
                 <>
                   <Upload className="h-5 w-5 text-muted-foreground mb-1" />
                   <p className="text-xs text-muted-foreground">
-                    Click to upload — JPEG, PNG or WebP, max 5 MB
+                    {t('admin.cover_image_instructions')}
                   </p>
                 </>
               )}
@@ -219,10 +223,10 @@ function TemplateSetDialog({ open, editTarget, onClose, onSaved }: SetDialogProp
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving}>
-            Cancel
+            {t('admin.cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={saving}>
-            {saving ? 'Saving…' : editTarget ? 'Save changes' : 'Create'}
+            {saving ? t('admin.saving') : editTarget ? t('admin.save_changes') : t('admin.create')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -235,6 +239,7 @@ function TemplateSetDialog({ open, editTarget, onClose, onSaved }: SetDialogProp
 // ---------------------------------------------------------------------------
 
 export default function TemplateSetsPage() {
+  const { t } = useTranslation()
   const [templateSets, setTemplateSets] = useState<TemplateSet[]>([])
   const [allSlides, setAllSlides] = useState<Slide[]>([])
   const [loading, setLoading] = useState(true)
@@ -332,9 +337,11 @@ export default function TemplateSetsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">Template Sets</h1>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">
+            {t('admin.template_sets')}
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Create curated slide collections for specific presentation types.
+            {t('admin.template_sets_description')}
           </p>
         </div>
         <Button
@@ -344,7 +351,7 @@ export default function TemplateSetsPage() {
           }}
         >
           <Plus className="mr-2 h-4 w-4" />
-          New template set
+          {t('admin.new_template_set')}
         </Button>
       </div>
 
@@ -366,10 +373,10 @@ export default function TemplateSetsPage() {
       ) : templateSets.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
           <LayoutTemplate className="h-10 w-10 text-muted-foreground/30 mb-3" />
-          <p className="text-sm font-medium text-muted-foreground">No template sets yet</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Create your first template set to give employees a head start.
+          <p className="text-sm font-medium text-muted-foreground">
+            {t('admin.no_template_sets_yet')}
           </p>
+          <p className="mt-1 text-xs text-muted-foreground">{t('admin.create_first_template')}</p>
           <Button
             variant="outline"
             size="sm"

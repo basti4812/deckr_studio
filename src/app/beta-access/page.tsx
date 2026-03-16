@@ -2,11 +2,13 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function BetaAccessPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -28,10 +30,10 @@ export default function BetaAccessPage() {
         router.push('/')
         router.refresh()
       } else {
-        setError('Das Passwort ist leider nicht korrekt.')
+        setError(t('beta.wrong_password'))
       }
     } catch {
-      setError('Ein Fehler ist aufgetreten. Bitte versuche es erneut.')
+      setError(t('beta.error'))
     } finally {
       setLoading(false)
     }
@@ -48,10 +50,9 @@ export default function BetaAccessPage() {
 
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <CardTitle className="text-xl">Willkommen!</CardTitle>
+          <CardTitle className="text-xl">{t('beta.welcome')}</CardTitle>
           <CardDescription className="text-sm leading-relaxed">
-            Schön, dass du da bist und onslide testen möchtest. Bitte gib das Passwort ein, das du
-            erhalten hast.
+            {t('beta.welcome_description')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -59,7 +60,7 @@ export default function BetaAccessPage() {
             <div>
               <Input
                 type="password"
-                placeholder="Passwort"
+                placeholder={t('beta.password_placeholder')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoFocus
@@ -68,15 +69,14 @@ export default function BetaAccessPage() {
               {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
             </div>
             <Button type="submit" className="w-full" disabled={loading || !password.trim()}>
-              {loading ? 'Wird geprüft...' : 'Zugang erhalten'}
+              {loading ? t('beta.checking') : t('beta.get_access')}
             </Button>
           </form>
         </CardContent>
       </Card>
 
       <p className="mt-6 text-xs text-muted-foreground text-center max-w-xs">
-        onslide befindet sich aktuell in einer geschlossenen Beta-Phase. Du benötigst ein Passwort,
-        um die App zu testen.
+        {t('beta.closed_beta')}
       </p>
     </div>
   )

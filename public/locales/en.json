@@ -654,6 +654,19 @@
     "request_cancellation": "Request cancellation",
     "cancellation_requested": "Cancellation requested",
     "cancellation_description": "Our team will be in touch shortly to process your cancellation.",
+    "requesting": "Requesting...",
+    "cancel_plan_name": "Cancel {{plan}}?",
+    "status_active": "Active",
+    "status_trialing": "Trialing",
+    "status_past_due": "Past Due",
+    "status_cancelled": "Cancelled",
+    "status_paid": "Paid",
+    "status_pending": "Pending",
+    "status_failed": "Failed",
+    "pdf_not_available": "PDF not available",
+    "pdf_available_info": "PDF will be available once your payment provider is connected",
+    "active_seats_one": "{{count}} active seat",
+    "active_seats_other": "{{count}} active seats",
     "template_sets": "Template Sets",
     "template_sets_description": "Create curated slide collections for specific presentation types.",
     "new_template_set": "New template set",
@@ -1185,5 +1198,15 @@
     "last_updated": "Last Updated",
     "view_all_projects": "View all projects",
     "view_activity_log": "View activity log"
+  },
+  "beta": {
+    "welcome": "Welcome!",
+    "welcome_description": "Great to have you here! Please enter the password you received to try out onslide.",
+    "password_placeholder": "Password",
+    "checking": "Checking...",
+    "get_access": "Get access",
+    "wrong_password": "The password is incorrect.",
+    "error": "An error occurred. Please try again.",
+    "closed_beta": "onslide is currently in a closed beta phase. You need a password to test the app."
   }
 }

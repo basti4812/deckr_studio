@@ -114,81 +114,68 @@ function formatDate(dateStr: string | null): string {
 // Status Badge
 // ---------------------------------------------------------------------------
 
-function SubscriptionStatusBadge({ status }: { status: Subscription['status'] }) {
-  switch (status) {
-    case 'active':
-      return (
-        <Badge
-          variant="outline"
-          className="border-green-500/50 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400"
-        >
-          Active
-        </Badge>
-      )
-    case 'trialing':
-      return (
-        <Badge
-          variant="outline"
-          className="border-blue-500/50 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400"
-        >
-          Trialing
-        </Badge>
-      )
-    case 'past_due':
-      return (
-        <Badge
-          variant="outline"
-          className="border-amber-500/50 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
-        >
-          Past Due
-        </Badge>
-      )
-    case 'cancelled':
-      return (
-        <Badge
-          variant="outline"
-          className="border-red-500/50 bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400"
-        >
-          Cancelled
-        </Badge>
-      )
-    default:
-      return <Badge variant="outline">{status}</Badge>
+function SubscriptionStatusBadge({
+  status,
+  t,
+}: {
+  status: Subscription['status']
+  t: (key: string) => string
+}) {
+  const map: Record<string, { label: string; cls: string }> = {
+    active: {
+      label: t('admin.status_active'),
+      cls: 'border-green-500/50 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400',
+    },
+    trialing: {
+      label: t('admin.status_trialing'),
+      cls: 'border-blue-500/50 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400',
+    },
+    past_due: {
+      label: t('admin.status_past_due'),
+      cls: 'border-amber-500/50 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400',
+    },
+    cancelled: {
+      label: t('admin.status_cancelled'),
+      cls: 'border-red-500/50 bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400',
+    },
   }
+  const entry = map[status]
+  if (!entry) return <Badge variant="outline">{status}</Badge>
+  return (
+    <Badge variant="outline" className={entry.cls}>
+      {entry.label}
+    </Badge>
+  )
 }
 
-function InvoiceStatusBadge({ status }: { status: 'paid' | 'pending' | 'failed' }) {
-  switch (status) {
-    case 'paid':
-      return (
-        <Badge
-          variant="outline"
-          className="border-green-500/50 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400"
-        >
-          Paid
-        </Badge>
-      )
-    case 'pending':
-      return (
-        <Badge
-          variant="outline"
-          className="border-amber-500/50 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
-        >
-          Pending
-        </Badge>
-      )
-    case 'failed':
-      return (
-        <Badge
-          variant="outline"
-          className="border-red-500/50 bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400"
-        >
-          Failed
-        </Badge>
-      )
-    default:
-      return <Badge variant="outline">{status}</Badge>
+function InvoiceStatusBadge({
+  status,
+  t,
+}: {
+  status: 'paid' | 'pending' | 'failed'
+  t: (key: string) => string
+}) {
+  const map: Record<string, { label: string; cls: string }> = {
+    paid: {
+      label: t('admin.status_paid'),
+      cls: 'border-green-500/50 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400',
+    },
+    pending: {
+      label: t('admin.status_pending'),
+      cls: 'border-amber-500/50 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400',
+    },
+    failed: {
+      label: t('admin.status_failed'),
+      cls: 'border-red-500/50 bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400',
+    },
   }
+  const entry = map[status]
+  if (!entry) return <Badge variant="outline">{status}</Badge>
+  return (
+    <Badge variant="outline" className={entry.cls}>
+      {entry.label}
+    </Badge>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -314,8 +301,8 @@ export default function BillingPage() {
       }
 
       toast({
-        title: 'Billing contact saved',
-        description: 'Your billing details have been updated successfully.',
+        title: t('admin.billing_contact_saved'),
+        description: t('admin.billing_details_updated'),
       })
     } catch (err) {
       toast({
@@ -352,8 +339,8 @@ export default function BillingPage() {
       }
 
       toast({
-        title: 'Cancellation requested',
-        description: 'Our team will be in touch shortly to process your cancellation.',
+        title: t('admin.cancellation_requested'),
+        description: t('admin.cancellation_description'),
       })
     } catch (err) {
       toast({
@@ -424,10 +411,10 @@ export default function BillingPage() {
     return (
       <div className="space-y-4">
         <div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">Billing</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Manage your subscription, seats, payment method, and view invoices.
-          </p>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">
+            {t('admin.billing')}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('admin.billing_description')}</p>
         </div>
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
           <div className="flex items-center gap-2">
@@ -436,7 +423,7 @@ export default function BillingPage() {
           </div>
           <Button variant="ghost" size="sm" className="mt-2" onClick={fetchData}>
             <RefreshCw className="mr-2 h-4 w-4" />
-            Retry
+            {t('nav.retry')}
           </Button>
         </div>
       </div>
@@ -452,11 +439,10 @@ export default function BillingPage() {
       <div className="space-y-6">
         {/* Page Header */}
         <div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">Billing</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Manage your subscription, seats, payment method, and view invoices for your
-            organization.
-          </p>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">
+            {t('admin.billing')}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('admin.billing_description')}</p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
@@ -466,10 +452,10 @@ export default function BillingPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Plan Overview</CardTitle>
-                {subscription && <SubscriptionStatusBadge status={subscription.status} />}
+                <CardTitle className="text-lg">{t('admin.plan_overview')}</CardTitle>
+                {subscription && <SubscriptionStatusBadge status={subscription.status} t={t} />}
               </div>
-              <CardDescription>Your current subscription details</CardDescription>
+              <CardDescription>{t('admin.current_subscription')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Trial Banner */}
@@ -484,12 +470,9 @@ export default function BillingPage() {
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 shrink-0" />
                     {isTrialExpired ? (
-                      <span className="font-medium">Trial expired</span>
+                      <span className="font-medium">{t('admin.trial_expired')}</span>
                     ) : (
-                      <span>
-                        <strong>{trialDaysRemaining}</strong> day
-                        {trialDaysRemaining !== 1 ? 's' : ''} remaining in your free trial
-                      </span>
+                      <span>{t('admin.days_remaining', { count: trialDaysRemaining ?? 0 })}</span>
                     )}
                   </div>
                 </div>
@@ -498,12 +481,12 @@ export default function BillingPage() {
               {/* Plan details */}
               <div className="grid gap-3">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Plan</span>
+                  <span className="text-muted-foreground">{t('admin.plan')}</span>
                   <span className="font-medium">{planName}</span>
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Price per user</span>
+                  <span className="text-muted-foreground">{t('admin.price_per_user')}</span>
                   <span className="font-medium">
                     {pricePerUser !== null
                       ? `${formatCurrency(pricePerUser)} / user / ${billingCycle === 'annual' ? 'year' : 'month'}`
@@ -512,12 +495,12 @@ export default function BillingPage() {
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Billing cycle</span>
+                  <span className="text-muted-foreground">{t('admin.billing_cycle')}</span>
                   <span className="font-medium capitalize">{billingCycle ?? '\u2014'}</span>
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Next renewal</span>
+                  <span className="text-muted-foreground">{t('admin.next_renewal')}</span>
                   <span className="font-medium">{formatDate(nextRenewal)}</span>
                 </div>
               </div>
@@ -527,13 +510,13 @@ export default function BillingPage() {
                 <Button variant="outline" size="sm" asChild>
                   <Link href="/admin/billing/upgrade">
                     <ArrowUpCircle className="mr-2 h-4 w-4" />
-                    Upgrade plan
+                    {t('admin.upgrade_plan')}
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild>
                   <Link href="/admin/billing/downgrade">
                     <ArrowDownCircle className="mr-2 h-4 w-4" />
-                    Downgrade plan
+                    {t('admin.downgrade_plan')}
                   </Link>
                 </Button>
                 <Button
@@ -543,7 +526,7 @@ export default function BillingPage() {
                   onClick={() => setCancelDialogOpen(true)}
                 >
                   <XCircle className="mr-2 h-4 w-4" />
-                  Cancel subscription
+                  {t('admin.cancel_subscription')}
                 </Button>
               </div>
             </CardContent>
@@ -554,8 +537,8 @@ export default function BillingPage() {
           {/* ----------------------------------------------------------------- */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Seat Usage</CardTitle>
-              <CardDescription>Active user seats in your organization</CardDescription>
+              <CardTitle className="text-lg">{t('admin.seat_usage')}</CardTitle>
+              <CardDescription>{t('admin.active_user_seats')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {seatUsage.licensed !== null ? (
@@ -565,7 +548,7 @@ export default function BillingPage() {
                       <span className="text-2xl font-semibold text-foreground">
                         {seatUsage.used}
                       </span>{' '}
-                      of {seatUsage.licensed} seats used
+                      {t('admin.seats_used', { used: seatUsage.used, total: seatUsage.licensed })}
                     </p>
                     <span className="text-sm font-medium text-muted-foreground">
                       {seatPercentage}%
@@ -574,16 +557,19 @@ export default function BillingPage() {
                   <Progress
                     value={Math.min(seatPercentage, 100)}
                     className={`h-3 ${progressBarClass}`}
-                    aria-label={`${seatUsage.used} of ${seatUsage.licensed} seats used`}
+                    aria-label={t('admin.seats_used', {
+                      used: seatUsage.used,
+                      total: seatUsage.licensed,
+                    })}
                   />
                   {seatPercentage >= 100 && (
                     <p className="text-xs text-red-600 dark:text-red-400">
-                      All seats are in use. Upgrade your plan to add more team members.
+                      {t('admin.all_seats_in_use')}
                     </p>
                   )}
                   {seatPercentage >= 80 && seatPercentage < 100 && (
                     <p className="text-xs text-amber-600 dark:text-amber-400">
-                      You are approaching your seat limit. Consider upgrading your plan.
+                      {t('admin.approaching_seat_limit')}
                     </p>
                   )}
                 </>
@@ -594,10 +580,10 @@ export default function BillingPage() {
                       <span className="text-2xl font-semibold text-foreground">
                         {seatUsage.used}
                       </span>{' '}
-                      active seat{seatUsage.used !== 1 ? 's' : ''}
+                      {t('admin.active_seats', { count: seatUsage.used })}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Unlimited seats on your current plan
+                      {t('admin.unlimited_seats')}
                     </p>
                   </div>
                 </div>
@@ -611,16 +597,18 @@ export default function BillingPage() {
         {/* ----------------------------------------------------------------- */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Invoices</CardTitle>
-            <CardDescription>Your billing history and downloadable invoices</CardDescription>
+            <CardTitle className="text-lg">{t('admin.invoices')}</CardTitle>
+            <CardDescription>{t('admin.billing_history')}</CardDescription>
           </CardHeader>
           <CardContent>
             {invoices.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12 text-center">
                 <FileText className="h-8 w-8 text-muted-foreground/50" />
-                <p className="mt-3 text-sm font-medium text-muted-foreground">No invoices yet</p>
+                <p className="mt-3 text-sm font-medium text-muted-foreground">
+                  {t('admin.no_invoices_yet')}
+                </p>
                 <p className="mt-1 max-w-sm text-xs text-muted-foreground/70">
-                  Your first invoice will appear after your first billing cycle.
+                  {t('admin.first_invoice_info')}
                 </p>
               </div>
             ) : (
@@ -628,9 +616,9 @@ export default function BillingPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>{t('admin.date')}</TableHead>
+                      <TableHead>{t('admin.amount')}</TableHead>
+                      <TableHead>{t('admin.status')}</TableHead>
                       <TableHead className="w-[100px]">
                         <span className="sr-only">Download</span>
                       </TableHead>
@@ -646,7 +634,7 @@ export default function BillingPage() {
                           {formatCurrency(invoice.amount_cents, invoice.currency)}
                         </TableCell>
                         <TableCell>
-                          <InvoiceStatusBadge status={invoice.status} />
+                          <InvoiceStatusBadge status={invoice.status} t={t} />
                         </TableCell>
                         <TableCell>
                           {invoice.pdf_url && /^https?:\/\//.test(invoice.pdf_url) ? (
@@ -669,16 +657,14 @@ export default function BillingPage() {
                                     variant="ghost"
                                     size="sm"
                                     disabled
-                                    aria-label="PDF not available"
+                                    aria-label={t('admin.pdf_not_available')}
                                   >
                                     <Download className="mr-2 h-4 w-4" />
                                     PDF
                                   </Button>
                                 </span>
                               </TooltipTrigger>
-                              <TooltipContent>
-                                PDF will be available once your payment provider is connected
-                              </TooltipContent>
+                              <TooltipContent>{t('admin.pdf_available_info')}</TooltipContent>
                             </Tooltip>
                           )}
                         </TableCell>
@@ -696,18 +682,18 @@ export default function BillingPage() {
         {/* ----------------------------------------------------------------- */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Payment Method</CardTitle>
-            <CardDescription>Your payment method for subscription charges</CardDescription>
+            <CardTitle className="text-lg">{t('admin.payment_method')}</CardTitle>
+            <CardDescription>{t('admin.payment_method_description')}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-3 rounded-lg border border-dashed p-6">
               <CreditCard className="h-8 w-8 text-muted-foreground/50" />
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  No payment method connected yet
+                  {t('admin.no_payment_method')}
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground/70">
-                  A payment method will be added when your payment provider is configured.
+                  {t('admin.payment_method_info')}
                 </p>
               </div>
             </div>
@@ -719,18 +705,18 @@ export default function BillingPage() {
         {/* ----------------------------------------------------------------- */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Billing Contact</CardTitle>
-            <CardDescription>Company and address details for your invoices</CardDescription>
+            <CardTitle className="text-lg">{t('admin.billing_contact')}</CardTitle>
+            <CardDescription>{t('admin.billing_contact_description')}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSaveBillingContact}>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="grid gap-2 sm:col-span-2">
-                  <Label htmlFor="billing-company">Company name</Label>
+                  <Label htmlFor="billing-company">{t('admin.company_name')}</Label>
                   <Input
                     id="billing-company"
                     type="text"
-                    placeholder="Acme Inc."
+                    placeholder={t('admin.company_name_placeholder')}
                     maxLength={255}
                     value={billingContact.billing_company_name}
                     onChange={(e) =>
@@ -743,11 +729,11 @@ export default function BillingPage() {
                   />
                 </div>
                 <div className="grid gap-2 sm:col-span-2">
-                  <Label htmlFor="billing-street">Street address</Label>
+                  <Label htmlFor="billing-street">{t('admin.street_address')}</Label>
                   <Input
                     id="billing-street"
                     type="text"
-                    placeholder="123 Main Street"
+                    placeholder={t('admin.street_address_placeholder')}
                     maxLength={500}
                     value={billingContact.billing_address_street}
                     onChange={(e) =>
@@ -760,11 +746,11 @@ export default function BillingPage() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="billing-city">City</Label>
+                  <Label htmlFor="billing-city">{t('admin.city')}</Label>
                   <Input
                     id="billing-city"
                     type="text"
-                    placeholder="Berlin"
+                    placeholder={t('admin.city_placeholder')}
                     maxLength={255}
                     value={billingContact.billing_address_city}
                     onChange={(e) =>
@@ -777,11 +763,11 @@ export default function BillingPage() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="billing-postal">Postal code</Label>
+                  <Label htmlFor="billing-postal">{t('admin.postal_code')}</Label>
                   <Input
                     id="billing-postal"
                     type="text"
-                    placeholder="10115"
+                    placeholder={t('admin.postal_code_placeholder')}
                     maxLength={20}
                     value={billingContact.billing_address_postal_code}
                     onChange={(e) =>
@@ -794,11 +780,11 @@ export default function BillingPage() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="billing-country">Country</Label>
+                  <Label htmlFor="billing-country">{t('admin.country')}</Label>
                   <Input
                     id="billing-country"
                     type="text"
-                    placeholder="Germany"
+                    placeholder={t('admin.country_placeholder')}
                     maxLength={100}
                     value={billingContact.billing_address_country}
                     onChange={(e) =>
@@ -811,11 +797,11 @@ export default function BillingPage() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="billing-vat">VAT ID</Label>
+                  <Label htmlFor="billing-vat">{t('admin.vat_id')}</Label>
                   <Input
                     id="billing-vat"
                     type="text"
-                    placeholder="DE123456789"
+                    placeholder={t('admin.vat_id_placeholder')}
                     maxLength={50}
                     value={billingContact.billing_vat_id}
                     onChange={(e) =>
@@ -833,10 +819,10 @@ export default function BillingPage() {
                   {savingContact ? (
                     <>
                       <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
+                      {t('admin.saving')}
                     </>
                   ) : (
-                    'Save billing contact'
+                    t('admin.save_billing_contact')
                   )}
                 </Button>
               </div>
@@ -853,14 +839,15 @@ export default function BillingPage() {
         >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Cancel {planName}?</AlertDialogTitle>
+              <AlertDialogTitle>{t('admin.cancel_plan_name', { plan: planName })}</AlertDialogTitle>
               <AlertDialogDescription>
-                If you cancel your subscription, your team will lose access to onslide Studio at the
-                end of the current billing period. Your data will be preserved for 30 days.
+                {t('admin.cancel_subscription_message')}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={cancelling}>Keep subscription</AlertDialogCancel>
+              <AlertDialogCancel disabled={cancelling}>
+                {t('admin.keep_subscription')}
+              </AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleCancelSubscription}
                 disabled={cancelling}
@@ -869,12 +856,12 @@ export default function BillingPage() {
                 {cancelling ? (
                   <>
                     <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                    Requesting...
+                    {t('admin.requesting')}
                   </>
                 ) : (
                   <>
                     <XCircle className="mr-2 h-4 w-4" />
-                    Request cancellation
+                    {t('admin.request_cancellation')}
                   </>
                 )}
               </AlertDialogAction>
