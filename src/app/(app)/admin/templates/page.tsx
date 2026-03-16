@@ -65,7 +65,7 @@ function TemplateSetDialog({ open, editTarget, onClose, onSaved }: SetDialogProp
 
   async function handleSubmit() {
     if (!form.name.trim()) {
-      setError('Name is required')
+      setError(t('admin.template_name_validation'))
       return
     }
     setSaving(true)
@@ -76,7 +76,7 @@ function TemplateSetDialog({ open, editTarget, onClose, onSaved }: SetDialogProp
         data: { session },
       } = await supabase.auth.getSession()
       if (!session) {
-        setError('Not authenticated')
+        setError(t('admin.not_authenticated'))
         return
       }
       const token = session.access_token
@@ -94,7 +94,7 @@ function TemplateSetDialog({ open, editTarget, onClose, onSaved }: SetDialogProp
         })
         if (!res.ok) {
           const d = await res.json()
-          setError(d.error ?? 'Failed to update')
+          setError(d.error ?? t('admin.failed_to_update'))
           return
         }
         const d = await res.json()
@@ -111,7 +111,7 @@ function TemplateSetDialog({ open, editTarget, onClose, onSaved }: SetDialogProp
         })
         if (!res.ok) {
           const d = await res.json()
-          setError(d.error ?? 'Failed to create')
+          setError(d.error ?? t('admin.failed_to_create'))
           return
         }
         const d = await res.json()
@@ -387,7 +387,7 @@ export default function TemplateSetsPage() {
             }}
           >
             <Plus className="mr-2 h-4 w-4" />
-            New template set
+            {t('admin.new_template_set')}
           </Button>
         </div>
       ) : (

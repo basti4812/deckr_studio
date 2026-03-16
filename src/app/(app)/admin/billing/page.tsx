@@ -306,7 +306,7 @@ export default function BillingPage() {
       })
     } catch (err) {
       toast({
-        title: 'Error',
+        title: t('common.error'),
         description: err instanceof Error ? err.message : 'Failed to save billing contact',
         variant: 'destructive',
       })
@@ -344,7 +344,7 @@ export default function BillingPage() {
       })
     } catch (err) {
       toast({
-        title: 'Error',
+        title: t('common.error'),
         description: err instanceof Error ? err.message : 'Failed to request cancellation',
         variant: 'destructive',
       })
@@ -489,7 +489,13 @@ export default function BillingPage() {
                   <span className="text-muted-foreground">{t('admin.price_per_user')}</span>
                   <span className="font-medium">
                     {pricePerUser !== null
-                      ? `${formatCurrency(pricePerUser)} / user / ${billingCycle === 'annual' ? 'year' : 'month'}`
+                      ? t('admin.price_per_user_cycle', {
+                          price: formatCurrency(pricePerUser),
+                          cycle:
+                            billingCycle === 'annual'
+                              ? t('admin.cycle_year')
+                              : t('admin.cycle_month'),
+                        })
                       : '\u2014'}
                   </span>
                 </div>
@@ -548,7 +554,7 @@ export default function BillingPage() {
                       <span className="text-2xl font-semibold text-foreground">
                         {seatUsage.used}
                       </span>{' '}
-                      {t('admin.seats_used', { used: seatUsage.used, total: seatUsage.licensed })}
+                      {t('admin.of_total_seats', { total: seatUsage.licensed })}
                     </p>
                     <span className="text-sm font-medium text-muted-foreground">
                       {seatPercentage}%
@@ -580,7 +586,7 @@ export default function BillingPage() {
                       <span className="text-2xl font-semibold text-foreground">
                         {seatUsage.used}
                       </span>{' '}
-                      {t('admin.active_seats', { count: seatUsage.used })}
+                      {t('admin.active_seats_label', { count: seatUsage.used })}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {t('admin.unlimited_seats')}
