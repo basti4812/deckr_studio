@@ -165,7 +165,9 @@
     "project_restored": "Projekt wiederhergestellt",
     "failed_restore": "Projekt konnte nicht wiederhergestellt werden",
     "permanently_deleted": "Projekt dauerhaft gelöscht",
-    "failed_delete": "Projekt konnte nicht gelöscht werden"
+    "failed_delete": "Projekt konnte nicht gelöscht werden",
+    "search_placeholder": "Projekte durchsuchen…",
+    "no_search_results": "Keine Projekte gefunden."
   },
   "project_card": {
     "today": "Heute",
@@ -566,8 +568,13 @@
     "invite_description": "Senden Sie eine E-Mail-Einladung. Der Benutzer erhält einen Link zum Einrichten seines Kontos.",
     "email_address": "E-Mail-Adresse",
     "colleague_email_placeholder": "kollege@unternehmen.de",
-    "invitation_sent": "Einladung gesendet",
-    "invitation_sent_to": "Eine Einladungs-E-Mail wurde gesendet an {{email}}.",
+    "invitation_sent": "Einladung erstellt",
+    "invitation_sent_to": "Eine Einladung wurde erstellt für {{email}}.",
+    "invite_link_description": "Teilen Sie diesen Link mit {{email}}, um dem Team beizutreten:",
+    "done": "Fertig",
+    "cancel": "Abbrechen",
+    "sending": "Wird gesendet…",
+    "send_invite": "Einladung senden",
     "seat_limit_reached": "Platzlimit erreicht",
     "upgrade_to_invite_more": "Aktualisieren Sie Ihren Plan, um mehr Teammitglieder einzuladen.",
     "create_user_account": "Benutzerkonto erstellen",

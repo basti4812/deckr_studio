@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, CheckCheck, FolderOpen, Home, User } from 'lucide-react'
+import { Bell, CheckCheck, FolderOpen, Home, Settings, User } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -19,7 +19,7 @@ import { NotificationItem, type Notification } from '@/components/notifications/
 export function MobileNav() {
   const { t } = useTranslation()
   const pathname = usePathname()
-  const { userId } = useCurrentUser()
+  const { userId, isAdmin } = useCurrentUser()
   const [notifOpen, setNotifOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -159,7 +159,7 @@ export function MobileNav() {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center border-t bg-background md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center border-t bg-background md:hidden pb-[env(safe-area-inset-bottom)]">
       {/* Home */}
       <Link
         href="/home"
@@ -246,17 +246,31 @@ export function MobileNav() {
         </PopoverContent>
       </Popover>
 
-      {/* Profile */}
-      <Link
-        href="/profile"
-        className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors min-h-[44px] ${
-          isActive('/profile') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-        }`}
-        aria-label={t('nav.profile')}
-      >
-        <User className="h-5 w-5" />
-        <span>{t('nav.profile')}</span>
-      </Link>
+      {/* Admin (admins only) */}
+      {isAdmin ? (
+        <Link
+          href="/admin/slides"
+          className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors min-h-[44px] ${
+            isActive('/admin') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+          }`}
+          aria-label={t('nav.admin_workspace')}
+        >
+          <Settings className="h-5 w-5" />
+          <span>{t('nav.admin_workspace')}</span>
+        </Link>
+      ) : (
+        /* Profile (non-admins) */
+        <Link
+          href="/profile"
+          className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors min-h-[44px] ${
+            isActive('/profile') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+          }`}
+          aria-label={t('nav.profile')}
+        >
+          <User className="h-5 w-5" />
+          <span>{t('nav.profile')}</span>
+        </Link>
+      )}
     </nav>
   )
 }

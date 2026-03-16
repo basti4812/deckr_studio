@@ -145,16 +145,17 @@ async function handleInvite(adminUserId: string, tenantId: string, body: unknown
     return NextResponse.json({ error: 'This email is already a team member' }, { status: 409 })
   }
 
-  // Invite via Supabase Auth
-  const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
+  // Generate invite link via Supabase Auth (returns the link for copy/share)
+  const { data: inviteData, error: inviteError } = await supabase.auth.admin.generateLink({
+    type: 'invite',
     email,
-    {
+    options: {
       data: {
         tenant_id: tenantId,
         role: 'employee',
       },
-    }
-  )
+    },
+  })
 
   if (inviteError) {
     // Check for "already registered" error from Supabase
@@ -171,6 +172,7 @@ async function handleInvite(adminUserId: string, tenantId: string, body: unknown
   }
 
   const invitedUserId = inviteData?.user?.id
+  const inviteLink = inviteData?.properties?.action_link ?? null
   if (!invitedUserId) {
     return NextResponse.json({ error: 'Failed to create invited user' }, { status: 500 })
   }
@@ -208,7 +210,8 @@ async function handleInvite(adminUserId: string, tenantId: string, body: unknown
 
   return NextResponse.json(
     {
-      message: 'Invitation sent successfully',
+      message: 'Invitation created successfully',
+      invite_link: inviteLink,
       member: {
         id: invitedUserId,
         email,

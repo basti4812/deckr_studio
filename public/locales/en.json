@@ -165,7 +165,9 @@
     "project_restored": "Project restored",
     "failed_restore": "Failed to restore project",
     "permanently_deleted": "Project permanently deleted",
-    "failed_delete": "Failed to delete project"
+    "failed_delete": "Failed to delete project",
+    "search_placeholder": "Search projects…",
+    "no_search_results": "No projects match your search."
   },
   "project_card": {
     "today": "Today",
@@ -566,8 +568,13 @@
     "invite_description": "Send an email invitation. The user will receive a link to set up their account.",
     "email_address": "Email address",
     "colleague_email_placeholder": "colleague@company.com",
-    "invitation_sent": "Invitation sent",
-    "invitation_sent_to": "An invitation email has been sent to {{email}}.",
+    "invitation_sent": "Invitation created",
+    "invitation_sent_to": "An invitation has been created for {{email}}.",
+    "invite_link_description": "Share this link with {{email}} to let them join your team:",
+    "done": "Done",
+    "cancel": "Cancel",
+    "sending": "Sending…",
+    "send_invite": "Send invite",
     "seat_limit_reached": "Seat limit reached",
     "upgrade_to_invite_more": "Upgrade your plan to invite more team members.",
     "create_user_account": "Create user account",

@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { DM_Serif_Display, Plus_Jakarta_Sans } from 'next/font/google'
 import './globals.css'
 import { CookieConsent } from '@/components/cookie-consent'
@@ -16,6 +16,12 @@ const bodyFont = Plus_Jakarta_Sans({
   variable: '--font-body',
   display: 'swap',
 })
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+}
 
 export const metadata: Metadata = {
   title: 'onslide Studio – Presentation Management',

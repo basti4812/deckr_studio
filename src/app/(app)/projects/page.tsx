@@ -3,10 +3,11 @@
 import { useTranslation } from 'react-i18next'
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Archive, ChevronDown, Plus, Users } from 'lucide-react'
+import { Archive, ChevronDown, Plus, Search, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentUser } from '@/hooks/use-current-user'
@@ -24,6 +25,7 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
   const [archiveOpen, setArchiveOpen] = useState(false)
+  const [search, setSearch] = useState('')
 
   // ---------------------------------------------------------------------------
   // Fetch
@@ -177,6 +179,19 @@ export default function ProjectsPage() {
   }
 
   // ---------------------------------------------------------------------------
+  // Search filter
+  // ---------------------------------------------------------------------------
+
+  const q = search.toLowerCase().trim()
+  const filteredProjects = q ? projects.filter((p) => p.name?.toLowerCase().includes(q)) : projects
+  const filteredShared = q
+    ? sharedProjects.filter((p) => p.name?.toLowerCase().includes(q))
+    : sharedProjects
+  const filteredArchived = q
+    ? archivedProjects.filter((p) => p.name?.toLowerCase().includes(q))
+    : archivedProjects
+
+  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
@@ -195,6 +210,20 @@ export default function ProjectsPage() {
         </Button>
       </div>
 
+      {/* Search bar */}
+      {!loading &&
+        (projects.length > 0 || sharedProjects.length > 0 || archivedProjects.length > 0) && (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder={t('projects.search_placeholder')}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        )}
+
       {/* My Projects */}
       {loading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -202,7 +231,7 @@ export default function ProjectsPage() {
             <Skeleton key={i} className="h-24 w-full rounded-lg" />
           ))}
         </div>
-      ) : projects.length === 0 ? (
+      ) : filteredProjects.length === 0 && !q ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-20 text-center">
           <p className="text-sm font-medium text-muted-foreground">
             {t('projects.no_projects_yet')}
@@ -213,9 +242,13 @@ export default function ProjectsPage() {
             {t('home.new_project')}
           </Button>
         </div>
+      ) : filteredProjects.length === 0 && q ? (
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12 text-center">
+          <p className="text-sm text-muted-foreground">{t('projects.no_search_results')}</p>
+        </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {projects.map((project) => (
+          {filteredProjects.map((project) => (
             <ProjectCard
               key={project.id}
               project={project}
@@ -230,14 +263,14 @@ export default function ProjectsPage() {
       )}
 
       {/* Shared with me */}
-      {!loading && sharedProjects.length > 0 && (
+      {!loading && filteredShared.length > 0 && (
         <div className="mt-10">
           <div className="flex items-center gap-2 mb-4">
             <Users className="h-5 w-5 text-muted-foreground" />
             <h2 className="text-lg font-semibold tracking-tight">{t('projects.shared_with_me')}</h2>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {sharedProjects.map((project) => (
+            {filteredShared.map((project) => (
               <ProjectCard
                 key={project.id}
                 project={project}
@@ -251,14 +284,14 @@ export default function ProjectsPage() {
       )}
 
       {/* Archived projects */}
-      {!loading && archivedProjects.length > 0 && (
+      {!loading && filteredArchived.length > 0 && (
         <Collapsible open={archiveOpen} onOpenChange={setArchiveOpen} className="mt-10">
           <CollapsibleTrigger asChild>
             <button className="flex items-center gap-2 mb-4 group cursor-pointer">
               <Archive className="h-5 w-5 text-muted-foreground" />
               <h2 className="text-lg font-semibold tracking-tight">{t('projects.archived')}</h2>
               <Badge variant="secondary" className="text-xs">
-                {archivedProjects.length}
+                {filteredArchived.length}
               </Badge>
               <ChevronDown
                 className={`h-4 w-4 text-muted-foreground transition-transform ${archiveOpen ? 'rotate-180' : ''}`}
@@ -267,7 +300,7 @@ export default function ProjectsPage() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {archivedProjects.map((project) => (
+              {filteredArchived.map((project) => (
                 <ProjectCard
                   key={project.id}
                   project={project}

@@ -2,7 +2,17 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Mail, MoreHorizontal, RefreshCw, Send, Trash2, UserPlus, XCircle } from 'lucide-react'
+import {
+  Check,
+  Copy,
+  Mail,
+  MoreHorizontal,
+  RefreshCw,
+  Send,
+  Trash2,
+  UserPlus,
+  XCircle,
+} from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -775,11 +785,22 @@ function InviteDialog({ open, onClose, seatLimitReached, onInvited }: InviteDial
   const [email, setEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [fieldError, setFieldError] = useState<string | null>(null)
+  const [inviteLink, setInviteLink] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   function handleClose() {
     setEmail('')
     setFieldError(null)
+    setInviteLink(null)
+    setCopied(false)
     onClose()
+  }
+
+  async function handleCopyLink() {
+    if (!inviteLink) return
+    await navigator.clipboard.writeText(inviteLink)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -822,7 +843,11 @@ function InviteDialog({ open, onClose, seatLimitReached, onInvited }: InviteDial
       })
 
       onInvited(data.member)
-      setEmail('')
+      if (data.invite_link) {
+        setInviteLink(data.invite_link)
+      } else {
+        setEmail('')
+      }
     } catch {
       setFieldError('An unexpected error occurred')
     } finally {
@@ -842,6 +867,38 @@ function InviteDialog({ open, onClose, seatLimitReached, onInvited }: InviteDial
           <div className="rounded-lg border border-amber-500/50 bg-amber-50 p-4 text-sm text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
             <p className="font-medium">{t('admin.seat_limit_reached')}</p>
             <p className="mt-1">{t('admin.upgrade_to_invite_more')}</p>
+          </div>
+        ) : inviteLink ? (
+          <div className="grid gap-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              {t('admin.invite_link_description', { email })}
+            </p>
+            <div className="flex items-center gap-2">
+              <Input
+                readOnly
+                value={inviteLink}
+                className="text-xs font-mono"
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="shrink-0"
+                onClick={handleCopyLink}
+              >
+                {copied ? (
+                  <Check className="h-4 w-4 text-emerald-500" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+            <DialogFooter>
+              <Button type="button" onClick={handleClose}>
+                {t('admin.done')}
+              </Button>
+            </DialogFooter>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
@@ -865,18 +922,18 @@ function InviteDialog({ open, onClose, seatLimitReached, onInvited }: InviteDial
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>
-                Cancel
+                {t('admin.cancel')}
               </Button>
               <Button type="submit" disabled={submitting}>
                 {submitting ? (
                   <>
                     <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                    Sending...
+                    {t('admin.sending')}
                   </>
                 ) : (
                   <>
                     <Send className="mr-2 h-4 w-4" />
-                    Send invite
+                    {t('admin.send_invite')}
                   </>
                 )}
               </Button>
