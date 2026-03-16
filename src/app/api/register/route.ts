@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase'
 import { checkIpRateLimit } from '@/lib/rate-limit'
+import { sendConfirmationEmail } from '@/lib/email'
 
 // ---------------------------------------------------------------------------
 // Input validation
@@ -132,7 +133,7 @@ export async function POST(request: NextRequest) {
 
   // 7. Send email confirmation link (only when not skipping confirmation)
   if (!skipEmailConfirmation) {
-    const { error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'signup',
       email,
       password,
@@ -142,8 +143,10 @@ export async function POST(request: NextRequest) {
     })
 
     if (linkError) {
-      // Non-fatal: user is created, they can request a resend later
-      console.error('Failed to send confirmation email:', linkError.message)
+      console.error('Failed to generate confirmation link:', linkError.message)
+    } else if (linkData?.properties?.action_link) {
+      // generateLink returns the link but does NOT send email — send it ourselves
+      await sendConfirmationEmail(email, linkData.properties.action_link, displayName)
     }
   }
 

@@ -130,6 +130,51 @@ export async function sendNotificationEmail(params: SendEmailParams): Promise<vo
 }
 
 // ---------------------------------------------------------------------------
+// Auth emails — confirmation, password reset, team invite
+// ---------------------------------------------------------------------------
+
+export async function sendConfirmationEmail(
+  to: string,
+  confirmUrl: string,
+  displayName: string
+): Promise<void> {
+  const transporter = getTransporter()
+  if (!transporter) return
+
+  const name = escapeHtml(displayName)
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#fafafa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#fafafa;padding:40px 16px">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;border:1px solid #e4e4e7;padding:32px">
+        <tr><td>
+          <p style="font-size:13px;font-weight:600;color:#71717a;letter-spacing:0.05em;text-transform:uppercase;margin:0 0 24px">onslide Studio</p>
+          <p style="font-size:16px;color:#18181b;line-height:1.6;margin:0">Hi ${name},</p>
+          <p style="font-size:16px;color:#18181b;line-height:1.6;margin:16px 0 0">Please confirm your email address to get started with onslide Studio.</p>
+          <a href="${confirmUrl}" style="display:inline-block;background:#18181b;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-size:14px;font-weight:500;margin-top:24px">Confirm Email</a>
+          <p style="font-size:13px;color:#71717a;margin-top:24px">If you didn't create this account, you can safely ignore this email.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+
+  try {
+    await transporter.sendMail({
+      from: `onslide Studio <${FROM_EMAIL}>`,
+      to,
+      subject: 'Confirm your onslide Studio account',
+      html,
+    })
+  } catch (err) {
+    console.error('[email] Failed to send confirmation email:', err)
+  }
+}
+
+// ---------------------------------------------------------------------------
 // HMAC token helpers for unsubscribe links
 // ---------------------------------------------------------------------------
 
