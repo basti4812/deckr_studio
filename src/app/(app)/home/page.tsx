@@ -3,8 +3,9 @@
 import { useTranslation } from 'react-i18next'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Plus } from 'lucide-react'
+import { ArrowRight, FolderPlus, LayoutGrid, Presentation, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
@@ -103,20 +104,61 @@ export default function HomePage() {
             ))}
           </div>
         ) : projects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
-            <p className="text-sm font-medium text-muted-foreground">{t('home.no_projects_yet')}</p>
-            <p className="mt-1 text-xs text-muted-foreground max-w-xs">
-              {t('home.no_projects_description')}
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4"
-              onClick={() => setCreateOpen(true)}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              {t('home.new_project')}
-            </Button>
+          <div className="space-y-4">
+            <div className="rounded-lg border border-dashed p-8 text-center">
+              <h3 className="text-base font-semibold">{t('home.getting_started')}</h3>
+              <p className="mt-1 text-sm text-muted-foreground max-w-md mx-auto">
+                {t('home.getting_started_desc')}
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <Link href="/board" className="block">
+                <Card className="group cursor-pointer transition-shadow hover:shadow-md">
+                  <CardContent className="flex items-start gap-3 p-4">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                      <LayoutGrid className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{t('home.step_explore_board')}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t('home.step_explore_board_desc')}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+              <Card
+                className="group cursor-pointer transition-shadow hover:shadow-md"
+                onClick={() => setCreateOpen(true)}
+              >
+                <CardContent className="flex items-start gap-3 p-4">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                    <FolderPlus className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{t('home.step_create_project')}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t('home.step_create_project_desc')}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Link href="/demo" className="block">
+                <Card className="group cursor-pointer transition-shadow hover:shadow-md">
+                  <CardContent className="flex items-start gap-3 p-4">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                      <Presentation className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{t('home.step_try_demo')}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t('home.step_try_demo_desc')}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

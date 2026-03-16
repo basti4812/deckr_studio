@@ -5,6 +5,12 @@ import Link from 'next/link'
 import { ArrowDown, ArrowRight, Check, Layers, GripVertical, Shield, Star } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { LandingNav } from '@/components/landing-nav'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 
@@ -529,7 +535,42 @@ export default function LandingPage() {
       </section>
 
       {/* ================================================================== */}
-      {/* SECTION 7 · FINAL CTA                                               */}
+      {/* SECTION 7 · FAQ                                                      */}
+      {/* ================================================================== */}
+      <section id="faq" className="bg-background py-24">
+        <div className="mx-auto max-w-3xl px-6">
+          <h2
+            data-reveal
+            className="opacity-0 font-heading text-3xl text-center tracking-tight text-foreground sm:text-4xl lg:text-5xl"
+          >
+            {t('landing.faq_title')}
+          </h2>
+          <p
+            data-reveal
+            className="opacity-0 mx-auto mt-4 max-w-2xl text-center text-lg text-muted-foreground"
+          >
+            {t('landing.faq_subtitle')}
+          </p>
+
+          <div data-reveal className="opacity-0 mt-12">
+            <Accordion type="single" collapsible className="w-full">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <AccordionItem key={i} value={`faq-${i}`}>
+                  <AccordionTrigger className="text-left text-base">
+                    {t(`landing.faq_q${i}`)}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground leading-relaxed">
+                    {t(`landing.faq_a${i}`)}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
+        </div>
+      </section>
+
+      {/* ================================================================== */}
+      {/* SECTION 8 · FINAL CTA                                               */}
       {/* ================================================================== */}
       <section className="bg-primary py-24">
         <div className="mx-auto max-w-4xl px-6 text-center">
@@ -557,7 +598,7 @@ export default function LandingPage() {
       </section>
 
       {/* ================================================================== */}
-      {/* SECTION 8 · FOOTER                                                  */}
+      {/* SECTION 9 · FOOTER                                                  */}
       {/* ================================================================== */}
       <footer className="bg-secondary py-12">
         <div className="mx-auto max-w-6xl px-6">
@@ -584,6 +625,9 @@ export default function LandingPage() {
               </a>
               <a href="#pricing" className="hover:text-foreground transition-colors">
                 {t('landing.pricing_nav')}
+              </a>
+              <a href="#faq" className="hover:text-foreground transition-colors">
+                {t('landing.faq_nav')}
               </a>
               <Link href="/login" className="hover:text-foreground transition-colors">
                 {t('landing.log_in')}

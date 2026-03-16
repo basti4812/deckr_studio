@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { CheckCircle, Loader2 } from 'lucide-react'
+import { CheckCircle, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -55,6 +55,26 @@ const RegisterSchema = z
 type RegisterValues = z.infer<typeof RegisterSchema>
 
 // ---------------------------------------------------------------------------
+// Password strength helper
+// ---------------------------------------------------------------------------
+
+function getPasswordStrength(pw: string): { score: number; label: string; color: string } {
+  if (!pw) return { score: 0, label: '', color: '' }
+  let score = 0
+  if (pw.length >= 8) score++
+  if (pw.length >= 12) score++
+  if (/[A-Z]/.test(pw)) score++
+  if (/[0-9]/.test(pw)) score++
+  if (/[^A-Za-z0-9]/.test(pw)) score++
+
+  if (score <= 1) return { score: 1, label: 'auth.password_weak', color: 'bg-destructive' }
+  if (score <= 2) return { score: 2, label: 'auth.password_fair', color: 'bg-orange-500' }
+  if (score <= 3) return { score: 3, label: 'auth.password_good', color: 'bg-amber-500' }
+  if (score <= 4) return { score: 4, label: 'auth.password_strong', color: 'bg-emerald-500' }
+  return { score: 5, label: 'auth.password_very_strong', color: 'bg-emerald-600' }
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -63,6 +83,7 @@ export default function RegisterPage() {
   const router = useRouter()
   const [serverError, setServerError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const form = useForm<RegisterValues>({
     resolver: zodResolver(RegisterSchema),
@@ -216,20 +237,53 @@ export default function RegisterPage() {
             <FormField
               control={form.control}
               name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('auth.password_label')}</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="password"
-                      autoComplete="new-password"
-                      placeholder={t('auth.password_placeholder')}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const strength = getPasswordStrength(field.value)
+                return (
+                  <FormItem>
+                    <FormLabel>{t('auth.password_label')}</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? 'text' : 'password'}
+                          autoComplete="new-password"
+                          placeholder={t('auth.password_placeholder')}
+                          className="pr-10"
+                          {...field}
+                        />
+                        <button
+                          type="button"
+                          tabIndex={-1}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          onClick={() => setShowPassword((v) => !v)}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    </FormControl>
+                    {field.value && (
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex gap-1">
+                          {[1, 2, 3, 4, 5].map((i) => (
+                            <div
+                              key={i}
+                              className={`h-1 flex-1 rounded-full transition-colors ${
+                                i <= strength.score ? strength.color : 'bg-muted'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{t(strength.label)}</p>
+                      </div>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )
+              }}
             />
 
             <FormField

@@ -108,7 +108,7 @@ export function SetupWizard() {
     } catch {
       // Best-effort — redirect even if PATCH fails
     }
-    router.push('/dashboard')
+    router.push('/home')
   }
 
   const currentStepKeys = STEP_KEYS[step]
