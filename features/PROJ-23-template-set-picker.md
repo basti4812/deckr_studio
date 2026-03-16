@@ -1,14 +1,17 @@
 # PROJ-23: Template Set Picker
 
 ## Status: Deployed
+
 **Created:** 2026-02-25
 **Last Updated:** 2026-03-02
 
 ## Dependencies
+
 - Requires: PROJ-22 (Template Set Management Admin)
 - Requires: PROJ-24 (Project Creation & Management)
 
 ## User Stories
+
 - As a user creating a new project, I want to browse available template sets so that I can start from a curated slide selection instead of from scratch
 - As a user, I want to see cover images, descriptions, and slide counts for each template set so that I can choose the right one
 - As a user, I want to preview the full slide order of a template set before selecting it so that I know exactly what I'm getting
@@ -16,6 +19,7 @@
 - As a user, I want to start a project from scratch without using a template so that I have full flexibility
 
 ## Acceptance Criteria
+
 - [ ] Template set picker is shown as a step during project creation (before the board opens)
 - [ ] Picker shows two options: "Start from scratch" and "Choose a template"
 - [ ] If "Choose a template" is selected: show a visual grid of available template sets
@@ -29,22 +33,26 @@
 - [ ] If no template sets exist, the picker skips straight to "Start from scratch" (or shows an empty state)
 
 ## Edge Cases
+
 - What if a template set contains deprecated slides? → Deprecated slides are shown with a deprecated warning in the preview; they are NOT added to the project tray on confirmation
 - What if a template set contains slides the user's tenant no longer has access to? → Those slides are skipped silently during population
 - What if the user goes back from the template picker to change their project name? → Template selection is not reset; selection is remembered during the creation flow
 - What if there are more than 20 template sets? → Grid paginates or scrolls; category filter helps narrow down
 
 ## Technical Requirements
+
 - Picker is implemented as a modal or a dedicated step in the project creation flow
 - Template set analytics (PROJ-40) track when each set is selected for a new project
 - Slide preview in the picker uses thumbnails (not the full PPTX)
 
 ---
+
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
 
 ### UI Structure
+
 ```
 CreateProjectDialog (extended — 3 views inside one dialog)
 │
@@ -72,19 +80,23 @@ CreateProjectDialog (extended — 3 views inside one dialog)
 ```
 
 ### Data Flow
+
 1. User enters project name → "Next" → `GET /api/template-sets` loads picker
 2. User clicks a template card → `GET /api/template-sets/[id]/slides` loads preview
 3. "Use this template" → `POST /api/projects { name, templateSetId }` → board
 4. "Start from scratch" → `POST /api/projects { name }` → board (existing behavior)
 
 ### Backend Change: POST /api/projects
+
 Accepts optional `templateSetId`. When provided:
+
 - Fetches ordered template set slides (filters out deprecated and slides the tenant no longer has)
 - Fetches tenant mandatory slides
 - Merges: mandatory slides first, then template slides not already covered by mandatory ones
 - Creates project with pre-populated `slide_order`
 
 ### Key Design Decisions
+
 - **Extend dialog, not a new page:** Creation flow stays in one dialog — no navigation context lost
 - **Reuse PROJ-22 APIs:** `GET /api/template-sets` and `GET /api/template-sets/[id]/slides` support this picker directly
 - **Server-side merge:** Slide merging logic is on the backend so mandatory slide enforcement cannot be bypassed
@@ -92,6 +104,7 @@ Accepts optional `templateSetId`. When provided:
 - **Lazy preview fetch:** Slide thumbnails for a specific set are only loaded when the user clicks that card
 
 ### Files to Modify
+
 - `src/components/projects/create-project-dialog.tsx` — extend to 3-view flow
 - `src/app/api/projects/route.ts` — accept optional `templateSetId`, merge slides
 
@@ -105,19 +118,23 @@ Accepts optional `templateSetId`. When provided:
 ### Acceptance Criteria Status
 
 #### AC-1: Template set picker is shown as a step during project creation
+
 - [x] CreateProjectDialog implements a 3-view state machine: 'name' -> 'picker' -> 'preview'
 - [x] "Next" button on name view advances to picker (line 168)
 - [x] Picker is shown before board opens (handleCreate redirects to board only after API call)
 
 #### AC-2: Picker shows "Start from scratch" and "Choose a template"
+
 - [x] "Start from scratch" tile is always first in the 2-column grid (lines 331-342)
 - [x] Template set cards shown alongside in the grid (lines 345-351)
 
 #### AC-3: "Choose a template" shows a visual grid of available template sets
+
 - [x] 2-column grid layout (`grid grid-cols-2 gap-3`) renders TemplatePickerCard components
 - [x] Data loaded from GET /api/template-sets on picker view entry
 
 #### AC-4: Each template set card shows cover image, name, description, slide count, category tag
+
 - [x] Cover image with fallback to first_slide_thumbnail (line 485)
 - [x] Name rendered with truncation (line 505)
 - [x] Description with line-clamp-2 (lines 516-518)
@@ -125,37 +142,44 @@ Accepts optional `templateSetId`. When provided:
 - [x] Category Badge shown when present (lines 507-510)
 
 #### AC-5: Category filter with "All" as default
+
 - [x] Categories derived client-side from loaded sets (lines 82-85)
 - [x] "All" is always first and is the default state (line 74, line 84)
 - [x] Filter pills shown only when more than one category exists (line 301)
 
 #### AC-6: Clicking a template set card shows full preview
+
 - [x] handleSelectTemplate transitions to 'preview' view (lines 221-224)
 - [x] Slides fetched lazily from GET /api/template-sets/[id]/slides (lines 134-157)
 - [x] Ordered slide list with numbered positions, thumbnails, titles (lines 418-453)
 - [x] Deprecated badge shown for deprecated slides (lines 442-449)
 
 #### AC-7: User can confirm selection or go back to the grid
+
 - [x] "Use this template" button calls handleCreate(selectedSet.id) (line 463)
 - [x] "Back" button returns to picker view (line 460)
 - [x] Back arrow link also returns to picker (line 380)
 
 #### AC-8: After confirmation, project tray is pre-populated with template slides in order
+
 - [x] POST /api/projects accepts optional templateSetId (line 67 in route.ts)
 - [x] Template set slides fetched ordered by position (line 82)
 - [x] Slide order built: mandatory first, then template slides (lines 61-99)
 - [x] Server-side merge prevents client-side bypass
 
 #### AC-9: Mandatory slides automatically added in addition to template slides
+
 - [x] Mandatory slides fetched from slides table where status='mandatory' (lines 52-56)
 - [x] Mandatory IDs tracked in a Set to prevent duplicates (line 58)
 - [x] Template slides that are already mandatory are skipped (line 97)
 
 #### AC-10: "Start from scratch" populates tray with only mandatory slides
+
 - [x] handleCreate() called without templateSetId (line 333)
 - [x] When no templateSetId provided, only mandatory slides added to slide_order (lines 60-64)
 
 #### AC-11: No template sets = skip to scratch or show empty state
+
 - [x] Empty state message shown: "No template sets available. Start from scratch to continue." (lines 355-358)
 - [x] "Start from scratch" tile always visible even when no template sets exist
 - [ ] BUG: Picker does NOT auto-skip to "Start from scratch" -- it shows the full picker UI with empty state. Spec says "skips straight to 'Start from scratch'" as first option. Current behavior matches the "(or shows an empty state)" alternative.
@@ -163,20 +187,24 @@ Accepts optional `templateSetId`. When provided:
 ### Edge Cases Status
 
 #### EC-1: Deprecated slides in template set
+
 - [x] Preview shows orange "Deprecated" badge on deprecated slides (lines 442-449)
 - [x] POST /api/projects skips slides with status === 'deprecated' (line 97 in route.ts)
 
 #### EC-2: Slides tenant no longer has access to
+
 - [x] POST /api/projects fetches slides with `.eq('tenant_id', profile.tenant_id)` filter (line 90)
 - [x] GET /api/template-sets/[id]/slides filters by slide existence (line 55)
 - [x] Missing slides silently excluded from both preview and project population
 
 #### EC-3: Back from picker to change project name -- selection remembered
+
 - [x] handleBackToName only changes view, preserves selectedSet and templateSets in state (line 232-234)
 - [x] Project name preserved in state when navigating back and forward
 - [ ] BUG (Low): templateSets are re-fetched on every picker view entry due to useEffect dependency on view (causes loading flicker)
 
 #### EC-4: More than 20 template sets
+
 - [x] ScrollArea with max-h-[400px] provides scrolling (line 321)
 - [x] Category filter helps narrow down large sets
 
@@ -210,6 +238,7 @@ Accepts optional `templateSetId`. When provided:
 ### Bugs Found
 
 #### BUG-1: POST /api/projects -- No Zod validation on request body
+
 - **Severity:** Medium
 - **File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/src/app/api/projects/route.ts`
 - **Steps to Reproduce:**
@@ -220,6 +249,7 @@ Accepts optional `templateSetId`. When provided:
 - **Priority:** Fix before deployment
 
 #### BUG-2: POST /api/projects -- No rate limiting
+
 - **Severity:** High
 - **File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/src/app/api/projects/route.ts`
 - **Steps to Reproduce:**
@@ -230,6 +260,7 @@ Accepts optional `templateSetId`. When provided:
 - **Priority:** Fix before deployment
 
 #### BUG-3: POST /api/projects -- No is_active check on user profile
+
 - **Severity:** High
 - **File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/src/app/api/projects/route.ts` (lines 13-14)
 - **Steps to Reproduce:**
@@ -241,6 +272,7 @@ Accepts optional `templateSetId`. When provided:
 - **Priority:** Fix before deployment
 
 #### BUG-4: GET /api/template-sets -- No rate limiting on read endpoint
+
 - **Severity:** Low
 - **File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/src/app/api/template-sets/route.ts`
 - **Steps to Reproduce:**
@@ -251,6 +283,7 @@ Accepts optional `templateSetId`. When provided:
 - **Priority:** Nice to have
 
 #### BUG-5: Template sets reloaded on every picker view transition
+
 - **Severity:** Low
 - **File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/src/components/projects/create-project-dialog.tsx` (lines 108-131)
 - **Steps to Reproduce:**
@@ -263,6 +296,7 @@ Accepts optional `templateSetId`. When provided:
 - **Priority:** Nice to have
 
 #### BUG-6: No .limit() on GET /api/template-sets query
+
 - **Severity:** Low
 - **File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/src/app/api/template-sets/route.ts` (line 19-23)
 - **Steps to Reproduce:**
@@ -274,6 +308,7 @@ Accepts optional `templateSetId`. When provided:
 - **Priority:** Nice to have
 
 #### BUG-7: No database RLS on template_sets, template_set_slides, slides, and projects tables
+
 - **Severity:** Medium
 - **Files:** SQL migrations in `/Users/sebastianploeger/AppProjekte/deckr_studio/supabase/migrations/`
 - **Steps to Reproduce:**
@@ -284,6 +319,7 @@ Accepts optional `templateSetId`. When provided:
 - **Priority:** Fix before deployment
 
 #### BUG-8: Silent failure when template set API fetch fails in picker
+
 - **Severity:** Low
 - **File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/src/components/projects/create-project-dialog.tsx` (line 122)
 - **Steps to Reproduce:**
@@ -295,11 +331,13 @@ Accepts optional `templateSetId`. When provided:
 - **Priority:** Nice to have
 
 ### Build Verification
+
 - [x] `npm run build` passes with no errors
 - [x] All template-sets API routes compiled as dynamic server functions
 - [x] create-project-dialog.tsx compiles without warnings
 
 ### Summary
+
 - **Acceptance Criteria:** 10/11 passed (1 partial pass -- AC-11 shows empty state instead of auto-skipping, which is an acceptable alternative per spec wording)
 - **Edge Cases:** 4/4 passed (1 has a minor UX inefficiency -- BUG-5)
 - **Bugs Found:** 8 total (0 critical, 2 high, 3 medium, 3 low)
@@ -309,21 +347,23 @@ Accepts optional `templateSetId`. When provided:
 
 ### Bug Fix Status
 
-| Bug | Status | Fix Applied |
-|-----|--------|-------------|
-| BUG-1 | FIXED | Added Zod schema (`CreateProjectSchema`) with UUID validation for `templateSetId` |
-| BUG-2 | FIXED | Added `checkRateLimit(user.id, 'projects:create', 20, 60_000)` |
-| BUG-3 | FIXED | Added `!profile.is_active` → 403 Forbidden check |
-| BUG-4 | DEFERRED | Read endpoint rate limiting — nice to have |
-| BUG-5 | FIXED | Guard `useEffect`: skip fetch if `templateSets.length > 0` |
-| BUG-6 | FIXED | Added `.limit(100)` to GET /api/template-sets query |
-| BUG-7 | FALSE POSITIVE | RLS was applied via Supabase MCP, not local migrations |
-| BUG-8 | DEFERRED | Silent failure on fetch — functional, user can still pick "Start from scratch" |
+| Bug   | Status         | Fix Applied                                                                       |
+| ----- | -------------- | --------------------------------------------------------------------------------- |
+| BUG-1 | FIXED          | Added Zod schema (`CreateProjectSchema`) with UUID validation for `templateSetId` |
+| BUG-2 | FIXED          | Added `checkRateLimit(user.id, 'projects:create', 20, 60_000)`                    |
+| BUG-3 | FIXED          | Added `!profile.is_active` → 403 Forbidden check                                  |
+| BUG-4 | DEFERRED       | Read endpoint rate limiting — nice to have                                        |
+| BUG-5 | FIXED          | Guard `useEffect`: skip fetch if `templateSets.length > 0`                        |
+| BUG-6 | FIXED          | Added `.limit(100)` to GET /api/template-sets query                               |
+| BUG-7 | FALSE POSITIVE | RLS was applied via Supabase MCP, not local migrations                            |
+| BUG-8 | DEFERRED       | Silent failure on fetch — functional, user can still pick "Start from scratch"    |
 
 ### Summary After Fixes
+
 - **5 of 8 bugs fixed**, 1 false positive, 2 deferred (low priority)
 - `npm run build` passes
 - **Production Ready:** YES
 
 ## Deployment
+
 _To be added by /deploy_

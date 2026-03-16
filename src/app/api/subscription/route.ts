@@ -29,21 +29,17 @@ export async function GET(request: NextRequest) {
     .single()
 
   if (subError || !subscription) {
-    return NextResponse.json(
-      { error: 'Subscription not found' },
-      { status: 404 }
-    )
+    return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
   }
 
   // Fetch current seat usage (confirmed active users only — excludes pending invites)
-  const { data: seatCount, error: countError } = await supabaseAdmin
-    .rpc('count_confirmed_active_users', { p_tenant_id: profile.tenant_id })
+  const { data: seatCount, error: countError } = await supabaseAdmin.rpc(
+    'count_confirmed_active_users',
+    { p_tenant_id: profile.tenant_id }
+  )
 
   if (countError) {
-    return NextResponse.json(
-      { error: 'Failed to fetch seat usage' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to fetch seat usage' }, { status: 500 })
   }
 
   return NextResponse.json(
@@ -87,10 +83,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   if (profile.role !== 'admin') {
-    return NextResponse.json(
-      { error: 'Forbidden: admin access required' },
-      { status: 403 }
-    )
+    return NextResponse.json({ error: 'Forbidden: admin access required' }, { status: 403 })
   }
 
   let body: unknown
@@ -123,10 +116,7 @@ export async function PATCH(request: NextRequest) {
     .single()
 
   if (error || !subscription) {
-    return NextResponse.json(
-      { error: 'Failed to update subscription' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to update subscription' }, { status: 500 })
   }
 
   return NextResponse.json({ subscription }, { status: 200 })

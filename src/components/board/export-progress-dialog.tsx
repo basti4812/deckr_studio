@@ -5,12 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { AlertTriangle, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 interface ExportProgressDialogProps {
   open: boolean
@@ -55,7 +50,10 @@ export function ExportProgressDialog({
 
   const stepLabels = [
     t('export_dialog.step_preparing', 'Preparing slides...'),
-    t('export_dialog.step_converting', { defaultValue: 'Converting to {{format}}...', format: formatLabel }),
+    t('export_dialog.step_converting', {
+      defaultValue: 'Converting to {{format}}...',
+      format: formatLabel,
+    }),
     t('export_dialog.step_finalizing', 'Finalizing download...'),
   ]
 
@@ -67,9 +65,12 @@ export function ExportProgressDialog({
         if (!o && error !== null) onClose()
       }}
     >
-      <DialogContent className="max-w-sm" onPointerDownOutside={(e) => {
-        if (error === null) e.preventDefault()
-      }}>
+      <DialogContent
+        className="max-w-sm"
+        onPointerDownOutside={(e) => {
+          if (error === null) e.preventDefault()
+        }}
+      >
         <DialogHeader>
           <DialogTitle>
             {error !== null ? t('export_dialog.export_failed') : t('export_dialog.exporting')}

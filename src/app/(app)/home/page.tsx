@@ -20,7 +20,9 @@ export default function HomePage() {
 
   const fetchProjects = useCallback(async () => {
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return
     const res = await fetch('/api/projects', {
       headers: { Authorization: `Bearer ${session.access_token}` },
@@ -32,11 +34,15 @@ export default function HomePage() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { if (!userLoading) fetchProjects() }, [userLoading, fetchProjects])
+  useEffect(() => {
+    if (!userLoading) fetchProjects()
+  }, [userLoading, fetchProjects])
 
   async function getToken() {
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     return session?.access_token ?? ''
   }
 
@@ -68,9 +74,7 @@ export default function HomePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-heading text-2xl font-semibold tracking-tight">{t('home.title')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t('home.description')}
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{t('home.description')}</p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
@@ -104,7 +108,12 @@ export default function HomePage() {
             <p className="mt-1 text-xs text-muted-foreground max-w-xs">
               {t('home.no_projects_description')}
             </p>
-            <Button variant="outline" size="sm" className="mt-4" onClick={() => setCreateOpen(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              onClick={() => setCreateOpen(true)}
+            >
               <Plus className="mr-2 h-4 w-4" />
               {t('home.new_project')}
             </Button>

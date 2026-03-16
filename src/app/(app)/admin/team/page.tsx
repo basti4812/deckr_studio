@@ -2,15 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  Mail,
-  MoreHorizontal,
-  RefreshCw,
-  Send,
-  Trash2,
-  UserPlus,
-  XCircle,
-} from 'lucide-react'
+import { Mail, MoreHorizontal, RefreshCw, Send, Trash2, UserPlus, XCircle } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,12 +48,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { useToast } from '@/hooks/use-toast'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
@@ -154,8 +141,7 @@ export default function TeamManagementPage() {
   const [inviteOpen, setInviteOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [removeTarget, setRemoveTarget] = useState<TeamMember | null>(null)
-  const [cancelInviteTarget, setCancelInviteTarget] =
-    useState<TeamMember | null>(null)
+  const [cancelInviteTarget, setCancelInviteTarget] = useState<TeamMember | null>(null)
 
   // ---------------------------------------------------------------------------
   // Fetch team members
@@ -182,8 +168,7 @@ export default function TeamManagementPage() {
       setMembers(data.members ?? [])
       setSeats(data.seats ?? { used: 0, total: null })
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to load team members'
+      const message = err instanceof Error ? err.message : 'Failed to load team members'
       setError(message)
     } finally {
       setLoading(false)
@@ -200,33 +185,25 @@ export default function TeamManagementPage() {
   // Check if current user is the last admin
   // ---------------------------------------------------------------------------
 
-  const adminCount = members.filter(
-    (m) => m.role === 'admin' && !m.is_pending
-  ).length
+  const adminCount = members.filter((m) => m.role === 'admin' && !m.is_pending).length
 
   const isLastAdmin = (memberId: string) => {
     const member = members.find((m) => m.id === memberId)
     return member?.role === 'admin' && adminCount <= 1
   }
 
-  const isSeatLimitReached =
-    seats.total !== null && seats.used >= seats.total
+  const isSeatLimitReached = seats.total !== null && seats.used >= seats.total
 
   // ---------------------------------------------------------------------------
   // Role change handler
   // ---------------------------------------------------------------------------
 
-  async function handleRoleChange(
-    memberId: string,
-    newRole: 'admin' | 'employee'
-  ) {
+  async function handleRoleChange(memberId: string, newRole: 'admin' | 'employee') {
     const token = await getAccessToken()
     if (!token) return
 
     // Optimistic update
-    setMembers((prev) =>
-      prev.map((m) => (m.id === memberId ? { ...m, role: newRole } : m))
-    )
+    setMembers((prev) => prev.map((m) => (m.id === memberId ? { ...m, role: newRole } : m)))
 
     try {
       const res = await fetch(`/api/users/${memberId}/role`, {
@@ -252,8 +229,7 @@ export default function TeamManagementPage() {
       fetchTeam()
       toast({
         title: 'Error',
-        description:
-          err instanceof Error ? err.message : 'Failed to update role',
+        description: err instanceof Error ? err.message : 'Failed to update role',
         variant: 'destructive',
       })
     }
@@ -288,13 +264,14 @@ export default function TeamManagementPage() {
 
       toast({
         title: t('admin.user_removed'),
-        description: t('admin.user_removed_message', { name: removeTarget.display_name ?? removeTarget.email }),
+        description: t('admin.user_removed_message', {
+          name: removeTarget.display_name ?? removeTarget.email,
+        }),
       })
     } catch (err) {
       toast({
         title: 'Error',
-        description:
-          err instanceof Error ? err.message : 'Failed to remove user',
+        description: err instanceof Error ? err.message : 'Failed to remove user',
         variant: 'destructive',
       })
     } finally {
@@ -313,22 +290,17 @@ export default function TeamManagementPage() {
     if (!token) return
 
     try {
-      const res = await fetch(
-        `/api/team/${cancelInviteTarget.id}/invite`,
-        {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
+      const res = await fetch(`/api/team/${cancelInviteTarget.id}/invite`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
 
       if (!res.ok) {
         const data = await res.json()
         throw new Error(data.error ?? 'Failed to cancel invitation')
       }
 
-      setMembers((prev) =>
-        prev.filter((m) => m.id !== cancelInviteTarget.id)
-      )
+      setMembers((prev) => prev.filter((m) => m.id !== cancelInviteTarget.id))
 
       toast({
         title: t('admin.invitation_cancelled'),
@@ -337,8 +309,7 @@ export default function TeamManagementPage() {
     } catch (err) {
       toast({
         title: 'Error',
-        description:
-          err instanceof Error ? err.message : 'Failed to cancel invitation',
+        description: err instanceof Error ? err.message : 'Failed to cancel invitation',
         variant: 'destructive',
       })
     } finally {
@@ -368,9 +339,7 @@ export default function TeamManagementPage() {
       const data = await res.json()
       // Update the member with the new ID (resend creates a new auth user)
       if (data.member) {
-        setMembers((prev) =>
-          prev.map((m) => (m.id === member.id ? data.member : m))
-        )
+        setMembers((prev) => prev.map((m) => (m.id === member.id ? data.member : m)))
       }
 
       toast({
@@ -380,8 +349,7 @@ export default function TeamManagementPage() {
     } catch (err) {
       toast({
         title: 'Error',
-        description:
-          err instanceof Error ? err.message : 'Failed to resend invitation',
+        description: err instanceof Error ? err.message : 'Failed to resend invitation',
         variant: 'destructive',
       })
     }
@@ -407,21 +375,13 @@ export default function TeamManagementPage() {
           {/* Seat usage indicator */}
           <div className="text-sm text-muted-foreground">
             {seats.total !== null ? (
-              <span>
-                {t('admin.seats_used', { used: seats.used, total: seats.total })}
-              </span>
+              <span>{t('admin.seats_used', { used: seats.used, total: seats.total })}</span>
             ) : (
-              <span>
-                {t('admin.seats_used', { used: seats.used, total: null })}
-              </span>
+              <span>{t('admin.seats_used', { used: seats.used, total: null })}</span>
             )}
           </div>
 
-          <Button
-            variant="outline"
-            onClick={() => setInviteOpen(true)}
-            disabled={loading}
-          >
+          <Button variant="outline" onClick={() => setInviteOpen(true)} disabled={loading}>
             <Mail className="mr-2 h-4 w-4" />
             {t('admin.invite_member')}
           </Button>
@@ -436,12 +396,7 @@ export default function TeamManagementPage() {
       {error && (
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
           {error}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-2"
-            onClick={fetchTeam}
-          >
+          <Button variant="ghost" size="sm" className="ml-2" onClick={fetchTeam}>
             Retry
           </Button>
         </div>
@@ -501,15 +456,8 @@ export default function TeamManagementPage() {
           <p className="mt-3 text-sm font-medium text-muted-foreground">
             {t('admin.no_team_members_yet')}
           </p>
-          <p className="mt-1 text-xs text-muted-foreground/70">
-            {t('admin.invite_first_member')}
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-4"
-            onClick={() => setInviteOpen(true)}
-          >
+          <p className="mt-1 text-xs text-muted-foreground/70">{t('admin.invite_first_member')}</p>
+          <Button variant="outline" size="sm" className="mt-4" onClick={() => setInviteOpen(true)}>
             <Mail className="mr-2 h-4 w-4" />
             {t('admin.invite_member')}
           </Button>
@@ -568,11 +516,7 @@ export default function TeamManagementPage() {
         onCreated={(newMember) => {
           setMembers((prev) => {
             const pendingCount = prev.filter((m) => m.is_pending).length
-            return [
-              ...prev.slice(0, pendingCount),
-              newMember,
-              ...prev.slice(pendingCount),
-            ]
+            return [...prev.slice(0, pendingCount), newMember, ...prev.slice(pendingCount)]
           })
           setSeats((prev) => ({
             ...prev,
@@ -583,18 +527,15 @@ export default function TeamManagementPage() {
       />
 
       {/* Remove Confirm Dialog */}
-      <AlertDialog
-        open={!!removeTarget}
-        onOpenChange={(o) => !o && setRemoveTarget(null)}
-      >
+      <AlertDialog open={!!removeTarget} onOpenChange={(o) => !o && setRemoveTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t('admin.remove_from_team', { name: removeTarget?.display_name ?? removeTarget?.email })}
+              {t('admin.remove_from_team', {
+                name: removeTarget?.display_name ?? removeTarget?.email,
+              })}
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('admin.remove_user_message')}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{t('admin.remove_user_message')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -619,9 +560,7 @@ export default function TeamManagementPage() {
             <AlertDialogTitle>
               {t('admin.cancel_invite_for', { email: cancelInviteTarget?.email })}
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('admin.cancel_invite_message')}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{t('admin.cancel_invite_message')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('admin.keep_invite')}</AlertDialogCancel>
@@ -673,22 +612,15 @@ function TeamMemberRow({
         <div className="flex items-center gap-3">
           <Avatar className="h-9 w-9">
             {member.avatar_url && (
-              <AvatarImage
-                src={member.avatar_url}
-                alt={member.display_name ?? member.email}
-              />
+              <AvatarImage src={member.avatar_url} alt={member.display_name ?? member.email} />
             )}
             <AvatarFallback className="text-xs">
               {getInitials(member.display_name, member.email)}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium">
-              {member.display_name ?? '---'}
-            </p>
-            {isOwnRow && (
-              <span className="text-xs text-muted-foreground">({t('admin.you')})</span>
-            )}
+            <p className="truncate text-sm font-medium">{member.display_name ?? '---'}</p>
+            {isOwnRow && <span className="text-xs text-muted-foreground">({t('admin.you')})</span>}
           </div>
         </div>
       </TableCell>
@@ -717,17 +649,13 @@ function TeamMemberRow({
               </div>
             </TooltipTrigger>
             <TooltipContent>
-              {isOwnRow
-                ? t('admin.cannot_change_own_role')
-                : t('admin.at_least_one_admin')}
+              {isOwnRow ? t('admin.cannot_change_own_role') : t('admin.at_least_one_admin')}
             </TooltipContent>
           </Tooltip>
         ) : (
           <Select
             value={member.role}
-            onValueChange={(v) =>
-              onRoleChange(member.id, v as 'admin' | 'employee')
-            }
+            onValueChange={(v) => onRoleChange(member.id, v as 'admin' | 'employee')}
           >
             <SelectTrigger
               className="h-8 w-[120px]"
@@ -771,9 +699,7 @@ function TeamMemberRow({
 
       {/* Since (join date / invite date) */}
       <TableCell>
-        <span className="text-sm text-muted-foreground">
-          {formatDate(member.created_at)}
-        </span>
+        <span className="text-sm text-muted-foreground">{formatDate(member.created_at)}</span>
       </TableCell>
 
       {/* Actions */}
@@ -843,12 +769,7 @@ interface InviteDialogProps {
   onInvited: (member: TeamMember) => void
 }
 
-function InviteDialog({
-  open,
-  onClose,
-  seatLimitReached,
-  onInvited,
-}: InviteDialogProps) {
+function InviteDialog({ open, onClose, seatLimitReached, onInvited }: InviteDialogProps) {
   const { t } = useTranslation()
   const { toast } = useToast()
   const [email, setEmail] = useState('')
@@ -914,17 +835,13 @@ function InviteDialog({
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{t('admin.invite_team_member')}</DialogTitle>
-          <DialogDescription>
-            {t('admin.invite_description')}
-          </DialogDescription>
+          <DialogDescription>{t('admin.invite_description')}</DialogDescription>
         </DialogHeader>
 
         {seatLimitReached ? (
           <div className="rounded-lg border border-amber-500/50 bg-amber-50 p-4 text-sm text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
             <p className="font-medium">{t('admin.seat_limit_reached')}</p>
-            <p className="mt-1">
-              {t('admin.upgrade_to_invite_more')}
-            </p>
+            <p className="mt-1">{t('admin.upgrade_to_invite_more')}</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
@@ -943,18 +860,11 @@ function InviteDialog({
                   disabled={submitting}
                   autoFocus
                 />
-                {fieldError && (
-                  <p className="text-sm text-destructive">{fieldError}</p>
-                )}
+                {fieldError && <p className="text-sm text-destructive">{fieldError}</p>}
               </div>
             </div>
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleClose}
-                disabled={submitting}
-              >
+              <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>
                 Cancel
               </Button>
               <Button type="submit" disabled={submitting}>
@@ -989,12 +899,7 @@ interface CreateUserDialogProps {
   onCreated: (member: TeamMember) => void
 }
 
-function CreateUserDialog({
-  open,
-  onClose,
-  seatLimitReached,
-  onCreated,
-}: CreateUserDialogProps) {
+function CreateUserDialog({ open, onClose, seatLimitReached, onCreated }: CreateUserDialogProps) {
   const { t } = useTranslation()
   const { toast } = useToast()
   const [displayName, setDisplayName] = useState('')
@@ -1080,17 +985,13 @@ function CreateUserDialog({
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{t('admin.create_user_account')}</DialogTitle>
-          <DialogDescription>
-            {t('admin.create_user_description')}
-          </DialogDescription>
+          <DialogDescription>{t('admin.create_user_description')}</DialogDescription>
         </DialogHeader>
 
         {seatLimitReached ? (
           <div className="rounded-lg border border-amber-500/50 bg-amber-50 p-4 text-sm text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
             <p className="font-medium">{t('admin.seat_limit_reached')}</p>
-            <p className="mt-1">
-              {t('admin.upgrade_to_add_more')}
-            </p>
+            <p className="mt-1">{t('admin.upgrade_to_add_more')}</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
@@ -1154,17 +1055,10 @@ function CreateUserDialog({
                   </SelectContent>
                 </Select>
               </div>
-              {fieldError && (
-                <p className="text-sm text-destructive">{fieldError}</p>
-              )}
+              {fieldError && <p className="text-sm text-destructive">{fieldError}</p>}
             </div>
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleClose}
-                disabled={submitting}
-              >
+              <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>
                 Cancel
               </Button>
               <Button type="submit" disabled={submitting}>

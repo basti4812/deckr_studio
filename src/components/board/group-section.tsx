@@ -103,7 +103,10 @@ export const GroupSection = memo(function GroupSection({
       {/* Section header — drag handle */}
       <div
         data-no-pan
-        style={{ marginBottom: SECTION_HEADER_MARGIN_BOTTOM, cursor: onGroupPointerDown ? 'grab' : undefined }}
+        style={{
+          marginBottom: SECTION_HEADER_MARGIN_BOTTOM,
+          cursor: onGroupPointerDown ? 'grab' : undefined,
+        }}
         className="relative flex items-center gap-3"
         onPointerDown={(e) => {
           // Don't start drag if clicking on buttons/inputs
@@ -115,13 +118,17 @@ export const GroupSection = memo(function GroupSection({
         {onToggleCollapse && (
           <button
             data-no-pan
-            onClick={(e) => { e.stopPropagation(); onToggleCollapse() }}
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleCollapse()
+            }}
             className="shrink-0 flex items-center justify-center h-5 w-5 rounded hover:bg-muted transition-colors"
           >
-            {isCollapsed
-              ? <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-              : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-            }
+            {isCollapsed ? (
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+            )}
           </button>
         )}
 
@@ -136,13 +143,21 @@ export const GroupSection = memo(function GroupSection({
               className="h-7 w-48 text-sm"
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') setEditing(false) }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleRename()
+                if (e.key === 'Escape') setEditing(false)
+              }}
               autoFocus
             />
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleRename}>
               <Check className="h-3.5 w-3.5" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditing(false)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setEditing(false)}
+            >
               <X className="h-3.5 w-3.5" />
             </Button>
           </div>
@@ -157,7 +172,10 @@ export const GroupSection = memo(function GroupSection({
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                  onClick={() => { setEditName(name); setEditing(true) }}
+                  onClick={() => {
+                    setEditName(name)
+                    setEditing(true)
+                  }}
                 >
                   <Pencil className="h-3 w-3" />
                 </Button>

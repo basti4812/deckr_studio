@@ -53,7 +53,9 @@ export default function BoardConfigPage() {
 
   const fetchAll = useCallback(async () => {
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return
     const token = session.access_token
 
@@ -74,7 +76,9 @@ export default function BoardConfigPage() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { if (!userLoading) fetchAll() }, [userLoading, fetchAll])
+  useEffect(() => {
+    if (!userLoading) fetchAll()
+  }, [userLoading, fetchAll])
 
   // -------------------------------------------------------------------------
   // Helpers
@@ -82,7 +86,9 @@ export default function BoardConfigPage() {
 
   async function getToken() {
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     return session?.access_token ?? ''
   }
 
@@ -164,12 +170,15 @@ export default function BoardConfigPage() {
     })
   }
 
-  function handleManageSaved(groupId: string, newOrder: string[], added: string[], removed: string[]) {
+  function handleManageSaved(
+    groupId: string,
+    newOrder: string[],
+    added: string[],
+    removed: string[]
+  ) {
     setMemberships((prev) => {
       // Remove the removed ones
-      const filtered = prev.filter(
-        (m) => !(m.group_id === groupId && removed.includes(m.slide_id))
-      )
+      const filtered = prev.filter((m) => !(m.group_id === groupId && removed.includes(m.slide_id)))
       // Add new memberships (temporary IDs)
       const newMemberships: Membership[] = added.map((slideId, i) => ({
         id: `tmp-${slideId}`,
@@ -219,7 +228,13 @@ export default function BoardConfigPage() {
           <p className="mt-1 text-xs text-muted-foreground">
             Create a group to organize your slides into named sections on the board.
           </p>
-          <Button variant="outline" size="sm" className="mt-4" onClick={handleCreateGroup} disabled={creating}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-4"
+            onClick={handleCreateGroup}
+            disabled={creating}
+          >
             <Plus className="mr-2 h-4 w-4" />
             Create group
           </Button>

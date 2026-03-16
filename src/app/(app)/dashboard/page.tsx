@@ -116,9 +116,7 @@ function eventTypeToAction(eventType: string): string {
   return map[eventType] ?? eventType.replace(/[._]/g, ' ')
 }
 
-function projectStatusVariant(
-  status: string
-): 'default' | 'secondary' | 'destructive' | 'outline' {
+function projectStatusVariant(status: string): 'default' | 'secondary' | 'destructive' | 'outline' {
   switch (status) {
     case 'active':
       return 'default'
@@ -141,13 +139,7 @@ function getActorData(actor: ActivityItem['actor']): ActivityActor {
 // Summary Cards
 // ---------------------------------------------------------------------------
 
-function SummaryCards({
-  data,
-  loading,
-}: {
-  data: DashboardData | null
-  loading: boolean
-}) {
+function SummaryCards({ data, loading }: { data: DashboardData | null; loading: boolean }) {
   const { t } = useTranslation()
 
   const cards = [
@@ -191,9 +183,7 @@ function SummaryCards({
             {loading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
-              <p className="text-3xl font-bold tabular-nums">
-                {card.value.toLocaleString()}
-              </p>
+              <p className="text-3xl font-bold tabular-nums">{card.value.toLocaleString()}</p>
             )}
           </CardContent>
         </Card>
@@ -218,9 +208,7 @@ function RecentProjectsTable({
   return (
     <Card className="flex flex-col">
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle className="text-base font-semibold">
-          {t('dashboard.recent_projects')}
-        </CardTitle>
+        <CardTitle className="text-base font-semibold">{t('dashboard.recent_projects')}</CardTitle>
         <Button variant="ghost" size="sm" className="gap-1" asChild>
           <Link href="/projects">
             {t('dashboard.view_all_projects')}
@@ -234,9 +222,7 @@ function RecentProjectsTable({
             <TableHeader>
               <TableRow>
                 <TableHead>{t('dashboard.project_name')}</TableHead>
-                <TableHead className="w-[100px]">
-                  {t('dashboard.project_status')}
-                </TableHead>
+                <TableHead className="w-[100px]">{t('dashboard.project_status')}</TableHead>
                 <TableHead className="w-[130px] text-right">
                   {t('dashboard.last_updated')}
                 </TableHead>
@@ -262,9 +248,7 @@ function RecentProjectsTable({
                   <TableCell colSpan={3}>
                     <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
                       <FolderOpen className="h-8 w-8 text-muted-foreground/40" />
-                      <p className="text-sm text-muted-foreground">
-                        {t('dashboard.no_projects')}
-                      </p>
+                      <p className="text-sm text-muted-foreground">{t('dashboard.no_projects')}</p>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -272,17 +256,12 @@ function RecentProjectsTable({
                 projects.map((project) => (
                   <TableRow key={project.id}>
                     <TableCell className="font-medium">
-                      <Link
-                        href="/projects"
-                        className="hover:underline"
-                      >
+                      <Link href="/projects" className="hover:underline">
                         {project.name}
                       </Link>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={projectStatusVariant(project.status)}>
-                        {project.status}
-                      </Badge>
+                      <Badge variant={projectStatusVariant(project.status)}>{project.status}</Badge>
                     </TableCell>
                     <TableCell className="text-right text-sm text-muted-foreground">
                       {relativeTime(project.updated_at)}
@@ -302,21 +281,13 @@ function RecentProjectsTable({
 // Recent Activity Feed
 // ---------------------------------------------------------------------------
 
-function RecentActivityFeed({
-  activity,
-  loading,
-}: {
-  activity: ActivityItem[]
-  loading: boolean
-}) {
+function RecentActivityFeed({ activity, loading }: { activity: ActivityItem[]; loading: boolean }) {
   const { t } = useTranslation()
 
   return (
     <Card className="flex flex-col">
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle className="text-base font-semibold">
-          {t('dashboard.recent_activity')}
-        </CardTitle>
+        <CardTitle className="text-base font-semibold">{t('dashboard.recent_activity')}</CardTitle>
         <Button variant="ghost" size="sm" className="gap-1" asChild>
           <Link href="/admin/activity-log">
             {t('dashboard.view_activity_log')}
@@ -340,9 +311,7 @@ function RecentActivityFeed({
         ) : activity.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
             <Activity className="h-8 w-8 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">
-              {t('dashboard.no_activity')}
-            </p>
+            <p className="text-sm text-muted-foreground">{t('dashboard.no_activity')}</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -361,35 +330,24 @@ function RecentActivityFeed({
                 <div key={item.id} className="flex items-start gap-3">
                   <Avatar className="h-8 w-8">
                     {actor.avatar_url && (
-                      <AvatarImage
-                        src={actor.avatar_url}
-                        alt={actor.display_name ?? ''}
-                      />
+                      <AvatarImage src={actor.avatar_url} alt={actor.display_name ?? ''} />
                     )}
-                    <AvatarFallback className="text-xs">
-                      {initials}
-                    </AvatarFallback>
+                    <AvatarFallback className="text-xs">{initials}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 text-sm">
                     <p>
-                      <span className="font-medium">
-                        {actor.display_name ?? 'Unknown'}
-                      </span>{' '}
+                      <span className="font-medium">{actor.display_name ?? 'Unknown'}</span>{' '}
                       <span className="text-muted-foreground">
                         {eventTypeToAction(item.event_type)}
                       </span>
                       {item.resource_name && (
                         <>
                           {' '}
-                          <span className="font-medium">
-                            {item.resource_name}
-                          </span>
+                          <span className="font-medium">{item.resource_name}</span>
                         </>
                       )}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {relativeTime(item.created_at)}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{relativeTime(item.created_at)}</p>
                   </div>
                 </div>
               )
@@ -411,9 +369,7 @@ function QuickActions() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base font-semibold">
-          {t('dashboard.quick_actions')}
-        </CardTitle>
+        <CardTitle className="text-base font-semibold">{t('dashboard.quick_actions')}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap gap-3">
@@ -472,9 +428,7 @@ export default function DashboardPage() {
       const json = await res.json()
       setData(json)
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to load dashboard'
-      )
+      setError(err instanceof Error ? err.message : 'Failed to load dashboard')
     } finally {
       setLoading(false)
     }
@@ -491,21 +445,14 @@ export default function DashboardPage() {
         <h1 className="font-heading text-2xl font-semibold tracking-tight">
           {t('dashboard.title')}
         </h1>
-        <p className="text-sm text-muted-foreground">
-          {t('dashboard.description')}
-        </p>
+        <p className="text-sm text-muted-foreground">{t('dashboard.description')}</p>
       </div>
 
       {/* Error State */}
       {error && (
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
           {error}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-2"
-            onClick={fetchData}
-          >
+          <Button variant="ghost" size="sm" className="ml-2" onClick={fetchData}>
             {t('nav.retry')}
           </Button>
         </div>
@@ -517,16 +464,10 @@ export default function DashboardPage() {
       {/* Two Column Layout: Recent Projects + Recent Activity */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         <div className="lg:col-span-3">
-          <RecentProjectsTable
-            projects={data?.recentProjects ?? []}
-            loading={loading}
-          />
+          <RecentProjectsTable projects={data?.recentProjects ?? []} loading={loading} />
         </div>
         <div className="lg:col-span-2">
-          <RecentActivityFeed
-            activity={data?.recentActivity ?? []}
-            loading={loading}
-          />
+          <RecentActivityFeed activity={data?.recentActivity ?? []} loading={loading} />
         </div>
       </div>
 

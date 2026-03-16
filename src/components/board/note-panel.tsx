@@ -26,7 +26,9 @@ interface NotePanelProps {
 
 async function getAccessToken(): Promise<string | null> {
   const supabase = createBrowserSupabaseClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
   return session?.access_token ?? null
 }
 
@@ -54,10 +56,9 @@ export function NotePanel({
     try {
       const token = await getAccessToken()
       if (!token) return
-      const res = await fetch(
-        `/api/projects/${projectId}/notes?slide_id=${slideId}`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      )
+      const res = await fetch(`/api/projects/${projectId}/notes?slide_id=${slideId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       if (res.ok) {
         const d = await res.json()
         const noteBody = d.note?.body ?? ''
@@ -83,37 +84,40 @@ export function NotePanel({
   // Auto-save with debounce
   // -------------------------------------------------------------------------
 
-  const saveNote = useCallback(async (text: string) => {
-    if (text === lastSavedRef.current) return
-    setSaveStatus('saving')
-    try {
-      const token = await getAccessToken()
-      if (!token) return
-      const res = await fetch(`/api/projects/${projectId}/notes`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          slide_id: slideId,
-          body: text,
-        }),
-      })
-      if (res.ok) {
-        lastSavedRef.current = text
-        setSaveStatus('saved')
-        onNoteChange?.(slideId, text.trim().length > 0)
-      } else {
-        const d = await res.json().catch(() => null)
-        toast.error(d?.error ?? t('notes.failed_to_save'))
+  const saveNote = useCallback(
+    async (text: string) => {
+      if (text === lastSavedRef.current) return
+      setSaveStatus('saving')
+      try {
+        const token = await getAccessToken()
+        if (!token) return
+        const res = await fetch(`/api/projects/${projectId}/notes`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            slide_id: slideId,
+            body: text,
+          }),
+        })
+        if (res.ok) {
+          lastSavedRef.current = text
+          setSaveStatus('saved')
+          onNoteChange?.(slideId, text.trim().length > 0)
+        } else {
+          const d = await res.json().catch(() => null)
+          toast.error(d?.error ?? t('notes.failed_to_save'))
+          setSaveStatus('idle')
+        }
+      } catch {
+        toast.error(t('notes.failed_to_save'))
         setSaveStatus('idle')
       }
-    } catch {
-      toast.error(t('notes.failed_to_save'))
-      setSaveStatus('idle')
-    }
-  }, [projectId, slideId, onNoteChange])
+    },
+    [projectId, slideId, onNoteChange]
+  )
 
   function handleChange(text: string) {
     setBody(text)

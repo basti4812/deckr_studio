@@ -1,14 +1,17 @@
 # PROJ-22: Template Set Management (Admin)
 
 ## Status: Deployed
+
 **Created:** 2026-02-25
 **Last Updated:** 2026-03-02
 
 ## Dependencies
+
 - Requires: PROJ-15 (Slide Library Management) — template sets are composed of library slides
 - Requires: PROJ-3 (User Roles & Permissions)
 
 ## User Stories
+
 - As an admin, I want to create named template sets for specific use cases so that employees can start projects from a curated selection of slides
 - As an admin, I want to give each template set a name, description, and category tag so that employees can browse and understand them
 - As an admin, I want to define the slide order within a template set so that the presentation structure is pre-built
@@ -16,6 +19,7 @@
 - As an admin, I want to set a cover image for each template set so that it looks visually compelling in the picker
 
 ## Acceptance Criteria
+
 - [ ] `template_sets` table: id, tenant_id, name, description, category, cover_image_url, created_at, updated_at
 - [ ] `template_set_slides` table: template_set_id, slide_id, position (sort order)
 - [ ] Admin can create a new template set with: name (required), description (optional), category (free-text tag), cover image (optional upload)
@@ -28,22 +32,26 @@
 - [ ] All template sets are scoped to the current tenant
 
 ## Edge Cases
+
 - What if a slide in a template set is deleted from the library? → The slide is removed from the template set silently; remaining slides stay
 - What if a slide in a template set is marked as deprecated? → The template set still shows it with a deprecated warning; admin should update the set
 - What if a template set has no slides? → Allowed (admin may add slides later); shows in picker with "0 slides"
 - What if the cover image upload fails? → Template set is saved without cover image; fallback to first slide thumbnail
 
 ## Technical Requirements
+
 - Cover image stored in Supabase Storage: `template-sets/{tenant_id}/{set_id}/cover.jpg`
 - Template set slide ordering stored in `template_set_slides.position` column (integer, 1-indexed)
 - RLS: only admins can INSERT/UPDATE/DELETE template sets and their slides; all tenant users can SELECT
 
 ---
+
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
 
 ### UI Structure
+
 ```
 /admin/templates page
 +-- Page Header ("Template Sets" + "New Template Set" button)
@@ -58,6 +66,7 @@
 ```
 
 ### Data Model
+
 **`template_sets` table:** id, tenant_id, name (required, max 100), description (optional, max 500), category (optional free-text), cover_image_url (optional), created_at, updated_at
 
 **`template_set_slides` junction table:** id, template_set_id → template_sets(id) CASCADE, slide_id → slides(id), position (integer)
@@ -67,25 +76,28 @@
 **RLS:** Admins full CREATE/UPDATE/DELETE; all tenant users SELECT (needed for PROJ-23 picker)
 
 ### API Routes
-| Method | Route | Purpose |
-|--------|-------|---------|
-| GET | `/api/template-sets` | List all for tenant with slide count + first thumbnail |
-| POST | `/api/template-sets` | Create (name required) |
-| PATCH | `/api/template-sets/[id]` | Update metadata |
-| DELETE | `/api/template-sets/[id]` | Delete + cascade slides |
-| POST | `/api/template-sets/[id]/cover` | Upload cover image |
-| GET | `/api/template-sets/[id]/slides` | Ordered slide list with full slide data |
-| POST | `/api/template-sets/[id]/slides` | Add slide to set |
-| DELETE | `/api/template-sets/[id]/slides/[slideId]` | Remove slide |
-| POST | `/api/template-sets/[id]/slides/reorder` | Bulk position update |
+
+| Method | Route                                      | Purpose                                                |
+| ------ | ------------------------------------------ | ------------------------------------------------------ |
+| GET    | `/api/template-sets`                       | List all for tenant with slide count + first thumbnail |
+| POST   | `/api/template-sets`                       | Create (name required)                                 |
+| PATCH  | `/api/template-sets/[id]`                  | Update metadata                                        |
+| DELETE | `/api/template-sets/[id]`                  | Delete + cascade slides                                |
+| POST   | `/api/template-sets/[id]/cover`            | Upload cover image                                     |
+| GET    | `/api/template-sets/[id]/slides`           | Ordered slide list with full slide data                |
+| POST   | `/api/template-sets/[id]/slides`           | Add slide to set                                       |
+| DELETE | `/api/template-sets/[id]/slides/[slideId]` | Remove slide                                           |
+| POST   | `/api/template-sets/[id]/slides/reorder`   | Bulk position update                                   |
 
 ### Key Design Decisions
+
 - **Junction table (not JSONB):** Slides can belong to multiple template sets; indexed position enables clean ordering — same pattern as `group_memberships`
 - **Free-text category:** No separate category table needed; distinct values derived from existing sets for PROJ-23 filter
 - **Cover image fallback:** Rendered client-side by reading first slide's `thumbnail_url` when `cover_image_url` is null
 - **Reuse admin patterns:** `ManageTemplateSlidesDialog` mirrors `ManageSlidesDialog` (PROJ-19): left panel = slides in set (drag-to-reorder, ×), right panel = available library slides to add
 
 ### Files to Create
+
 - `src/app/api/template-sets/route.ts` — GET + POST
 - `src/app/api/template-sets/[id]/route.ts` — PATCH + DELETE
 - `src/app/api/template-sets/[id]/cover/route.ts` — cover image upload
@@ -96,9 +108,11 @@
 - `src/components/admin/manage-template-slides-dialog.tsx` — slide management dialog
 
 ### Files to Modify
+
 - `src/app/(app)/admin/templates/page.tsx` — replace placeholder with full page
 
 ## QA Test Results
+
 **Tested by:** QA / Red-Team Pen-Test
 **Date:** 2026-03-02
 **Build:** TypeScript compiles without errors (`tsc --noEmit` passes)
@@ -107,29 +121,29 @@
 
 ### 1. Acceptance Criteria Results
 
-| # | Criterion | Result | Notes |
-|---|-----------|--------|-------|
-| AC-1 | `template_sets` table: id, tenant_id, name, description, category, cover_image_url, created_at, updated_at | **FAIL** | No `CREATE TABLE template_sets` statement found in any migration file under `supabase/migrations/`. The API routes reference this table but it does not have a migration to create it. See BUG-1. |
-| AC-2 | `template_set_slides` table: template_set_id, slide_id, position (sort order) | **FAIL** | No `CREATE TABLE template_set_slides` statement found in any migration file. No RLS policies exist for either table. See BUG-1. |
-| AC-3 | Admin can create a new template set with name (required), description (optional), category (free-text), cover image (optional upload) | **PASS (code)** | `POST /api/template-sets` validates name required, max 100 chars. Description max 500, category max 50. Cover upload is a separate POST to `/api/template-sets/[id]/cover`. Frontend dialog (`TemplateSetDialog`) correctly calls create then uploads cover. |
-| AC-4 | Admin can add slides to a template set and define their order | **PASS (code)** | `POST /api/template-sets/[id]/slides` adds a slide, auto-assigns next position via `count`. `ManageTemplateSlidesDialog` manages add/remove/reorder and saves in sequence. |
-| AC-5 | Admin can reorder slides within a template set by drag-and-drop | **PASS (code)** | `ManageTemplateSlidesDialog` uses `@dnd-kit/core` and `@dnd-kit/sortable` with `verticalListSortingStrategy`. `handleDragEnd` calls `arrayMove`. Reorder is persisted via `POST /api/template-sets/[id]/slides/reorder`. |
-| AC-6 | Admin can remove a slide from a template set without deleting the slide from the library | **PASS (code)** | `DELETE /api/template-sets/[id]/slides/[slideId]` only deletes from `template_set_slides` junction table, never from `slides`. |
-| AC-7 | Admin can edit a template set's name, description, category, and cover image | **PASS (code)** | `PATCH /api/template-sets/[id]` handles name, description, category, cover_image_url. Frontend `TemplateSetDialog` with `editTarget` handles edit mode. Cover image upload handled separately. However, see BUG-2 for cover_image_url not updating in local state after upload. |
-| AC-8 | Admin can delete a template set; deletion does not affect existing projects | **PASS (code, partial)** | `DELETE /api/template-sets/[id]` deletes the template set. The tech design specifies CASCADE on `template_set_slides`, so junction rows would be removed. Projects are independent entities. However, cover image cleanup fails due to path mismatch. See BUG-3. |
-| AC-9 | If no cover image is set, the thumbnail of the first slide in the set is used as the cover | **PASS (code)** | `GET /api/template-sets` fetches first slide thumbnail via ordered memberships. `TemplateSetCard` line 42: `const coverSrc = templateSet.cover_image_url ?? templateSet.first_slide_thumbnail`. Falls back correctly. |
-| AC-10 | All template sets are scoped to the current tenant | **PASS (code)** | All queries include `.eq('tenant_id', profile.tenant_id)` or `.eq('tenant_id', auth.profile.tenant_id)`. |
+| #     | Criterion                                                                                                                             | Result                   | Notes                                                                                                                                                                                                                                                                           |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC-1  | `template_sets` table: id, tenant_id, name, description, category, cover_image_url, created_at, updated_at                            | **FAIL**                 | No `CREATE TABLE template_sets` statement found in any migration file under `supabase/migrations/`. The API routes reference this table but it does not have a migration to create it. See BUG-1.                                                                               |
+| AC-2  | `template_set_slides` table: template_set_id, slide_id, position (sort order)                                                         | **FAIL**                 | No `CREATE TABLE template_set_slides` statement found in any migration file. No RLS policies exist for either table. See BUG-1.                                                                                                                                                 |
+| AC-3  | Admin can create a new template set with name (required), description (optional), category (free-text), cover image (optional upload) | **PASS (code)**          | `POST /api/template-sets` validates name required, max 100 chars. Description max 500, category max 50. Cover upload is a separate POST to `/api/template-sets/[id]/cover`. Frontend dialog (`TemplateSetDialog`) correctly calls create then uploads cover.                    |
+| AC-4  | Admin can add slides to a template set and define their order                                                                         | **PASS (code)**          | `POST /api/template-sets/[id]/slides` adds a slide, auto-assigns next position via `count`. `ManageTemplateSlidesDialog` manages add/remove/reorder and saves in sequence.                                                                                                      |
+| AC-5  | Admin can reorder slides within a template set by drag-and-drop                                                                       | **PASS (code)**          | `ManageTemplateSlidesDialog` uses `@dnd-kit/core` and `@dnd-kit/sortable` with `verticalListSortingStrategy`. `handleDragEnd` calls `arrayMove`. Reorder is persisted via `POST /api/template-sets/[id]/slides/reorder`.                                                        |
+| AC-6  | Admin can remove a slide from a template set without deleting the slide from the library                                              | **PASS (code)**          | `DELETE /api/template-sets/[id]/slides/[slideId]` only deletes from `template_set_slides` junction table, never from `slides`.                                                                                                                                                  |
+| AC-7  | Admin can edit a template set's name, description, category, and cover image                                                          | **PASS (code)**          | `PATCH /api/template-sets/[id]` handles name, description, category, cover_image_url. Frontend `TemplateSetDialog` with `editTarget` handles edit mode. Cover image upload handled separately. However, see BUG-2 for cover_image_url not updating in local state after upload. |
+| AC-8  | Admin can delete a template set; deletion does not affect existing projects                                                           | **PASS (code, partial)** | `DELETE /api/template-sets/[id]` deletes the template set. The tech design specifies CASCADE on `template_set_slides`, so junction rows would be removed. Projects are independent entities. However, cover image cleanup fails due to path mismatch. See BUG-3.                |
+| AC-9  | If no cover image is set, the thumbnail of the first slide in the set is used as the cover                                            | **PASS (code)**          | `GET /api/template-sets` fetches first slide thumbnail via ordered memberships. `TemplateSetCard` line 42: `const coverSrc = templateSet.cover_image_url ?? templateSet.first_slide_thumbnail`. Falls back correctly.                                                           |
+| AC-10 | All template sets are scoped to the current tenant                                                                                    | **PASS (code)**          | All queries include `.eq('tenant_id', profile.tenant_id)` or `.eq('tenant_id', auth.profile.tenant_id)`.                                                                                                                                                                        |
 
 ---
 
 ### 2. Edge Case Results
 
-| Edge Case | Result | Notes |
-|-----------|--------|-------|
-| Slide deleted from library -> removed from template set silently | **PARTIAL** | The `GET /api/template-sets/[id]/slides` route (line 52-54) filters out slides where `slideMap.get(m.slide_id) === null`, effectively hiding deleted slides. However, stale membership rows remain in `template_set_slides` and the slide count in the listing would be inaccurate (it counts all memberships, not just those with existing slides). See BUG-4. |
-| Slide marked as deprecated -> template set still shows it with deprecated warning | **FAIL** | The `ManageTemplateSlidesDialog` and `TemplateSetCard` components do not check the `status` field of slides. No deprecated warning is displayed anywhere. See BUG-5. |
-| Template set with no slides -> Allowed, shows "0 slides" | **PASS** | Card shows `{templateSet.slide_count} slide{templateSet.slide_count !== 1 ? 's' : ''}`. Dialog shows "No slides yet." empty state. |
-| Cover image upload fails -> Template set saved without cover; fallback to first slide thumbnail | **PASS** | In `TemplateSetDialog` line 112: `if (coverRes.ok)` — only updates cover if upload succeeds. Template set is already saved at that point. |
+| Edge Case                                                                                       | Result      | Notes                                                                                                                                                                                                                                                                                                                                                           |
+| ----------------------------------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Slide deleted from library -> removed from template set silently                                | **PARTIAL** | The `GET /api/template-sets/[id]/slides` route (line 52-54) filters out slides where `slideMap.get(m.slide_id) === null`, effectively hiding deleted slides. However, stale membership rows remain in `template_set_slides` and the slide count in the listing would be inaccurate (it counts all memberships, not just those with existing slides). See BUG-4. |
+| Slide marked as deprecated -> template set still shows it with deprecated warning               | **FAIL**    | The `ManageTemplateSlidesDialog` and `TemplateSetCard` components do not check the `status` field of slides. No deprecated warning is displayed anywhere. See BUG-5.                                                                                                                                                                                            |
+| Template set with no slides -> Allowed, shows "0 slides"                                        | **PASS**    | Card shows `{templateSet.slide_count} slide{templateSet.slide_count !== 1 ? 's' : ''}`. Dialog shows "No slides yet." empty state.                                                                                                                                                                                                                              |
+| Cover image upload fails -> Template set saved without cover; fallback to first slide thumbnail | **PASS**    | In `TemplateSetDialog` line 112: `if (coverRes.ok)` — only updates cover if upload succeeds. Template set is already saved at that point.                                                                                                                                                                                                                       |
 
 ---
 
@@ -137,44 +151,44 @@
 
 #### 3.1 Rate Limiting
 
-| Endpoint | Rate Limited | Notes |
-|----------|-------------|-------|
-| GET /api/template-sets | **NO** | Missing rate limiting. See BUG-6. |
-| POST /api/template-sets | **NO** | Missing rate limiting. See BUG-6. |
-| PATCH /api/template-sets/[id] | **NO** | Missing rate limiting. See BUG-6. |
-| DELETE /api/template-sets/[id] | **NO** | Missing rate limiting. See BUG-6. |
-| POST /api/template-sets/[id]/cover | **NO** | Missing rate limiting. See BUG-6. |
-| GET /api/template-sets/[id]/slides | **NO** | Missing rate limiting. See BUG-6. |
-| POST /api/template-sets/[id]/slides | **NO** | Missing rate limiting. See BUG-6. |
-| DELETE /api/template-sets/[id]/slides/[slideId] | **NO** | Missing rate limiting. See BUG-6. |
-| POST /api/template-sets/[id]/slides/reorder | **NO** | Missing rate limiting. See BUG-6. |
+| Endpoint                                        | Rate Limited | Notes                             |
+| ----------------------------------------------- | ------------ | --------------------------------- |
+| GET /api/template-sets                          | **NO**       | Missing rate limiting. See BUG-6. |
+| POST /api/template-sets                         | **NO**       | Missing rate limiting. See BUG-6. |
+| PATCH /api/template-sets/[id]                   | **NO**       | Missing rate limiting. See BUG-6. |
+| DELETE /api/template-sets/[id]                  | **NO**       | Missing rate limiting. See BUG-6. |
+| POST /api/template-sets/[id]/cover              | **NO**       | Missing rate limiting. See BUG-6. |
+| GET /api/template-sets/[id]/slides              | **NO**       | Missing rate limiting. See BUG-6. |
+| POST /api/template-sets/[id]/slides             | **NO**       | Missing rate limiting. See BUG-6. |
+| DELETE /api/template-sets/[id]/slides/[slideId] | **NO**       | Missing rate limiting. See BUG-6. |
+| POST /api/template-sets/[id]/slides/reorder     | **NO**       | Missing rate limiting. See BUG-6. |
 
 **Verdict:** FAIL. Zero rate limiting on any PROJ-22 endpoint. The existing `checkRateLimit` utility from `src/lib/rate-limit.ts` is available and used in other routes (e.g., `src/app/api/profile/route.ts`, `src/app/api/profile/avatar/route.ts`) but is not imported or used in any template-set route.
 
 #### 3.2 Input Validation (Zod)
 
-| Endpoint | Uses Zod | Notes |
-|----------|----------|-------|
-| POST /api/template-sets | **NO** | Manual validation with `body.name?.trim()` and length checks. No Zod schema. See BUG-7. |
-| PATCH /api/template-sets/[id] | **NO** | Manual validation with conditional checks. No Zod schema. See BUG-7. |
-| POST /api/template-sets/[id]/slides | **NO** | Only checks `body.slideId` presence. No Zod schema. See BUG-7. |
-| POST /api/template-sets/[id]/slides/reorder | **NO** | Only checks `Array.isArray(body.memberships)`. No Zod schema. Individual items are not validated (slideId could be non-string, position could be non-integer). See BUG-7. |
+| Endpoint                                    | Uses Zod | Notes                                                                                                                                                                     |
+| ------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST /api/template-sets                     | **NO**   | Manual validation with `body.name?.trim()` and length checks. No Zod schema. See BUG-7.                                                                                   |
+| PATCH /api/template-sets/[id]               | **NO**   | Manual validation with conditional checks. No Zod schema. See BUG-7.                                                                                                      |
+| POST /api/template-sets/[id]/slides         | **NO**   | Only checks `body.slideId` presence. No Zod schema. See BUG-7.                                                                                                            |
+| POST /api/template-sets/[id]/slides/reorder | **NO**   | Only checks `Array.isArray(body.memberships)`. No Zod schema. Individual items are not validated (slideId could be non-string, position could be non-integer). See BUG-7. |
 
 **Verdict:** FAIL. No Zod validation anywhere. The project convention (per `backend.md` and `security.md`) requires: "Validate ALL user input on the server side with Zod."
 
 #### 3.3 Auth Checks
 
-| Endpoint | Auth | Admin Required | Notes |
-|----------|------|---------------|-------|
-| GET /api/template-sets | getAuthenticatedUser + getUserProfile | No (correct for reads) | PASS |
-| POST /api/template-sets | requireAdmin | Yes | PASS |
-| PATCH /api/template-sets/[id] | requireAdmin | Yes | PASS |
-| DELETE /api/template-sets/[id] | requireAdmin | Yes | PASS |
-| POST /api/template-sets/[id]/cover | requireAdmin | Yes | PASS |
-| GET /api/template-sets/[id]/slides | getAuthenticatedUser + getUserProfile | No (correct for reads) | PASS |
-| POST /api/template-sets/[id]/slides | requireAdmin | Yes | PASS |
-| DELETE /api/template-sets/[id]/slides/[slideId] | requireAdmin | Yes | PASS |
-| POST /api/template-sets/[id]/slides/reorder | requireAdmin | Yes | PASS |
+| Endpoint                                        | Auth                                  | Admin Required         | Notes |
+| ----------------------------------------------- | ------------------------------------- | ---------------------- | ----- |
+| GET /api/template-sets                          | getAuthenticatedUser + getUserProfile | No (correct for reads) | PASS  |
+| POST /api/template-sets                         | requireAdmin                          | Yes                    | PASS  |
+| PATCH /api/template-sets/[id]                   | requireAdmin                          | Yes                    | PASS  |
+| DELETE /api/template-sets/[id]                  | requireAdmin                          | Yes                    | PASS  |
+| POST /api/template-sets/[id]/cover              | requireAdmin                          | Yes                    | PASS  |
+| GET /api/template-sets/[id]/slides              | getAuthenticatedUser + getUserProfile | No (correct for reads) | PASS  |
+| POST /api/template-sets/[id]/slides             | requireAdmin                          | Yes                    | PASS  |
+| DELETE /api/template-sets/[id]/slides/[slideId] | requireAdmin                          | Yes                    | PASS  |
+| POST /api/template-sets/[id]/slides/reorder     | requireAdmin                          | Yes                    | PASS  |
 
 **Verdict:** PASS. Auth is correctly applied on all endpoints.
 
@@ -184,38 +198,38 @@ All queries include `.eq('tenant_id', ...)` scoping. The slide-add endpoint also
 
 #### 3.5 File Upload Validation
 
-| Check | Result | Notes |
-|-------|--------|-------|
-| MIME type validation | **PASS** | `cover/route.ts` line 37: checks `ALLOWED_TYPES` (jpeg, png, webp) |
-| File size validation | **PASS** | Line 40-41: checks `file.size > MAX_SIZE_BYTES` (5 MB) |
+| Check                  | Result   | Notes                                                                                                                                                                                                                                                   |
+| ---------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MIME type validation   | **PASS** | `cover/route.ts` line 37: checks `ALLOWED_TYPES` (jpeg, png, webp)                                                                                                                                                                                      |
+| File size validation   | **PASS** | Line 40-41: checks `file.size > MAX_SIZE_BYTES` (5 MB)                                                                                                                                                                                                  |
 | Magic bytes validation | **FAIL** | No magic bytes check on cover image upload. The profile avatar upload (`src/app/api/profile/avatar/route.ts` lines 42-70) performs full magic bytes validation. The cover upload only checks `file.type` which can be spoofed by the client. See BUG-8. |
 
 #### 3.6 XSS / Injection
 
-| Vector | Result | Notes |
-|--------|--------|-------|
-| Template name rendered in card | **PASS** | React auto-escapes text content in JSX. Name rendered as `{templateSet.name}` (line 67). |
-| Description rendered in card | **PASS** | React auto-escapes. Rendered as `{templateSet.description}` (line 102). No `dangerouslySetInnerHTML`. |
+| Vector                                            | Result   | Notes                                                                                                                                                                                                                                                                                                                          |
+| ------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Template name rendered in card                    | **PASS** | React auto-escapes text content in JSX. Name rendered as `{templateSet.name}` (line 67).                                                                                                                                                                                                                                       |
+| Description rendered in card                      | **PASS** | React auto-escapes. Rendered as `{templateSet.description}` (line 102). No `dangerouslySetInnerHTML`.                                                                                                                                                                                                                          |
 | `cover_image_url` in PATCH accepts arbitrary URLs | **FAIL** | `PATCH /api/template-sets/[id]` (line 56-58) accepts any value for `cover_image_url` without URL validation. An admin could inject a `javascript:` URI or arbitrary external URL. While `<img src="javascript:...">` is blocked by modern browsers, arbitrary external URLs could be used for tracking or phishing. See BUG-9. |
-| No SQL injection risk | **PASS** | All queries use Supabase parameterized query builder. |
+| No SQL injection risk                             | **PASS** | All queries use Supabase parameterized query builder.                                                                                                                                                                                                                                                                          |
 
 #### 3.7 Data Leaks
 
-| Check | Result | Notes |
-|-------|--------|-------|
-| Error messages expose internal details | **PASS** | Error responses return Supabase error messages which may expose column names but this is typical for admin-facing APIs. |
-| Signed URL expiration | **WARNING** | Cover image uses `createSignedUrl` with 365-day expiration (`cover/route.ts` line 55). This is a very long-lived signed URL stored in the database. If the URL leaks, anyone can access the cover image for up to a year. Consider using shorter expiration with on-demand regeneration. |
-| `SELECT *` on template_sets | **WARNING** | `GET /api/template-sets` uses `.select('*')` which returns all columns including potentially sensitive fields. Should explicitly list needed columns. |
+| Check                                  | Result      | Notes                                                                                                                                                                                                                                                                                    |
+| -------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Error messages expose internal details | **PASS**    | Error responses return Supabase error messages which may expose column names but this is typical for admin-facing APIs.                                                                                                                                                                  |
+| Signed URL expiration                  | **WARNING** | Cover image uses `createSignedUrl` with 365-day expiration (`cover/route.ts` line 55). This is a very long-lived signed URL stored in the database. If the URL leaks, anyone can access the cover image for up to a year. Consider using shorter expiration with on-demand regeneration. |
+| `SELECT *` on template_sets            | **WARNING** | `GET /api/template-sets` uses `.select('*')` which returns all columns including potentially sensitive fields. Should explicitly list needed columns.                                                                                                                                    |
 
 ---
 
 ### 4. Cross-Browser Compatibility
 
-| Component | Chrome | Firefox | Safari | Notes |
-|-----------|--------|---------|--------|-------|
-| TemplateSetCard | **Expected PASS** | **Expected PASS** | **Expected PASS** | Uses standard CSS flex/grid, Tailwind, shadcn/ui. No browser-specific APIs. |
+| Component                  | Chrome            | Firefox           | Safari              | Notes                                                                                                                                                                  |
+| -------------------------- | ----------------- | ----------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TemplateSetCard            | **Expected PASS** | **Expected PASS** | **Expected PASS**   | Uses standard CSS flex/grid, Tailwind, shadcn/ui. No browser-specific APIs.                                                                                            |
 | ManageTemplateSlidesDialog | **Expected PASS** | **Expected PASS** | **Potential Issue** | `@dnd-kit` has known quirks on Safari with touch events. The `PointerSensor` is used which should work, but `KeyboardSensor` may have reduced accessibility on Safari. |
-| Cover image upload | **Expected PASS** | **Expected PASS** | **Expected PASS** | Standard `<input type="file">` with `accept` attribute. |
+| Cover image upload         | **Expected PASS** | **Expected PASS** | **Expected PASS**   | Standard `<input type="file">` with `accept` attribute.                                                                                                                |
 
 **Note:** Cannot run full browser tests without a live dev server and database. Assessment is based on code analysis.
 
@@ -223,32 +237,33 @@ All queries include `.eq('tenant_id', ...)` scoping. The slide-add endpoint also
 
 ### 5. Responsive Design
 
-| Breakpoint | Component | Result | Notes |
-|------------|-----------|--------|-------|
-| 375px (mobile) | Template grid | **PASS** | `grid-cols-1` at base breakpoint. Cards stack vertically. |
-| 768px (tablet) | Template grid | **PASS** | `sm:grid-cols-2` at 640px+. |
-| 1440px (desktop) | Template grid | **PASS** | `lg:grid-cols-3` at 1024px+. |
-| 375px | ManageTemplateSlidesDialog | **WARNING** | Dialog uses `sm:max-w-2xl` and has a two-column layout with a divider. On mobile (<640px), both columns will try to share narrow space. The `flex gap-4` layout does not switch to stacked on mobile. See BUG-10. |
-| 375px | TemplateSetDialog | **PASS** | Uses `sm:max-w-md`, form fields stack vertically. |
+| Breakpoint       | Component                  | Result      | Notes                                                                                                                                                                                                             |
+| ---------------- | -------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 375px (mobile)   | Template grid              | **PASS**    | `grid-cols-1` at base breakpoint. Cards stack vertically.                                                                                                                                                         |
+| 768px (tablet)   | Template grid              | **PASS**    | `sm:grid-cols-2` at 640px+.                                                                                                                                                                                       |
+| 1440px (desktop) | Template grid              | **PASS**    | `lg:grid-cols-3` at 1024px+.                                                                                                                                                                                      |
+| 375px            | ManageTemplateSlidesDialog | **WARNING** | Dialog uses `sm:max-w-2xl` and has a two-column layout with a divider. On mobile (<640px), both columns will try to share narrow space. The `flex gap-4` layout does not switch to stacked on mobile. See BUG-10. |
+| 375px            | TemplateSetDialog          | **PASS**    | Uses `sm:max-w-md`, form fields stack vertically.                                                                                                                                                                 |
 
 ---
 
 ### 6. Regression Check
 
-| Existing Feature | Impact | Result |
-|------------------|--------|--------|
+| Existing Feature        | Impact                                                                                                                                                             | Result                                         |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- |
 | PROJ-15 (Slide Library) | Template sets reference slides via `template_set_slides` junction table. Slide deletion from library does not cascade to junction (no FK constraint in migration). | **No regression**, but orphaned rows possible. |
-| PROJ-3 (User Roles) | Uses `requireAdmin` from shared `auth-helpers.ts`. No modifications to shared code. | **No regression.** |
-| PROJ-1 (Multi-tenancy) | Storage bucket `template-sets` already created in PROJ-1 migration. Storage policies exist. | **No regression.** |
-| PROJ-19 (Slide Groups) | `ManageTemplateSlidesDialog` mirrors `ManageSlidesDialog` pattern. Uses same `@dnd-kit` deps. | **No regression.** |
-| Shared components | Uses shadcn/ui components (`Button`, `Dialog`, `Badge`, `AlertDialog`, `Input`, `Label`, `Textarea`, `Skeleton`). All imported correctly from `@/components/ui/`. | **No regression.** |
-| Slide type import | `ManageTemplateSlidesDialog` imports `Slide` from `@/components/slides/slide-card`. Valid import path confirmed. | **No regression.** |
+| PROJ-3 (User Roles)     | Uses `requireAdmin` from shared `auth-helpers.ts`. No modifications to shared code.                                                                                | **No regression.**                             |
+| PROJ-1 (Multi-tenancy)  | Storage bucket `template-sets` already created in PROJ-1 migration. Storage policies exist.                                                                        | **No regression.**                             |
+| PROJ-19 (Slide Groups)  | `ManageTemplateSlidesDialog` mirrors `ManageSlidesDialog` pattern. Uses same `@dnd-kit` deps.                                                                      | **No regression.**                             |
+| Shared components       | Uses shadcn/ui components (`Button`, `Dialog`, `Badge`, `AlertDialog`, `Input`, `Label`, `Textarea`, `Skeleton`). All imported correctly from `@/components/ui/`.  | **No regression.**                             |
+| Slide type import       | `ManageTemplateSlidesDialog` imports `Slide` from `@/components/slides/slide-card`. Valid import path confirmed.                                                   | **No regression.**                             |
 
 ---
 
 ### 7. Bug Report
 
 #### BUG-1: Missing database migration for `template_sets` and `template_set_slides` tables [CRITICAL]
+
 - **Severity:** Critical / Blocker
 - **Priority:** P0
 - **Affected files:** All API routes under `src/app/api/template-sets/`
@@ -263,6 +278,7 @@ All queries include `.eq('tenant_id', ...)` scoping. The slide-add endpoint also
 - **Fix needed:** Create a new migration file with complete table definitions, RLS policies, indexes, and constraints.
 
 #### BUG-2: Cover image URL not correctly read from API response after upload [MEDIUM]
+
 - **Severity:** Medium
 - **Priority:** P1
 - **Affected files:** `src/app/(app)/admin/templates/page.tsx` (line 114)
@@ -276,6 +292,7 @@ All queries include `.eq('tenant_id', ...)` scoping. The slide-add endpoint also
 - **Fix needed:** Change line 114 from `coverData.cover_image_url` to `coverData.templateSet.cover_image_url`.
 
 #### BUG-3: Cover image not cleaned up on template set deletion (storage path mismatch) [LOW]
+
 - **Severity:** Low
 - **Priority:** P2
 - **Affected files:** `src/app/api/template-sets/[id]/route.ts` (lines 103-104)
@@ -288,6 +305,7 @@ All queries include `.eq('tenant_id', ...)` scoping. The slide-add endpoint also
 - **Fix needed:** Either list files in the `${tenantId}/${setId}/` directory and delete all, or store the exact storage path alongside the URL.
 
 #### BUG-4: Slide count includes orphaned membership rows for deleted slides [LOW]
+
 - **Severity:** Low
 - **Priority:** P2
 - **Affected files:** `src/app/api/template-sets/route.ts` (lines 58-63)
@@ -300,6 +318,7 @@ All queries include `.eq('tenant_id', ...)` scoping. The slide-add endpoint also
 - **Fix needed:** Either add `ON DELETE CASCADE` from `slides(id)` to `template_set_slides(slide_id)` in the migration, or filter memberships by existing slides in the GET route.
 
 #### BUG-5: No deprecated slide warning in template set UI [MEDIUM]
+
 - **Severity:** Medium
 - **Priority:** P1
 - **Affected files:** `src/components/admin/manage-template-slides-dialog.tsx`, `src/components/admin/template-set-card.tsx`
@@ -312,6 +331,7 @@ All queries include `.eq('tenant_id', ...)` scoping. The slide-add endpoint also
 - **Fix needed:** Add a deprecated badge/warning icon next to deprecated slides in the `SortableSlideRow` component and optionally a warning badge on the `TemplateSetCard` if any slide is deprecated.
 
 #### BUG-6: No rate limiting on any template-set endpoint [HIGH]
+
 - **Severity:** High
 - **Priority:** P0
 - **Affected files:** All 6 route files under `src/app/api/template-sets/`
@@ -327,6 +347,7 @@ All queries include `.eq('tenant_id', ...)` scoping. The slide-add endpoint also
   - Reorder: 30 per 15 min
 
 #### BUG-7: No Zod schema validation on any API route [MEDIUM]
+
 - **Severity:** Medium
 - **Priority:** P1
 - **Affected files:** All API routes under `src/app/api/template-sets/`
@@ -339,6 +360,7 @@ All queries include `.eq('tenant_id', ...)` scoping. The slide-add endpoint also
 - **Fix needed:** Create Zod schemas for each endpoint's input and use `.safeParse()`.
 
 #### BUG-8: Missing magic bytes validation on cover image upload [MEDIUM]
+
 - **Severity:** Medium
 - **Priority:** P1
 - **Affected files:** `src/app/api/template-sets/[id]/cover/route.ts`
@@ -351,6 +373,7 @@ All queries include `.eq('tenant_id', ...)` scoping. The slide-add endpoint also
 - **Fix needed:** Add the same magic bytes validation from `src/app/api/profile/avatar/route.ts` to the cover upload route.
 
 #### BUG-9: cover_image_url in PATCH endpoint accepts arbitrary URLs without validation [LOW]
+
 - **Severity:** Low
 - **Priority:** P2
 - **Affected files:** `src/app/api/template-sets/[id]/route.ts` (lines 56-58)
@@ -360,6 +383,7 @@ All queries include `.eq('tenant_id', ...)` scoping. The slide-add endpoint also
 - **Fix needed:** Either remove `cover_image_url` from the PATCH endpoint's accepted fields, or validate it against allowed URL patterns (e.g., must be a Supabase storage URL).
 
 #### BUG-10: ManageTemplateSlidesDialog not responsive on mobile [LOW]
+
 - **Severity:** Low
 - **Priority:** P2
 - **Affected files:** `src/components/admin/manage-template-slides-dialog.tsx` (line 226)
@@ -369,6 +393,7 @@ All queries include `.eq('tenant_id', ...)` scoping. The slide-add endpoint also
 - **Fix needed:** Add responsive classes to stack the panels vertically on small screens: `flex flex-col sm:flex-row`.
 
 #### BUG-11: Missing `.limit()` on list queries [LOW]
+
 - **Severity:** Low
 - **Priority:** P2
 - **Affected files:** `src/app/api/template-sets/route.ts` (line 18-22), `src/app/api/template-sets/[id]/slides/route.ts` (line 32-36)
@@ -377,6 +402,7 @@ All queries include `.eq('tenant_id', ...)` scoping. The slide-add endpoint also
 - **Fix needed:** Add reasonable `.limit()` clauses (e.g., `.limit(100)` for template sets, `.limit(200)` for slides in a set).
 
 #### BUG-12: Delete handler does not reset loading state on error [LOW]
+
 - **Severity:** Low
 - **Priority:** P3
 - **Affected files:** `src/components/admin/template-set-card.tsx` (lines 44-49)
@@ -388,6 +414,7 @@ All queries include `.eq('tenant_id', ...)` scoping. The slide-add endpoint also
 - **Fix needed:** Wrap in try/finally: `try { await onDelete(...) } finally { setDeleting(false); setConfirmDelete(false) }`.
 
 #### BUG-13: Signed URL has 365-day expiry (security concern) [LOW]
+
 - **Severity:** Low
 - **Priority:** P3
 - **Affected files:** `src/app/api/template-sets/[id]/cover/route.ts` (line 55)
@@ -399,37 +426,38 @@ All queries include `.eq('tenant_id', ...)` scoping. The slide-add endpoint also
 
 ### 8. Bug Fix Status
 
-| Bug | Status | Fix Applied |
-|-----|--------|-------------|
-| BUG-1 | **FALSE POSITIVE** | Migration was applied via Supabase MCP tool (not local migration files). Tables, RLS, indexes, and constraints all exist in the database. |
-| BUG-2 | **FIXED** | Changed `coverData.cover_image_url` to `coverData.templateSet.cover_image_url` in templates page. |
-| BUG-3 | **FIXED** | Changed deletion to list files in directory then remove all, instead of guessing path. |
-| BUG-4 | **FIXED** | GET /api/template-sets now verifies slide existence before counting — orphaned memberships excluded. |
-| BUG-5 | **FIXED** | Added "Deprecated" badge (orange) to both SortableSlideRow and available slides list in ManageTemplateSlidesDialog. |
-| BUG-6 | **FIXED** | Added `checkRateLimit()` to all 7 mutation endpoints across all route files. |
-| BUG-7 | **PARTIALLY FIXED** | Added Zod schema to reorder endpoint (validates slideId as UUID, position as non-negative int). Other endpoints use adequate manual validation. |
-| BUG-8 | **FIXED** | Added full magic bytes validation (JPEG/PNG/WebP) to cover upload, matching the avatar upload pattern. |
-| BUG-9 | Deferred (P2) | Admin-only endpoint, low risk. |
-| BUG-10 | Deferred (P2) | Desktop-first admin UI per product constraints. |
-| BUG-11 | Deferred (P2) | Template sets are tenant-scoped; practical limit is small. |
-| BUG-12 | Deferred (P3) | Minor cosmetic issue. |
-| BUG-13 | Deferred (P3) | Consistent with existing signed URL pattern across codebase. |
+| Bug    | Status              | Fix Applied                                                                                                                                     |
+| ------ | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| BUG-1  | **FALSE POSITIVE**  | Migration was applied via Supabase MCP tool (not local migration files). Tables, RLS, indexes, and constraints all exist in the database.       |
+| BUG-2  | **FIXED**           | Changed `coverData.cover_image_url` to `coverData.templateSet.cover_image_url` in templates page.                                               |
+| BUG-3  | **FIXED**           | Changed deletion to list files in directory then remove all, instead of guessing path.                                                          |
+| BUG-4  | **FIXED**           | GET /api/template-sets now verifies slide existence before counting — orphaned memberships excluded.                                            |
+| BUG-5  | **FIXED**           | Added "Deprecated" badge (orange) to both SortableSlideRow and available slides list in ManageTemplateSlidesDialog.                             |
+| BUG-6  | **FIXED**           | Added `checkRateLimit()` to all 7 mutation endpoints across all route files.                                                                    |
+| BUG-7  | **PARTIALLY FIXED** | Added Zod schema to reorder endpoint (validates slideId as UUID, position as non-negative int). Other endpoints use adequate manual validation. |
+| BUG-8  | **FIXED**           | Added full magic bytes validation (JPEG/PNG/WebP) to cover upload, matching the avatar upload pattern.                                          |
+| BUG-9  | Deferred (P2)       | Admin-only endpoint, low risk.                                                                                                                  |
+| BUG-10 | Deferred (P2)       | Desktop-first admin UI per product constraints.                                                                                                 |
+| BUG-11 | Deferred (P2)       | Template sets are tenant-scoped; practical limit is small.                                                                                      |
+| BUG-12 | Deferred (P3)       | Minor cosmetic issue.                                                                                                                           |
+| BUG-13 | Deferred (P3)       | Consistent with existing signed URL pattern across codebase.                                                                                    |
 
 ### 9. Summary After Fixes
 
-| Category | Pass | Fail | Warning |
-|----------|------|------|---------|
-| Acceptance Criteria (10) | 10 | 0 | 0 |
-| Edge Cases (4) | 4 | 0 | 0 |
-| Security - Rate Limiting | 1 | 0 | 0 |
-| Security - Auth Checks | 1 | 0 | 0 |
-| Security - Tenant Isolation | 1 | 0 | 0 |
-| Security - File Upload | 2 | 0 | 0 |
-| Responsive Design | 3 | 0 | 1 |
-| Regression | 6 | 0 | 0 |
+| Category                    | Pass | Fail | Warning |
+| --------------------------- | ---- | ---- | ------- |
+| Acceptance Criteria (10)    | 10   | 0    | 0       |
+| Edge Cases (4)              | 4    | 0    | 0       |
+| Security - Rate Limiting    | 1    | 0    | 0       |
+| Security - Auth Checks      | 1    | 0    | 0       |
+| Security - Tenant Isolation | 1    | 0    | 0       |
+| Security - File Upload      | 2    | 0    | 0       |
+| Responsive Design           | 3    | 0    | 1       |
+| Regression                  | 6    | 0    | 0       |
 
 **Total Bugs Found: 13 (8 fixed, 5 deferred as P2/P3)**
 **QA Verdict after fixes: PASS — Ready to deploy.**
 
 ## Deployment
+
 _To be added by /deploy_

@@ -40,13 +40,13 @@ export function SimulatedExportDialog({ open, onOpenChange, format }: SimulatedE
           <FileDown className="h-5 w-5 shrink-0 text-muted-foreground" />
           <div className="text-sm">
             <p className="font-medium">Acme-Presentation.{format === 'pptx' ? 'pptx' : 'pdf'}</p>
-            <p className="text-xs text-muted-foreground">3 slides -- {format === 'pptx' ? '2.4 MB' : '1.1 MB'}</p>
+            <p className="text-xs text-muted-foreground">
+              3 slides -- {format === 'pptx' ? '2.4 MB' : '1.1 MB'}
+            </p>
           </div>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground">
-          {t('demo.demo_export_notice')}
-        </p>
+        <p className="text-center text-xs text-muted-foreground">{t('demo.demo_export_notice')}</p>
 
         <DialogFooter className="flex-col gap-2 sm:flex-col">
           <Button asChild className="w-full">

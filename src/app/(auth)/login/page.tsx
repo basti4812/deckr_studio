@@ -11,13 +11,7 @@ import { useTranslation } from 'react-i18next'
 
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Form,
   FormControl,
@@ -75,9 +69,7 @@ function LoginForm() {
     if (error) {
       if (error.message.toLowerCase().includes('email not confirmed')) {
         setEmailNotConfirmed(true)
-      } else if (
-        error.message.toLowerCase().includes('invalid login credentials')
-      ) {
+      } else if (error.message.toLowerCase().includes('invalid login credentials')) {
         setServerError(t('auth.incorrect_credentials'))
       } else {
         setServerError(error.message)
@@ -120,9 +112,7 @@ function LoginForm() {
             <AlertDescription className="space-y-2">
               <p>{t('auth.email_not_confirmed')}</p>
               {resendSuccess ? (
-                <p className="text-sm text-muted-foreground">
-                  {t('auth.confirmation_email_sent')}
-                </p>
+                <p className="text-sm text-muted-foreground">{t('auth.confirmation_email_sent')}</p>
               ) : (
                 <Button
                   variant="link"
@@ -131,9 +121,7 @@ function LoginForm() {
                   onClick={handleResendConfirmation}
                   disabled={resendLoading}
                 >
-                  {resendLoading && (
-                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                  )}
+                  {resendLoading && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
                   {t('auth.resend_confirmation_email')}
                 </Button>
               )}
@@ -184,11 +172,7 @@ function LoginForm() {
                     </Link>
                   </div>
                   <FormControl>
-                    <Input
-                      type="password"
-                      autoComplete="current-password"
-                      {...field}
-                    />
+                    <Input type="password" autoComplete="current-password" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -196,9 +180,7 @@ function LoginForm() {
             />
 
             <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isSubmitting ? t('auth.signing_in') : t('auth.sign_in')}
             </Button>
           </form>
@@ -226,10 +208,7 @@ function LoginForm() {
 
         <p className="text-center text-sm text-muted-foreground">
           {t('auth.dont_have_account')}{' '}
-          <Link
-            href="/register"
-            className="font-medium text-foreground hover:underline"
-          >
+          <Link href="/register" className="font-medium text-foreground hover:underline">
             {t('auth.create_one')}
           </Link>
         </p>

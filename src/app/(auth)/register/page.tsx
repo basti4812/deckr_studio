@@ -10,13 +10,7 @@ import { CheckCircle, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Form,
   FormControl,
@@ -42,17 +36,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 const RegisterSchema = z
   .object({
     email: z.string().email({ error: 'Please enter a valid email address' }),
-    companyName: z
-      .string()
-      .min(1, 'Company name is required')
-      .max(255, 'Company name is too long'),
-    displayName: z
-      .string()
-      .min(1, 'Your name is required')
-      .max(255, 'Name is too long'),
-    password: z
-      .string()
-      .min(8, 'Password must be at least 8 characters'),
+    companyName: z.string().min(1, 'Company name is required').max(255, 'Company name is too long'),
+    displayName: z.string().min(1, 'Your name is required').max(255, 'Name is too long'),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
     confirmPassword: z.string().min(1, 'Please confirm your password'),
     preferredLanguage: z.enum(['de', 'en']),
   })
@@ -141,19 +127,14 @@ export default function RegisterPage() {
           <CardTitle>{t('auth.check_email')}</CardTitle>
           <CardDescription>
             {t('auth.confirmation_link_sent')}{' '}
-            <span className="font-medium text-foreground">
-              {form.getValues('email')}
-            </span>
-            . {t('auth.click_to_activate')}
+            <span className="font-medium text-foreground">{form.getValues('email')}</span>.{' '}
+            {t('auth.click_to_activate')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-center text-sm text-muted-foreground">
             {t('auth.already_confirmed')}{' '}
-            <Link
-              href="/login"
-              className="font-medium text-foreground hover:underline"
-            >
+            <Link href="/login" className="font-medium text-foreground hover:underline">
               {t('auth.sign_in')}
             </Link>
           </p>
@@ -166,9 +147,7 @@ export default function RegisterPage() {
     <Card className="w-full max-w-sm">
       <CardHeader>
         <CardTitle>{t('auth.register_title')}</CardTitle>
-        <CardDescription>
-          {t('auth.register_description')}
-        </CardDescription>
+        <CardDescription>{t('auth.register_description')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {serverError && (
@@ -260,11 +239,7 @@ export default function RegisterPage() {
                 <FormItem>
                   <FormLabel>{t('auth.confirm_password')}</FormLabel>
                   <FormControl>
-                    <Input
-                      type="password"
-                      autoComplete="new-password"
-                      {...field}
-                    />
+                    <Input type="password" autoComplete="new-password" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -277,10 +252,7 @@ export default function RegisterPage() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>{t('auth.preferred_language')}</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue />
@@ -297,9 +269,7 @@ export default function RegisterPage() {
             />
 
             <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isSubmitting ? t('auth.creating_workspace') : t('auth.create_workspace')}
             </Button>
           </form>
@@ -307,10 +277,7 @@ export default function RegisterPage() {
 
         <p className="text-center text-sm text-muted-foreground">
           {t('auth.already_have_account')}{' '}
-          <Link
-            href="/login"
-            className="font-medium text-foreground hover:underline"
-          >
+          <Link href="/login" className="font-medium text-foreground hover:underline">
             {t('auth.sign_in')}
           </Link>
         </p>

@@ -124,7 +124,10 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
 
   async function handleSave() {
     if (!slide) return
-    if (!title.trim()) { setError(t('slides.title_required')); return }
+    if (!title.trim()) {
+      setError(t('slides.title_required'))
+      return
+    }
 
     // Validate fields
     for (const f of fields) {
@@ -139,7 +142,9 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
 
     try {
       const supabase = createBrowserSupabaseClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       if (!session) throw new Error('Not authenticated')
 
       // If a replacement PPTX was selected, upload it first
@@ -149,7 +154,8 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
         const { error: storageError } = await supabase.storage
           .from('slides')
           .upload(storagePath, replacementFile, {
-            contentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            contentType:
+              'application/vnd.openxmlformats-officedocument.presentationml.presentation',
             upsert: true,
           })
         if (storageError) throw new Error(storageError.message)
@@ -198,20 +204,14 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t('slides.edit_slide')}</DialogTitle>
-          <DialogDescription>
-            {t('slides.edit_slide_description')}
-          </DialogDescription>
+          <DialogDescription>{t('slides.edit_slide_description')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           {/* Title */}
           <div className="space-y-2">
             <Label htmlFor="edit-title">{t('slides.title')}</Label>
-            <Input
-              id="edit-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
+            <Input id="edit-title" value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
 
           {/* Status */}
@@ -232,11 +232,24 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
           {/* Tags */}
           <div className="space-y-2">
             <Label>{t('slides.tags')}</Label>
-            <div className="flex flex-wrap gap-1.5 min-h-[2rem] rounded-md border px-2 py-1.5 bg-background focus-within:ring-1 focus-within:ring-ring cursor-text" onClick={() => tagInputRef.current?.focus()}>
+            <div
+              className="flex flex-wrap gap-1.5 min-h-[2rem] rounded-md border px-2 py-1.5 bg-background focus-within:ring-1 focus-within:ring-ring cursor-text"
+              onClick={() => tagInputRef.current?.focus()}
+            >
               {tags.map((tag) => (
-                <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium">
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium"
+                >
                   {tag}
-                  <button type="button" onClick={(e) => { e.stopPropagation(); removeTag(tag) }} className="text-muted-foreground hover:text-foreground">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      removeTag(tag)
+                    }}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
                     <X className="h-3 w-3" />
                   </button>
                 </span>
@@ -246,7 +259,10 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); commitTagInput() }
+                  if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault()
+                    commitTagInput()
+                  }
                   if (e.key === 'Backspace' && !tagInput && tags.length > 0) {
                     setTags((prev) => prev.slice(0, -1))
                   }
@@ -268,7 +284,9 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
             {replacementFile ? (
               <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40 px-3 py-2">
                 <RefreshCw className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
-                <span className="flex-1 truncate text-sm text-blue-700 dark:text-blue-300">{replacementFile.name}</span>
+                <span className="flex-1 truncate text-sm text-blue-700 dark:text-blue-300">
+                  {replacementFile.name}
+                </span>
                 <Button
                   type="button"
                   variant="ghost"
@@ -295,9 +313,7 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
               className="hidden"
               onChange={handleFileChange}
             />
-            <p className="text-xs text-muted-foreground">
-              {t('slides.replace_warning')}
-            </p>
+            <p className="text-xs text-muted-foreground">{t('slides.replace_warning')}</p>
           </div>
 
           <Separator />
@@ -332,9 +348,7 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
             />
 
             {fields.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                {t('slides.no_editable_fields')}
-              </p>
+              <p className="text-sm text-muted-foreground">{t('slides.no_editable_fields')}</p>
             )}
 
             {fields.map((field, index) => (
@@ -345,7 +359,9 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
                       {t('slides.field_number', { number: index + 1 })}
                     </span>
                     {field.placeholder && (
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{t('slides.auto_detected')}</Badge>
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                        {t('slides.auto_detected')}
+                      </Badge>
                     )}
                   </div>
                   <Button
@@ -386,7 +402,10 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
                       updateField(field.id, { required: checked === true })
                     }
                   />
-                  <Label htmlFor={`required-${field.id}`} className="text-sm font-normal cursor-pointer">
+                  <Label
+                    htmlFor={`required-${field.id}`}
+                    className="text-sm font-normal cursor-pointer"
+                  >
                     {t('slides.required_description')}
                   </Label>
                 </div>

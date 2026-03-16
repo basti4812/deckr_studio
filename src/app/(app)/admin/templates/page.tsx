@@ -62,13 +62,21 @@ function TemplateSetDialog({ open, editTarget, onClose, onSaved }: SetDialogProp
   }, [open, editTarget])
 
   async function handleSubmit() {
-    if (!form.name.trim()) { setError('Name is required'); return }
+    if (!form.name.trim()) {
+      setError('Name is required')
+      return
+    }
     setSaving(true)
     setError(null)
     try {
       const supabase = createBrowserSupabaseClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { setError('Not authenticated'); return }
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session) {
+        setError('Not authenticated')
+        return
+      }
       const token = session.access_token
 
       let result: TemplateSet
@@ -82,7 +90,11 @@ function TemplateSetDialog({ open, editTarget, onClose, onSaved }: SetDialogProp
             category: form.category.trim() || null,
           }),
         })
-        if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Failed to update'); return }
+        if (!res.ok) {
+          const d = await res.json()
+          setError(d.error ?? 'Failed to update')
+          return
+        }
         const d = await res.json()
         result = d.templateSet
       } else {
@@ -95,7 +107,11 @@ function TemplateSetDialog({ open, editTarget, onClose, onSaved }: SetDialogProp
             category: form.category.trim() || null,
           }),
         })
-        if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Failed to create'); return }
+        if (!res.ok) {
+          const d = await res.json()
+          setError(d.error ?? 'Failed to create')
+          return
+        }
         const d = await res.json()
         result = { ...d.templateSet, slide_count: 0, first_slide_thumbnail: null }
       }
@@ -202,7 +218,9 @@ function TemplateSetDialog({ open, editTarget, onClose, onSaved }: SetDialogProp
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
           <Button onClick={handleSubmit} disabled={saving}>
             {saving ? 'Saving…' : editTarget ? 'Save changes' : 'Create'}
           </Button>
@@ -226,7 +244,9 @@ export default function TemplateSetsPage() {
 
   const fetchData = useCallback(async () => {
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return
 
     setLoading(true)
@@ -252,11 +272,15 @@ export default function TemplateSetsPage() {
     }
   }, [])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   async function handleDelete(setId: string) {
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return
 
     const res = await fetch(`/api/template-sets/${setId}`, {
@@ -286,7 +310,9 @@ export default function TemplateSetsPage() {
 
   async function handleSlidesSaved(setId: string) {
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return
 
     const res = await fetch('/api/template-sets', {
@@ -296,7 +322,7 @@ export default function TemplateSetsPage() {
       const d = await res.json()
       const refreshed = (d.templateSets ?? []).find((s: TemplateSet) => s.id === setId)
       if (refreshed) {
-        setTemplateSets((prev) => prev.map((s) => s.id === setId ? refreshed : s))
+        setTemplateSets((prev) => prev.map((s) => (s.id === setId ? refreshed : s)))
       }
     }
   }
@@ -311,7 +337,12 @@ export default function TemplateSetsPage() {
             Create curated slide collections for specific presentation types.
           </p>
         </div>
-        <Button onClick={() => { setEditTarget(null); setDialogOpen(true) }}>
+        <Button
+          onClick={() => {
+            setEditTarget(null)
+            setDialogOpen(true)
+          }}
+        >
           <Plus className="mr-2 h-4 w-4" />
           New template set
         </Button>
@@ -343,7 +374,10 @@ export default function TemplateSetsPage() {
             variant="outline"
             size="sm"
             className="mt-4"
-            onClick={() => { setEditTarget(null); setDialogOpen(true) }}
+            onClick={() => {
+              setEditTarget(null)
+              setDialogOpen(true)
+            }}
           >
             <Plus className="mr-2 h-4 w-4" />
             New template set
@@ -356,7 +390,10 @@ export default function TemplateSetsPage() {
               key={set.id}
               templateSet={set}
               onManageSlides={setManagingSet}
-              onEdit={(s) => { setEditTarget(s); setDialogOpen(true) }}
+              onEdit={(s) => {
+                setEditTarget(s)
+                setDialogOpen(true)
+              }}
               onDelete={handleDelete}
             />
           ))}

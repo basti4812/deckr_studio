@@ -124,7 +124,7 @@
 
 @layer components {
   /* Sidebar active item: accent left-border */
-  [data-sidebar="menu-button"][data-active="true"] {
+  [data-sidebar='menu-button'][data-active='true'] {
     border-left: 3px solid hsl(var(--sidebar-primary));
   }
 }

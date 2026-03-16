@@ -26,13 +26,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
@@ -46,12 +40,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useToast } from '@/hooks/use-toast'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import type { Subscription } from '@/lib/subscription-helpers'
@@ -125,11 +114,7 @@ function formatDate(dateStr: string | null): string {
 // Status Badge
 // ---------------------------------------------------------------------------
 
-function SubscriptionStatusBadge({
-  status,
-}: {
-  status: Subscription['status']
-}) {
+function SubscriptionStatusBadge({ status }: { status: Subscription['status'] }) {
   switch (status) {
     case 'active':
       return (
@@ -172,11 +157,7 @@ function SubscriptionStatusBadge({
   }
 }
 
-function InvoiceStatusBadge({
-  status,
-}: {
-  status: 'paid' | 'pending' | 'failed'
-}) {
+function InvoiceStatusBadge({ status }: { status: 'paid' | 'pending' | 'failed' }) {
   switch (status) {
     case 'paid':
       return (
@@ -296,8 +277,7 @@ export default function BillingPage() {
         setInvoices([])
       }
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to load billing data'
+      const message = err instanceof Error ? err.message : 'Failed to load billing data'
       setError(message)
     } finally {
       setLoading(false)
@@ -340,8 +320,7 @@ export default function BillingPage() {
     } catch (err) {
       toast({
         title: 'Error',
-        description:
-          err instanceof Error ? err.message : 'Failed to save billing contact',
+        description: err instanceof Error ? err.message : 'Failed to save billing contact',
         variant: 'destructive',
       })
     } finally {
@@ -374,16 +353,12 @@ export default function BillingPage() {
 
       toast({
         title: 'Cancellation requested',
-        description:
-          'Our team will be in touch shortly to process your cancellation.',
+        description: 'Our team will be in touch shortly to process your cancellation.',
       })
     } catch (err) {
       toast({
         title: 'Error',
-        description:
-          err instanceof Error
-            ? err.message
-            : 'Failed to request cancellation',
+        description: err instanceof Error ? err.message : 'Failed to request cancellation',
         variant: 'destructive',
       })
     } finally {
@@ -401,8 +376,7 @@ export default function BillingPage() {
   const pricePerUser = subscription?.price_per_user_cents ?? null
   const nextRenewal = subscription?.next_renewal_date ?? null
   const trialDaysRemaining = getTrialDaysRemaining(subscription)
-  const isTrialExpired =
-    subscription?.status === 'trialing' && trialDaysRemaining === 0
+  const isTrialExpired = subscription?.status === 'trialing' && trialDaysRemaining === 0
 
   // Seat usage percentage
   const seatPercentage =
@@ -460,12 +434,7 @@ export default function BillingPage() {
             <AlertTriangle className="h-4 w-4 shrink-0" />
             <span>{error}</span>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mt-2"
-            onClick={fetchData}
-          >
+          <Button variant="ghost" size="sm" className="mt-2" onClick={fetchData}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Retry
           </Button>
@@ -485,8 +454,8 @@ export default function BillingPage() {
         <div>
           <h1 className="font-heading text-2xl font-semibold tracking-tight">Billing</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage your subscription, seats, payment method, and view invoices
-            for your organization.
+            Manage your subscription, seats, payment method, and view invoices for your
+            organization.
           </p>
         </div>
 
@@ -498,13 +467,9 @@ export default function BillingPage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg">Plan Overview</CardTitle>
-                {subscription && (
-                  <SubscriptionStatusBadge status={subscription.status} />
-                )}
+                {subscription && <SubscriptionStatusBadge status={subscription.status} />}
               </div>
-              <CardDescription>
-                Your current subscription details
-              </CardDescription>
+              <CardDescription>Your current subscription details</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Trial Banner */}
@@ -519,14 +484,11 @@ export default function BillingPage() {
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 shrink-0" />
                     {isTrialExpired ? (
-                      <span className="font-medium">
-                        Trial expired
-                      </span>
+                      <span className="font-medium">Trial expired</span>
                     ) : (
                       <span>
                         <strong>{trialDaysRemaining}</strong> day
-                        {trialDaysRemaining !== 1 ? 's' : ''} remaining in your
-                        free trial
+                        {trialDaysRemaining !== 1 ? 's' : ''} remaining in your free trial
                       </span>
                     )}
                   </div>
@@ -551,9 +513,7 @@ export default function BillingPage() {
                 <Separator />
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Billing cycle</span>
-                  <span className="font-medium capitalize">
-                    {billingCycle ?? '\u2014'}
-                  </span>
+                  <span className="font-medium capitalize">{billingCycle ?? '\u2014'}</span>
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between text-sm">
@@ -595,9 +555,7 @@ export default function BillingPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Seat Usage</CardTitle>
-              <CardDescription>
-                Active user seats in your organization
-              </CardDescription>
+              <CardDescription>Active user seats in your organization</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {seatUsage.licensed !== null ? (
@@ -620,14 +578,12 @@ export default function BillingPage() {
                   />
                   {seatPercentage >= 100 && (
                     <p className="text-xs text-red-600 dark:text-red-400">
-                      All seats are in use. Upgrade your plan to add more team
-                      members.
+                      All seats are in use. Upgrade your plan to add more team members.
                     </p>
                   )}
                   {seatPercentage >= 80 && seatPercentage < 100 && (
                     <p className="text-xs text-amber-600 dark:text-amber-400">
-                      You are approaching your seat limit. Consider upgrading
-                      your plan.
+                      You are approaching your seat limit. Consider upgrading your plan.
                     </p>
                   )}
                 </>
@@ -656,17 +612,13 @@ export default function BillingPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Invoices</CardTitle>
-            <CardDescription>
-              Your billing history and downloadable invoices
-            </CardDescription>
+            <CardDescription>Your billing history and downloadable invoices</CardDescription>
           </CardHeader>
           <CardContent>
             {invoices.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12 text-center">
                 <FileText className="h-8 w-8 text-muted-foreground/50" />
-                <p className="mt-3 text-sm font-medium text-muted-foreground">
-                  No invoices yet
-                </p>
+                <p className="mt-3 text-sm font-medium text-muted-foreground">No invoices yet</p>
                 <p className="mt-1 max-w-sm text-xs text-muted-foreground/70">
                   Your first invoice will appear after your first billing cycle.
                 </p>
@@ -691,22 +643,14 @@ export default function BillingPage() {
                           {formatDate(invoice.invoice_date)}
                         </TableCell>
                         <TableCell className="text-sm font-medium">
-                          {formatCurrency(
-                            invoice.amount_cents,
-                            invoice.currency
-                          )}
+                          {formatCurrency(invoice.amount_cents, invoice.currency)}
                         </TableCell>
                         <TableCell>
                           <InvoiceStatusBadge status={invoice.status} />
                         </TableCell>
                         <TableCell>
-                          {invoice.pdf_url &&
-                          /^https?:\/\//.test(invoice.pdf_url) ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              asChild
-                            >
+                          {invoice.pdf_url && /^https?:\/\//.test(invoice.pdf_url) ? (
+                            <Button variant="ghost" size="sm" asChild>
                               <a
                                 href={invoice.pdf_url}
                                 target="_blank"
@@ -733,8 +677,7 @@ export default function BillingPage() {
                                 </span>
                               </TooltipTrigger>
                               <TooltipContent>
-                                PDF will be available once your payment provider
-                                is connected
+                                PDF will be available once your payment provider is connected
                               </TooltipContent>
                             </Tooltip>
                           )}
@@ -754,9 +697,7 @@ export default function BillingPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Payment Method</CardTitle>
-            <CardDescription>
-              Your payment method for subscription charges
-            </CardDescription>
+            <CardDescription>Your payment method for subscription charges</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-3 rounded-lg border border-dashed p-6">
@@ -766,8 +707,7 @@ export default function BillingPage() {
                   No payment method connected yet
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground/70">
-                  A payment method will be added when your payment provider is
-                  configured.
+                  A payment method will be added when your payment provider is configured.
                 </p>
               </div>
             </div>
@@ -780,9 +720,7 @@ export default function BillingPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Billing Contact</CardTitle>
-            <CardDescription>
-              Company and address details for your invoices
-            </CardDescription>
+            <CardDescription>Company and address details for your invoices</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSaveBillingContact}>
@@ -917,15 +855,12 @@ export default function BillingPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Cancel {planName}?</AlertDialogTitle>
               <AlertDialogDescription>
-                If you cancel your subscription, your team will lose access to
-                deckr at the end of the current billing period. Your data will be
-                preserved for 30 days.
+                If you cancel your subscription, your team will lose access to onslide Studio at the
+                end of the current billing period. Your data will be preserved for 30 days.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={cancelling}>
-                Keep subscription
-              </AlertDialogCancel>
+              <AlertDialogCancel disabled={cancelling}>Keep subscription</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleCancelSubscription}
                 disabled={cancelling}

@@ -7,15 +7,13 @@ import { createServiceClient } from '@/lib/supabase'
 // GET /api/template-sets/[id]/slides — ordered slide list with full slide data
 // ---------------------------------------------------------------------------
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthenticatedUser(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const profile = await getUserProfile(user.id)
-  if (!profile || !profile.is_active) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!profile || !profile.is_active)
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
   const supabase = createServiceClient()
@@ -45,7 +43,10 @@ export async function GET(
   const { data: slides, error: sErr } = await supabase
     .from('slides')
     .select('*')
-    .in('id', memberships.map((m) => m.slide_id))
+    .in(
+      'id',
+      memberships.map((m) => m.slide_id)
+    )
 
   if (sErr) return NextResponse.json({ error: sErr.message }, { status: 500 })
 
@@ -61,10 +62,7 @@ export async function GET(
 // POST /api/template-sets/[id]/slides — add slide to set
 // ---------------------------------------------------------------------------
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin(request)
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
@@ -74,7 +72,9 @@ export async function POST(
   const { id } = await params
 
   let body: { slideId?: string } = {}
-  try { body = await request.json() } catch {
+  try {
+    body = await request.json()
+  } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 

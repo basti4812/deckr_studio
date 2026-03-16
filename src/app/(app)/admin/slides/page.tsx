@@ -42,7 +42,9 @@ export default function SlideLibraryPage() {
 
   const fetchSlides = useCallback(async () => {
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return
 
     setLoading(true)
@@ -81,7 +83,9 @@ export default function SlideLibraryPage() {
     if (!pollRef.current) {
       pollRef.current = setInterval(async () => {
         const supabase = createBrowserSupabaseClient()
-        const { data: { session } } = await supabase.auth.getSession()
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
         if (!session) return
 
         const res = await fetch('/api/slides', {
@@ -113,7 +117,7 @@ export default function SlideLibraryPage() {
         pollRef.current = null
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [pendingThumbnails.length, loading])
 
   async function handleDelete() {
@@ -121,7 +125,9 @@ export default function SlideLibraryPage() {
     setDeleting(true)
     try {
       const supabase = createBrowserSupabaseClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       if (!session) return
 
       const res = await fetch(`/api/slides/${deleteSlide.id}`, {
@@ -159,7 +165,9 @@ export default function SlideLibraryPage() {
     setBulkDeleting(true)
     try {
       const supabase = createBrowserSupabaseClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       if (!session) return
 
       const errors: string[] = []
@@ -202,7 +210,9 @@ export default function SlideLibraryPage() {
     setRegenerating(true)
     try {
       const supabase = createBrowserSupabaseClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       if (!session) return
 
       const res = await fetch('/api/slides/generate-thumbnails', {
@@ -219,7 +229,9 @@ export default function SlideLibraryPage() {
         if (data.results) {
           setSlides((prev) =>
             prev.map((s) => {
-              const result = data.results.find((r: { slideId: string; thumbnailUrl: string | null }) => r.slideId === s.id)
+              const result = data.results.find(
+                (r: { slideId: string; thumbnailUrl: string | null }) => r.slideId === s.id
+              )
               if (result?.thumbnailUrl) {
                 return { ...s, thumbnail_url: result.thumbnailUrl }
               }
@@ -249,7 +261,9 @@ export default function SlideLibraryPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">{t('admin.slide_library')}</h1>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">
+            {t('admin.slide_library')}
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {t('admin.slide_library_description')}
           </p>
@@ -260,13 +274,15 @@ export default function SlideLibraryPage() {
               <ImageIcon className="mr-2 h-4 w-4" />
               {regenerating
                 ? t('admin.regenerating_thumbnails', 'Generating…')
-                : t('admin.regenerate_thumbnails', { count: missingThumbnailCount, defaultValue: `Regenerate thumbnails (${missingThumbnailCount})` })
-              }
+                : t('admin.regenerate_thumbnails', {
+                    count: missingThumbnailCount,
+                    defaultValue: `Regenerate thumbnails (${missingThumbnailCount})`,
+                  })}
             </Button>
           )}
           <Button onClick={() => setUploadOpen(true)}>
             <Upload className="mr-2 h-4 w-4" />
-            {t('admin.upload_slide')}
+            {t('admin.upload_presentations')}
           </Button>
         </div>
       </div>
@@ -274,10 +290,18 @@ export default function SlideLibraryPage() {
       {/* Filter tabs */}
       <Tabs value={filter} onValueChange={(v) => setFilter(v as StatusFilter)}>
         <TabsList>
-          <TabsTrigger value="all">{t('admin.all')} ({counts.all})</TabsTrigger>
-          <TabsTrigger value="standard">{t('admin.standard')} ({counts.standard})</TabsTrigger>
-          <TabsTrigger value="mandatory">{t('admin.mandatory')} ({counts.mandatory})</TabsTrigger>
-          <TabsTrigger value="deprecated">{t('admin.deprecated')} ({counts.deprecated})</TabsTrigger>
+          <TabsTrigger value="all">
+            {t('admin.all')} ({counts.all})
+          </TabsTrigger>
+          <TabsTrigger value="standard">
+            {t('admin.standard')} ({counts.standard})
+          </TabsTrigger>
+          <TabsTrigger value="mandatory">
+            {t('admin.mandatory')} ({counts.mandatory})
+          </TabsTrigger>
+          <TabsTrigger value="deprecated">
+            {t('admin.deprecated')} ({counts.deprecated})
+          </TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -292,28 +316,22 @@ export default function SlideLibraryPage() {
             <CheckSquare className="mr-2 h-4 w-4" />
             {selected.size === filtered.length && filtered.length > 0
               ? t('admin.deselect_all', 'Deselect all')
-              : t('admin.select_all', 'Select all')
-            }
+              : t('admin.select_all', 'Select all')}
           </Button>
 
           {selected.size > 0 && (
             <>
               <span className="text-sm text-muted-foreground">
-                {t('admin.slides_selected', { count: selected.size, defaultValue: `${selected.size} selected` })}
+                {t('admin.slides_selected', {
+                  count: selected.size,
+                  defaultValue: `${selected.size} selected`,
+                })}
               </span>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setBulkDeleteConfirm(true)}
-              >
+              <Button variant="destructive" size="sm" onClick={() => setBulkDeleteConfirm(true)}>
                 <Trash2 className="mr-2 h-4 w-4" />
                 {t('admin.delete_selected', 'Delete selected')}
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelected(new Set())}
-              >
+              <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
                 <X className="mr-2 h-4 w-4" />
                 {t('admin.clear_selection', 'Clear')}
               </Button>
@@ -332,8 +350,7 @@ export default function SlideLibraryPage() {
               : t('admin.thumbnails_pending_banner', {
                   count: pendingThumbnails.length,
                   defaultValue: `${pendingThumbnails.length} thumbnail${pendingThumbnails.length !== 1 ? 's' : ''} are being generated. They will appear automatically.`,
-                })
-            }
+                })}
           </p>
         </div>
       )}
@@ -354,17 +371,22 @@ export default function SlideLibraryPage() {
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
           <p className="text-sm font-medium text-muted-foreground">
-            {filter === 'all' ? t('admin.no_slides_yet') : t('admin.no_filtered_slides', { filter })}
+            {filter === 'all'
+              ? t('admin.no_slides_yet')
+              : t('admin.no_filtered_slides', { filter })}
           </p>
           {filter === 'all' && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t('admin.upload_first_pptx')}
-            </p>
+            <p className="mt-1 text-xs text-muted-foreground">{t('admin.upload_first_pptx')}</p>
           )}
           {filter === 'all' && (
-            <Button variant="outline" size="sm" className="mt-4" onClick={() => setUploadOpen(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              onClick={() => setUploadOpen(true)}
+            >
               <Upload className="mr-2 h-4 w-4" />
-              {t('admin.upload_slide')}
+              {t('admin.upload_presentations')}
             </Button>
           )}
         </div>
@@ -424,7 +446,6 @@ export default function SlideLibraryPage() {
           onClose={() => setUploadOpen(false)}
           onUploaded={(slide) => {
             setSlides((prev) => [slide, ...prev])
-            setUploadOpen(false)
           }}
         />
       )}
@@ -466,10 +487,16 @@ export default function SlideLibraryPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t('admin.bulk_delete_confirm', { count: selected.size, defaultValue: `Delete ${selected.size} slides?` })}
+              {t('admin.bulk_delete_confirm', {
+                count: selected.size,
+                defaultValue: `Delete ${selected.size} slides?`,
+              })}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {t('admin.bulk_delete_message', 'This action cannot be undone. Slides that are used in projects cannot be deleted.')}
+              {t(
+                'admin.bulk_delete_message',
+                'This action cannot be undone. Slides that are used in projects cannot be deleted.'
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -483,8 +510,10 @@ export default function SlideLibraryPage() {
             >
               {bulkDeleting
                 ? t('admin.deleting', 'Deleting…')
-                : t('admin.delete_slides_button', { count: selected.size, defaultValue: `Delete ${selected.size} slides` })
-              }
+                : t('admin.delete_slides_button', {
+                    count: selected.size,
+                    defaultValue: `Delete ${selected.size} slides`,
+                  })}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

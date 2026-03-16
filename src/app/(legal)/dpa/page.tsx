@@ -15,7 +15,10 @@ export default function DpaPage() {
       <LegalSection heading={t('legal.dpa_intro')} body={t('legal.dpa_intro_text')} />
       <LegalSection heading={t('legal.dpa_scope')} body={t('legal.dpa_scope_text')} />
       <LegalSection heading={t('legal.dpa_toms')} body={t('legal.dpa_toms_text')} />
-      <LegalSection heading={t('legal.dpa_subprocessors')} body={t('legal.dpa_subprocessors_text')} />
+      <LegalSection
+        heading={t('legal.dpa_subprocessors')}
+        body={t('legal.dpa_subprocessors_text')}
+      />
 
       {/* Download card */}
       <Card className="border-primary/20 bg-primary/5">

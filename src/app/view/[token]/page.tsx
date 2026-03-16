@@ -122,15 +122,17 @@ export default async function ViewPage({ params }: { params: Params }) {
     reqHeaders.get('x-real-ip') ??
     'unknown'
   const dailySalt = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
-  const ipHash = crypto
-    .createHash('sha256')
-    .update(`${visitorIp}:${dailySalt}`)
-    .digest('hex')
+  const ipHash = crypto.createHash('sha256').update(`${visitorIp}:${dailySalt}`).digest('hex')
 
   supabase
     .from('share_link_accesses')
     .insert({ share_link_id: link.id, ip_hash: ipHash })
-    .then(() => {}, (err: unknown) => { console.error('[view] access insert failed', err) })
+    .then(
+      () => {},
+      (err: unknown) => {
+        console.error('[view] access insert failed', err)
+      }
+    )
 
   // 7. Render viewer
   return (

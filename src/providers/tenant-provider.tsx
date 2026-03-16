@@ -1,13 +1,6 @@
 'use client'
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from 'react'
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
 
 // ---------------------------------------------------------------------------
@@ -112,8 +105,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
         )
       }
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to load tenant data'
+      const message = err instanceof Error ? err.message : 'Failed to load tenant data'
       setError(message)
       setUserData(null)
     } finally {
@@ -164,9 +156,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     refresh: fetchTenantData,
   }
 
-  return (
-    <TenantContext.Provider value={value}>{children}</TenantContext.Provider>
-  )
+  return <TenantContext.Provider value={value}>{children}</TenantContext.Provider>
 }
 
 // ---------------------------------------------------------------------------

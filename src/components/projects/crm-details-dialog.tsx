@@ -23,7 +23,11 @@ interface CrmDetailsDialogProps {
   initialCustomerName: string
   initialCompanyName: string
   initialDealId: string
-  onSaved: (fields: { crm_customer_name: string; crm_company_name: string; crm_deal_id: string }) => void
+  onSaved: (fields: {
+    crm_customer_name: string
+    crm_company_name: string
+    crm_deal_id: string
+  }) => void
 }
 
 export function CrmDetailsDialog({
@@ -49,7 +53,9 @@ export function CrmDetailsDialog({
 
     try {
       const supabase = createBrowserSupabaseClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       if (!session) throw new Error('Not authenticated')
 
       const res = await fetch(`/api/projects/${projectId}`, {
@@ -84,7 +90,12 @@ export function CrmDetailsDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) onClose()
+      }}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t('crm.dialog_title')}</DialogTitle>
@@ -125,9 +136,7 @@ export function CrmDetailsDialog({
             />
           </div>
 
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+          {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
 
         <DialogFooter>

@@ -20,7 +20,7 @@ interface SimulatedShareDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-const FAKE_LINK = 'https://app.deckr.studio/view/demo-abc123'
+const FAKE_LINK = 'https://app.onslide.io/view/demo-abc123'
 
 export function SimulatedShareDialog({ open, onOpenChange }: SimulatedShareDialogProps) {
   const { t } = useTranslation()
@@ -35,25 +35,24 @@ export function SimulatedShareDialog({ open, onOpenChange }: SimulatedShareDialo
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); setCopied(false) }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        onOpenChange(v)
+        setCopied(false)
+      }}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
             <Link2 className="h-6 w-6 text-blue-600 dark:text-blue-400" />
           </div>
           <DialogTitle className="text-center">{t('demo.share_link_created')}</DialogTitle>
-          <DialogDescription className="text-center">
-            {t('demo.share_link_desc')}
-          </DialogDescription>
+          <DialogDescription className="text-center">{t('demo.share_link_desc')}</DialogDescription>
         </DialogHeader>
 
         <div className="flex items-center gap-2">
-          <Input
-            readOnly
-            value={FAKE_LINK}
-            className="flex-1 text-sm"
-            aria-label="Share link"
-          />
+          <Input readOnly value={FAKE_LINK} className="flex-1 text-sm" aria-label="Share link" />
           <Button
             variant="outline"
             size="icon"
@@ -68,9 +67,7 @@ export function SimulatedShareDialog({ open, onOpenChange }: SimulatedShareDialo
           </Button>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground">
-          {t('demo.demo_share_notice')}
-        </p>
+        <p className="text-center text-xs text-muted-foreground">{t('demo.demo_share_notice')}</p>
 
         <DialogFooter className="flex-col gap-2 sm:flex-col">
           <Button asChild className="w-full">

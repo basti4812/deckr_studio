@@ -6,17 +6,8 @@ import { Activity, Check, ChevronsUpDown, X } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Command,
-  CommandGroup,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Select,
   SelectContent,
@@ -33,12 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import { ALL_EVENT_TYPES, type ActivityEventType } from '@/lib/activity-log'
 
@@ -83,7 +69,9 @@ interface TeamMember {
 
 async function getAccessToken(): Promise<string | null> {
   const supabase = createBrowserSupabaseClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
   return session?.access_token ?? null
 }
 
@@ -122,12 +110,18 @@ function formatExact(dateStr: string): string {
 }
 
 function eventBadgeClass(eventType: ActivityEventType): string {
-  if (eventType.startsWith('slide.')) return 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
-  if (eventType.startsWith('template_set.')) return 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
-  if (eventType.startsWith('project.')) return 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300'
-  if (eventType.startsWith('user.')) return 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
-  if (eventType.startsWith('subscription.')) return 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300'
-  if (eventType.startsWith('share_link.')) return 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300'
+  if (eventType.startsWith('slide.'))
+    return 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+  if (eventType.startsWith('template_set.'))
+    return 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
+  if (eventType.startsWith('project.'))
+    return 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300'
+  if (eventType.startsWith('user.'))
+    return 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+  if (eventType.startsWith('subscription.'))
+    return 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300'
+  if (eventType.startsWith('share_link.'))
+    return 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300'
   return 'bg-muted text-muted-foreground'
 }
 
@@ -193,9 +187,7 @@ function EventTypeMultiSelect({ selected, onChange }: EventTypeMultiSelectProps)
                     className="pointer-events-none"
                   />
                   <span className="text-sm">{t(eventI18nKey(et))}</span>
-                  {selected.includes(et) && (
-                    <Check className="ml-auto h-3.5 w-3.5 shrink-0" />
-                  )}
+                  {selected.includes(et) && <Check className="ml-auto h-3.5 w-3.5 shrink-0" />}
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -216,7 +208,12 @@ export default function ActivityLogPage() {
   const [selectedEventTypes, setSelectedEventTypes] = useState<ActivityEventType[]>([])
   const [selectedActorId, setSelectedActorId] = useState<string>('')
   const [logs, setLogs] = useState<ActivityLogEntry[]>([])
-  const [pagination, setPagination] = useState<Pagination>({ page: 1, pageSize: 20, total: 0, totalPages: 0 })
+  const [pagination, setPagination] = useState<Pagination>({
+    page: 1,
+    pageSize: 20,
+    total: 0,
+    totalPages: 0,
+  })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
@@ -229,47 +226,52 @@ export default function ActivityLogPage() {
       if (res.ok) {
         const data = await res.json()
         setTeamMembers(
-          (data.members ?? []).map((m: { id: string; display_name: string | null; email: string }) => ({
-            id: m.id,
-            display_name: m.display_name,
-            email: m.email,
-          }))
+          (data.members ?? []).map(
+            (m: { id: string; display_name: string | null; email: string }) => ({
+              id: m.id,
+              display_name: m.display_name,
+              email: m.email,
+            })
+          )
         )
       }
     }
     fetchTeam()
   }, [])
 
-  const fetchLogs = useCallback(async (page: number) => {
-    const token = await getAccessToken()
-    if (!token) return
+  const fetchLogs = useCallback(
+    async (page: number) => {
+      const token = await getAccessToken()
+      if (!token) return
 
-    setLoading(true)
-    setError(null)
+      setLoading(true)
+      setError(null)
 
-    try {
-      const params = new URLSearchParams({ page: String(page) })
-      if (selectedEventTypes.length > 0) params.set('event_types', selectedEventTypes.join(','))
-      if (selectedActorId) params.set('actor_id', selectedActorId)
+      try {
+        const params = new URLSearchParams({ page: String(page) })
+        if (selectedEventTypes.length > 0) params.set('event_types', selectedEventTypes.join(','))
+        if (selectedActorId) params.set('actor_id', selectedActorId)
 
-      const res = await fetch(`/api/activity-logs?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+        const res = await fetch(`/api/activity-logs?${params}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
 
-      if (!res.ok) {
+        if (!res.ok) {
+          const data = await res.json()
+          throw new Error(data.error ?? 'Failed to fetch logs')
+        }
+
         const data = await res.json()
-        throw new Error(data.error ?? 'Failed to fetch logs')
+        setLogs(data.logs ?? [])
+        setPagination(data.pagination ?? { page: 1, pageSize: 20, total: 0, totalPages: 0 })
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load activity log')
+      } finally {
+        setLoading(false)
       }
-
-      const data = await res.json()
-      setLogs(data.logs ?? [])
-      setPagination(data.pagination ?? { page: 1, pageSize: 20, total: 0, totalPages: 0 })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load activity log')
-    } finally {
-      setLoading(false)
-    }
-  }, [selectedEventTypes, selectedActorId])
+    },
+    [selectedEventTypes, selectedActorId]
+  )
 
   useEffect(() => {
     fetchLogs(1)
@@ -281,16 +283,15 @@ export default function ActivityLogPage() {
     <TooltipProvider>
       {/* Page Header */}
       <div className="flex flex-col gap-1">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">{t('admin.activity_log')}</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">
+          {t('admin.activity_log')}
+        </h1>
         <p className="text-sm text-muted-foreground">{t('admin.activity_log_description')}</p>
       </div>
 
       {/* Filter Bar */}
       <div className="flex flex-wrap items-center gap-3">
-        <EventTypeMultiSelect
-          selected={selectedEventTypes}
-          onChange={setSelectedEventTypes}
-        />
+        <EventTypeMultiSelect selected={selectedEventTypes} onChange={setSelectedEventTypes} />
 
         <Select
           value={selectedActorId || '__all__'}
@@ -314,7 +315,10 @@ export default function ActivityLogPage() {
             variant="ghost"
             size="sm"
             className="h-8"
-            onClick={() => { setSelectedEventTypes([]); setSelectedActorId('') }}
+            onClick={() => {
+              setSelectedEventTypes([])
+              setSelectedActorId('')
+            }}
           >
             <X className="mr-1.5 h-3.5 w-3.5" />
             {t('admin.activity_clear_filters')}
@@ -332,7 +336,12 @@ export default function ActivityLogPage() {
       {error && (
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
           {error}
-          <Button variant="ghost" size="sm" className="ml-2" onClick={() => fetchLogs(pagination.page)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-2"
+            onClick={() => fetchLogs(pagination.page)}
+          >
             Retry
           </Button>
         </div>
@@ -359,9 +368,15 @@ export default function ActivityLogPage() {
                       <Skeleton className="h-4 w-28" />
                     </div>
                   </TableCell>
-                  <TableCell><Skeleton className="h-5 w-32 rounded-full" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-                  <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-14" /></TableCell>
+                  <TableCell>
+                    <Skeleton className="h-5 w-32 rounded-full" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-40" />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Skeleton className="ml-auto h-4 w-14" />
+                  </TableCell>
                 </TableRow>
               ))
             ) : logs.length === 0 ? (
@@ -369,15 +384,17 @@ export default function ActivityLogPage() {
                 <TableCell colSpan={4}>
                   <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
                     <Activity className="h-8 w-8 text-muted-foreground/40" />
-                    <p className="text-sm font-medium text-muted-foreground">{t('admin.activity_no_activity')}</p>
-                    <p className="text-xs text-muted-foreground/70">{t('admin.activity_no_activity_desc')}</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {t('admin.activity_no_activity')}
+                    </p>
+                    <p className="text-xs text-muted-foreground/70">
+                      {t('admin.activity_no_activity_desc')}
+                    </p>
                   </div>
                 </TableCell>
               </TableRow>
             ) : (
-              logs.map((entry) => (
-                <ActivityLogRow key={entry.id} entry={entry} />
-              ))
+              logs.map((entry) => <ActivityLogRow key={entry.id} entry={entry} />)
             )}
           </TableBody>
         </Table>
@@ -435,7 +452,9 @@ function ActivityLogRow({ entry }: { entry: ActivityLogEntry }) {
       </TableCell>
 
       <TableCell>
-        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${eventBadgeClass(entry.event_type)}`}>
+        <span
+          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${eventBadgeClass(entry.event_type)}`}
+        >
           {t(eventI18nKey(entry.event_type))}
         </span>
       </TableCell>

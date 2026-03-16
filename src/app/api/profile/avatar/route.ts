@@ -22,7 +22,9 @@ export async function POST(request: NextRequest) {
   if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
 
   let formData: FormData
-  try { formData = await request.formData() } catch {
+  try {
+    formData = await request.formData()
+  } catch {
     return NextResponse.json({ error: 'Invalid form data' }, { status: 400 })
   }
 
@@ -32,7 +34,10 @@ export async function POST(request: NextRequest) {
   }
 
   if (!ALLOWED_TYPES.includes(file.type)) {
-    return NextResponse.json({ error: 'Only JPEG, PNG, and WebP images are allowed' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'Only JPEG, PNG, and WebP images are allowed' },
+      { status: 400 }
+    )
   }
   if (file.size > MAX_SIZE) {
     return NextResponse.json({ error: 'Image must be smaller than 5 MB' }, { status: 400 })
@@ -66,7 +71,10 @@ export async function POST(request: NextRequest) {
     (file.type === 'image/webp' && isWebp)
 
   if (!validSignature) {
-    return NextResponse.json({ error: 'File content does not match the declared image type' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'File content does not match the declared image type' },
+      { status: 400 }
+    )
   }
 
   const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
@@ -96,7 +104,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Upload failed. Please try again.' }, { status: 500 })
   }
 
-  const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(storagePath)
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from('avatars').getPublicUrl(storagePath)
   const cacheBustedUrl = `${publicUrl}?t=${Date.now()}`
 
   const { error: dbError } = await supabase
@@ -135,10 +145,7 @@ export async function DELETE(request: NextRequest) {
     await supabase.storage.from('avatars').remove(paths)
   }
 
-  const { error } = await supabase
-    .from('users')
-    .update({ avatar_url: null })
-    .eq('id', user.id)
+  const { error } = await supabase.from('users').update({ avatar_url: null }).eq('id', user.id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

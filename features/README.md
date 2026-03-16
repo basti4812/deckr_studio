@@ -3,9 +3,11 @@
 Dieser Ordner enthält detaillierte Feature Specs vom Requirements Engineer.
 
 ## Naming Convention
+
 `PROJ-X-feature-name.md`
 
 Beispiele:
+
 - `PROJ-1-user-authentication.md`
 - `PROJ-2-kanban-board.md`
 - `PROJ-3-file-attachments.md`
@@ -13,13 +15,17 @@ Beispiele:
 ## Was gehört in eine Feature Spec?
 
 ### 1. User Stories
+
 Beschreibe, was der User tun möchte:
+
 ```markdown
 Als [User-Typ] möchte ich [Aktion] um [Ziel zu erreichen]
 ```
 
 ### 2. Acceptance Criteria
+
 Konkrete, testbare Kriterien:
+
 ```markdown
 - [ ] User kann Email + Passwort eingeben
 - [ ] Passwort muss mindestens 8 Zeichen lang sein
@@ -27,7 +33,9 @@ Konkrete, testbare Kriterien:
 ```
 
 ### 3. Edge Cases
+
 Was passiert bei unerwarteten Situationen:
+
 ```markdown
 - Was passiert bei doppelter Email?
 - Was passiert bei Netzwerkfehler?
@@ -35,18 +43,23 @@ Was passiert bei unerwarteten Situationen:
 ```
 
 ### 4. Tech Design (vom Solution Architect)
+
 ```markdown
 ## Database Schema
+
 CREATE TABLE tasks (...);
 
 ## Component Architecture
+
 ProjectDashboard
 ├── ProjectList
-│   └── ProjectCard
+│ └── ProjectCard
 ```
 
 ### 5. QA Test Results (vom QA Engineer)
+
 Am Ende des Feature-Dokuments fügt QA die Test-Ergebnisse hinzu:
+
 ```markdown
 ---
 
@@ -56,12 +69,15 @@ Am Ende des Feature-Dokuments fügt QA die Test-Ergebnisse hinzu:
 **App URL:** http://localhost:3000
 
 ### Acceptance Criteria Status
+
 - [x] AC-1: User kann Email + Passwort eingeben
 - [x] AC-2: Passwort mindestens 8 Zeichen
 - [ ] ❌ BUG: Doppelte Email wird nicht abgelehnt
 
 ### Bugs Found
+
 **BUG-1: Doppelte Email-Registrierung**
+
 - **Severity:** High
 - **Steps to Reproduce:** 1. Register with email, 2. Try again with same email
 - **Expected:** Error message
@@ -69,6 +85,7 @@ Am Ende des Feature-Dokuments fügt QA die Test-Ergebnisse hinzu:
 ```
 
 ### 6. Deployment Status (vom DevOps Engineer)
+
 ```markdown
 ---
 
@@ -93,6 +110,7 @@ Am Ende des Feature-Dokuments fügt QA die Test-Ergebnisse hinzu:
 ## Status-Tracking
 
 Feature-Status wird direkt im Feature-Dokument getrackt:
+
 ```markdown
 # PROJ-1: Feature Name
 
@@ -102,11 +120,13 @@ Feature-Status wird direkt im Feature-Dokument getrackt:
 ```
 
 **Status-Bedeutung:**
+
 - 🔵 Planned – Requirements sind geschrieben, ready for development
 - 🟡 In Progress – Wird gerade gebaut
 - ✅ Deployed – Live in Production
 
 **Git als Single Source of Truth:**
+
 - Alle Implementierungs-Details sind in Git Commits
 - `git log --grep="PROJ-1"` zeigt alle Änderungen für dieses Feature
 - Keine separate FEATURE_CHANGELOG.md nötig!

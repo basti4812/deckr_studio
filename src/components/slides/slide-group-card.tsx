@@ -61,10 +61,14 @@ export function SlideGroupCard({
         {/* Status summary */}
         <div className="flex items-center gap-2">
           {slides.some((s) => s.status === 'mandatory') && (
-            <Badge variant="default" className="text-xs">Mandatory</Badge>
+            <Badge variant="default" className="text-xs">
+              Mandatory
+            </Badge>
           )}
           {slides.some((s) => s.status === 'deprecated') && (
-            <Badge variant="destructive" className="text-xs">Deprecated</Badge>
+            <Badge variant="destructive" className="text-xs">
+              Deprecated
+            </Badge>
           )}
         </div>
 

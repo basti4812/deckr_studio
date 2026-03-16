@@ -1,22 +1,26 @@
 # PROJ-7: Public Interactive Demo
 
 ## Status: Deployed
+
 **Created:** 2026-02-25
 **Last Updated:** 2026-02-25
 
 ## Dependencies
+
 - Requires: PROJ-15 (Slide Library Management) — demo simulates library browsing
 - Requires: PROJ-18 (Board Canvas) — demo shows the board
 - Requires: PROJ-21 (Project Tray) — demo shows tray interaction
 - Requires: PROJ-5 (Landing Page) — demo is linked from landing page
 
 ## User Stories
+
 - As a visitor, I want to try the app without registering so that I can evaluate it before committing
 - As a visitor, I want to experience the full core workflow (browse slides, assemble a project, preview, trigger export) so that I understand the product value
 - As a visitor, I want to see a clear banner indicating this is a demo so that I understand the context
 - As a visitor, I want to be prompted to sign up after trying the demo so that converting is frictionless
 
 ## Acceptance Criteria
+
 - [ ] Demo is accessible at `/demo` with no login required
 - [ ] Demo uses pre-loaded, read-only example data: a fictional company with 10–15 slides, 2 template sets, and 1 sample project
 - [ ] All core interactions work: browsing the board, dragging slides into the tray, reordering the tray, previewing a slide
@@ -29,18 +33,21 @@
 - [ ] Demo session is stateless: refreshing the page resets all interactions to the initial demo state
 
 ## Edge Cases
+
 - What if a logged-in user visits /demo? → Demo is shown normally; their account session is not used inside the demo
 - What if a visitor tries to navigate to a non-demo app URL? → Redirect to /demo or /login
 - What if the demo data needs to be updated (new example slides)? → Admin updates the demo tenant's data via a seeding script; no UI needed
 - What if two visitors use the demo simultaneously? → No conflict; demo is always read-only and stateless per session
 
 ## Technical Requirements
+
 - Demo data is loaded from a fixed, read-only data source (either hardcoded JSON or a dedicated "demo" tenant in the database with a special flag)
 - No Supabase writes occur during a demo session
 - Demo mode is detected via route (`/demo`) and a context flag, disabling all write operations
 - No real emails are sent from demo interactions
 
 ---
+
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
@@ -107,19 +114,21 @@ No special handling needed. The demo page is outside the `(app)` route group, so
 
 ### New Files
 
-| File | Purpose |
-|------|---------|
-| `src/app/demo/page.tsx` | Public page — sets metadata, renders DemoBoard |
-| `src/components/demo/demo-board.tsx` | Interactive client component — all demo state |
-| `src/components/demo/demo-banner.tsx` | Sticky top banner with CTA |
-| `src/components/demo/simulated-export-dialog.tsx` | Fake export success dialog |
-| `src/components/demo/simulated-share-dialog.tsx` | Fake share link dialog |
-| `src/lib/demo-data.ts` | Hardcoded slides, groups, and tray data |
+| File                                              | Purpose                                        |
+| ------------------------------------------------- | ---------------------------------------------- |
+| `src/app/demo/page.tsx`                           | Public page — sets metadata, renders DemoBoard |
+| `src/components/demo/demo-board.tsx`              | Interactive client component — all demo state  |
+| `src/components/demo/demo-banner.tsx`             | Sticky top banner with CTA                     |
+| `src/components/demo/simulated-export-dialog.tsx` | Fake export success dialog                     |
+| `src/components/demo/simulated-share-dialog.tsx`  | Fake share link dialog                         |
+| `src/lib/demo-data.ts`                            | Hardcoded slides, groups, and tray data        |
 
 ### Modified Files
+
 None — the demo is fully additive.
 
 ### No New Packages
+
 All shadcn/ui components needed (Dialog, Badge, Button, Input, Tooltip) are already installed.
 
 ## QA Test Results
@@ -130,48 +139,49 @@ All shadcn/ui components needed (Dialog, Badge, Button, Input, Tooltip) are alre
 
 ### Acceptance Criteria Status
 
-| AC | Description | Result |
-|----|-------------|--------|
-| AC-1 | Demo accessible at `/demo` with no login | PASS -- public route, outside `(app)` group |
-| AC-2 | Pre-loaded read-only data (10-15 slides, 2 groups, 1 sample project) | PASS -- 15 slides, 2 groups, 3 pre-loaded tray items |
-| AC-3 | Core interactions (browse, drag-to-tray, reorder, preview) | PASS -- CanvasSlideCard + dnd-kit + DemoPresentationMode |
-| AC-4 | Export shows simulated success (no real file) | PASS -- SimulatedExportDialog |
-| AC-5 | Share shows simulated link (no real link/emails) | PASS -- SimulatedShareDialog |
-| AC-6 | Slide library is read-only (no upload/delete/edit) | PASS -- no admin controls rendered |
-| AC-7 | Persistent banner with demo text + CTA | PASS -- sticky banner, z-50 |
-| AC-8 | Demo CTA button visible at all times | PASS -- in sticky banner |
-| AC-9 | Demo data hardcoded, never modified by visitors | PASS -- TypeScript constants, zero API calls |
-| AC-10 | Stateless session (refresh resets) | PASS -- all React useState |
+| AC    | Description                                                          | Result                                                   |
+| ----- | -------------------------------------------------------------------- | -------------------------------------------------------- |
+| AC-1  | Demo accessible at `/demo` with no login                             | PASS -- public route, outside `(app)` group              |
+| AC-2  | Pre-loaded read-only data (10-15 slides, 2 groups, 1 sample project) | PASS -- 15 slides, 2 groups, 3 pre-loaded tray items     |
+| AC-3  | Core interactions (browse, drag-to-tray, reorder, preview)           | PASS -- CanvasSlideCard + dnd-kit + DemoPresentationMode |
+| AC-4  | Export shows simulated success (no real file)                        | PASS -- SimulatedExportDialog                            |
+| AC-5  | Share shows simulated link (no real link/emails)                     | PASS -- SimulatedShareDialog                             |
+| AC-6  | Slide library is read-only (no upload/delete/edit)                   | PASS -- no admin controls rendered                       |
+| AC-7  | Persistent banner with demo text + CTA                               | PASS -- sticky banner, z-50                              |
+| AC-8  | Demo CTA button visible at all times                                 | PASS -- in sticky banner                                 |
+| AC-9  | Demo data hardcoded, never modified by visitors                      | PASS -- TypeScript constants, zero API calls             |
+| AC-10 | Stateless session (refresh resets)                                   | PASS -- all React useState                               |
 
 ### Edge Cases Status
 
-| EC | Description | Result |
-|----|-------------|--------|
-| EC-1 | Logged-in user visits /demo | PASS -- demo ignores session |
+| EC   | Description                       | Result                                 |
+| ---- | --------------------------------- | -------------------------------------- |
+| EC-1 | Logged-in user visits /demo       | PASS -- demo ignores session           |
 | EC-2 | Visitor navigates to non-demo URL | PASS -- middleware redirects to /login |
-| EC-3 | Demo data updates | PASS -- edit demo-data.ts |
-| EC-4 | Simultaneous visitors | PASS -- all state client-side |
+| EC-3 | Demo data updates                 | PASS -- edit demo-data.ts              |
+| EC-4 | Simultaneous visitors             | PASS -- all state client-side          |
 
 ### Security Audit
 
-| Check | Result |
-|-------|--------|
-| Auth bypass | PASS -- `/demo` correctly public |
-| Data leaks | PASS -- zero real tenant data |
-| XSS | PASS -- search filters in-memory, no HTML rendering |
-| Exposed secrets | PASS -- no API keys/credentials in demo code |
-| Rate limiting | N/A -- no API calls |
+| Check           | Result                                              |
+| --------------- | --------------------------------------------------- |
+| Auth bypass     | PASS -- `/demo` correctly public                    |
+| Data leaks      | PASS -- zero real tenant data                       |
+| XSS             | PASS -- search filters in-memory, no HTML rendering |
+| Exposed secrets | PASS -- no API keys/credentials in demo code        |
+| Rate limiting   | N/A -- no API calls                                 |
 
 ### Bugs Found
 
-| Bug | Severity | Status |
-|-----|----------|--------|
-| BUG-1: Banner CTA says "Create your free account" vs spec "Start your free trial" | Low | ACCEPTED -- spec ambiguity (AC-7 vs AC-8 contradict); "Create your free account" matches B2B model |
-| BUG-2: `let` used for `useRef` | Low | FIXED -- changed to `const` |
-| BUG-3: Demo doesn't showcase template sets | Medium | DEFERRED -- spec says "2 template sets" but 2 slide groups serve same demo purpose; template set picker adds significant complexity for marginal demo value |
-| BUG-4: Tray too wide on 375px mobile | Medium | FIXED -- tray starts collapsed on viewports < 768px |
+| Bug                                                                               | Severity | Status                                                                                                                                                      |
+| --------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| BUG-1: Banner CTA says "Create your free account" vs spec "Start your free trial" | Low      | ACCEPTED -- spec ambiguity (AC-7 vs AC-8 contradict); "Create your free account" matches B2B model                                                          |
+| BUG-2: `let` used for `useRef`                                                    | Low      | FIXED -- changed to `const`                                                                                                                                 |
+| BUG-3: Demo doesn't showcase template sets                                        | Medium   | DEFERRED -- spec says "2 template sets" but 2 slide groups serve same demo purpose; template set picker adds significant complexity for marginal demo value |
+| BUG-4: Tray too wide on 375px mobile                                              | Medium   | FIXED -- tray starts collapsed on viewports < 768px                                                                                                         |
 
 ### Summary
+
 - **Acceptance Criteria:** 10/10 passed
 - **Edge Cases:** 4/4 passed
 - **Bugs Found:** 4 total -- 2 fixed, 1 accepted, 1 deferred
@@ -180,4 +190,5 @@ All shadcn/ui components needed (Dialog, Badge, Button, Input, Tooltip) are alre
 - **Production Ready:** YES
 
 ## Deployment
+
 _To be added by /deploy_

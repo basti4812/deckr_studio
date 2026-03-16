@@ -40,23 +40,16 @@ export function useCanvasDrag({ zoom, panX, panY, onDragEnd }: UseCanvasDragOpti
   /**
    * Convert a screen-space pointer position to canvas-space coordinates.
    */
-  const screenToCanvas = useCallback(
-    (screenX: number, screenY: number, containerRect: DOMRect) => {
-      const relX = screenX - containerRect.left
-      const relY = screenY - containerRect.top
-      const canvasX = (relX - panRef.current.x) / zoomRef.current
-      const canvasY = (relY - panRef.current.y) / zoomRef.current
-      return { canvasX, canvasY }
-    },
-    []
-  )
+  const screenToCanvas = useCallback((screenX: number, screenY: number, containerRect: DOMRect) => {
+    const relX = screenX - containerRect.left
+    const relY = screenY - containerRect.top
+    const canvasX = (relX - panRef.current.x) / zoomRef.current
+    const canvasY = (relY - panRef.current.y) / zoomRef.current
+    return { canvasX, canvasY }
+  }, [])
 
   const startDrag = useCallback(
-    (
-      e: React.PointerEvent,
-      target: DragTarget,
-      containerRect: DOMRect
-    ) => {
+    (e: React.PointerEvent, target: DragTarget, containerRect: DOMRect) => {
       e.stopPropagation()
       e.preventDefault()
 

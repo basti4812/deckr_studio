@@ -75,10 +75,7 @@ export async function GET(request: NextRequest) {
   const { data, error, count } = await query
 
   if (error) {
-    return NextResponse.json(
-      { error: 'Failed to fetch activity logs' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to fetch activity logs' }, { status: 500 })
   }
 
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE)

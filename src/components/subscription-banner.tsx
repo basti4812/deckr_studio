@@ -21,7 +21,9 @@ export function SubscriptionBanner() {
 
     async function load() {
       const supabase = createBrowserSupabaseClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       if (!session) return
 
       const res = await fetch('/api/subscription', {
@@ -48,7 +50,7 @@ export function SubscriptionBanner() {
         <div className="flex items-center justify-between gap-4 border-b bg-destructive/10 px-4 py-2 text-sm text-destructive">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            <span>Your free trial has ended. Subscribe to continue using deckr.</span>
+            <span>Your free trial has ended. Subscribe to continue using onslide Studio.</span>
           </div>
           {isAdmin && (
             <Link
@@ -67,7 +69,10 @@ export function SubscriptionBanner() {
         <div className="flex items-center gap-2">
           <Clock className="h-4 w-4 shrink-0" />
           <span>
-            <strong>{daysRemaining} day{daysRemaining !== 1 ? 's' : ''}</strong> left in your free trial
+            <strong>
+              {daysRemaining} day{daysRemaining !== 1 ? 's' : ''}
+            </strong>{' '}
+            left in your free trial
           </span>
         </div>
         {isAdmin && (

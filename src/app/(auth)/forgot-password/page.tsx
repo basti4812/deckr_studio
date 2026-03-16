@@ -9,13 +9,7 @@ import { ArrowLeft, CheckCircle, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Form,
   FormControl,
@@ -92,9 +86,7 @@ export default function ForgotPasswordPage() {
           <CardTitle>{t('auth.check_email')}</CardTitle>
           <CardDescription>
             {t('auth.reset_link_sent')}{' '}
-            <span className="font-medium text-foreground">
-              {form.getValues('email')}
-            </span>
+            <span className="font-medium text-foreground">{form.getValues('email')}</span>
             {t('auth.reset_link_sent_suffix')}
           </CardDescription>
         </CardHeader>
@@ -106,9 +98,7 @@ export default function ForgotPasswordPage() {
             disabled={isSubmitting || cooldown > 0}
           >
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {cooldown > 0
-              ? t('auth.resend_in', { count: cooldown })
-              : t('auth.resend_reset_email')}
+            {cooldown > 0 ? t('auth.resend_in', { count: cooldown }) : t('auth.resend_reset_email')}
           </Button>
           <Button variant="ghost" asChild className="w-full">
             <Link href="/login">
@@ -125,9 +115,7 @@ export default function ForgotPasswordPage() {
     <Card className="w-full max-w-sm">
       <CardHeader>
         <CardTitle>{t('auth.reset_password')}</CardTitle>
-        <CardDescription>
-          {t('auth.reset_password_description')}
-        </CardDescription>
+        <CardDescription>{t('auth.reset_password_description')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {serverError && (
@@ -158,9 +146,7 @@ export default function ForgotPasswordPage() {
             />
 
             <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isSubmitting ? t('auth.sending_reset_link') : t('auth.send_reset_link')}
             </Button>
           </form>

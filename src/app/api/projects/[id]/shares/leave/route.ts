@@ -30,10 +30,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Params 
 
   if (!share) return NextResponse.json({ error: 'Share not found' }, { status: 404 })
 
-  const { error } = await supabase
-    .from('project_shares')
-    .delete()
-    .eq('id', share.id)
+  const { error } = await supabase.from('project_shares').delete().eq('id', share.id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

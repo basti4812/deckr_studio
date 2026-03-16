@@ -55,30 +55,27 @@ export async function DELETE(request: NextRequest, { params }: { params: Params 
 
   // Delete from storage
   if (slide.pptx_storage_path) {
-    await supabase.storage
-      .from('personal-slides')
-      .remove([slide.pptx_storage_path])
+    await supabase.storage.from('personal-slides').remove([slide.pptx_storage_path])
   }
 
   // Delete DB record
-  const { error } = await supabase
-    .from('project_personal_slides')
-    .delete()
-    .eq('id', slideId)
+  const { error } = await supabase.from('project_personal_slides').delete().eq('id', slideId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Clean up slide_order — remove references to the deleted personal slide
   const slideOrder = Array.isArray(project.slide_order) ? project.slide_order : []
-  interface TrayItem { id: string; slide_id: string; is_personal?: boolean; personal_slide_id?: string }
+  interface TrayItem {
+    id: string
+    slide_id: string
+    is_personal?: boolean
+    personal_slide_id?: string
+  }
   const filtered = (slideOrder as TrayItem[]).filter(
     (item) => !(item.is_personal && item.personal_slide_id === slideId)
   )
   if (filtered.length !== slideOrder.length) {
-    await supabase
-      .from('projects')
-      .update({ slide_order: filtered })
-      .eq('id', projectId)
+    await supabase.from('projects').update({ slide_order: filtered }).eq('id', projectId)
   }
 
   return NextResponse.json({ success: true })

@@ -26,7 +26,9 @@ export function PresentationMode({ slides, onExit }: PresentationModeProps) {
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onExitRef = useRef(onExit)
   const touchStartXRef = useRef<number | null>(null)
-  useEffect(() => { onExitRef.current = onExit }, [onExit])
+  useEffect(() => {
+    onExitRef.current = onExit
+  }, [onExit])
 
   // Enter fullscreen on mount; exit on unmount
   useEffect(() => {
@@ -176,7 +178,10 @@ export function PresentationMode({ slides, onExit }: PresentationModeProps) {
         <div className="pointer-events-auto flex items-center justify-between p-4">
           <button
             className="flex items-center gap-2 rounded-lg bg-black/60 px-3 py-2 text-sm text-white backdrop-blur-sm hover:bg-black/80 transition-colors"
-            onClick={(e) => { e.stopPropagation(); handleExit() }}
+            onClick={(e) => {
+              e.stopPropagation()
+              handleExit()
+            }}
             title={t('presentation.exit_tooltip')}
           >
             <X className="h-4 w-4" />
@@ -191,7 +196,10 @@ export function PresentationMode({ slides, onExit }: PresentationModeProps) {
         {currentIndex > 0 && (
           <button
             className="pointer-events-auto absolute left-4 top-1/2 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm hover:bg-black/80 transition-colors"
-            onClick={(e) => { e.stopPropagation(); setCurrentIndex((i) => i - 1) }}
+            onClick={(e) => {
+              e.stopPropagation()
+              setCurrentIndex((i) => i - 1)
+            }}
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
@@ -201,7 +209,10 @@ export function PresentationMode({ slides, onExit }: PresentationModeProps) {
         {currentIndex < slides.length - 1 && (
           <button
             className="pointer-events-auto absolute right-4 top-1/2 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm hover:bg-black/80 transition-colors"
-            onClick={(e) => { e.stopPropagation(); setCurrentIndex((i) => i + 1) }}
+            onClick={(e) => {
+              e.stopPropagation()
+              setCurrentIndex((i) => i + 1)
+            }}
           >
             <ChevronRight className="h-6 w-6" />
           </button>

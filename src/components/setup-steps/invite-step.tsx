@@ -48,7 +48,10 @@ export function InviteStep({ onComplete, onBack }: InviteStepProps) {
             id="invite-email"
             type="email"
             value={email}
-            onChange={(e) => { setEmail(e.target.value); setError(null) }}
+            onChange={(e) => {
+              setEmail(e.target.value)
+              setError(null)
+            }}
             onKeyDown={(e) => e.key === 'Enter' && addInvite()}
             placeholder={t('setup.invite_email_placeholder')}
           />
@@ -78,18 +81,14 @@ export function InviteStep({ onComplete, onBack }: InviteStepProps) {
       )}
 
       {invites.length > 0 && (
-        <p className="text-xs text-muted-foreground">
-          {t('setup.invites_coming_soon')}
-        </p>
+        <p className="text-xs text-muted-foreground">{t('setup.invites_coming_soon')}</p>
       )}
 
       <div className="flex justify-between">
         <Button variant="outline" size="sm" onClick={onBack}>
           {t('setup.back')}
         </Button>
-        <Button onClick={onComplete}>
-          {t('setup.complete_setup')}
-        </Button>
+        <Button onClick={onComplete}>{t('setup.complete_setup')}</Button>
       </div>
     </div>
   )

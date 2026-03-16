@@ -4,13 +4,7 @@ import Link from 'next/link'
 import { AlertCircle } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function SubscriptionBlockedPage() {
   const { isAdmin } = useCurrentUser()
@@ -24,8 +18,8 @@ export default function SubscriptionBlockedPage() {
           </div>
           <CardTitle>Your trial has ended</CardTitle>
           <CardDescription>
-            Your free trial period has expired or your subscription has been
-            cancelled. Subscribe to continue using deckr.
+            Your free trial period has expired or your subscription has been cancelled. Subscribe to
+            continue using onslide Studio.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">

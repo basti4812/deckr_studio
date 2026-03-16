@@ -1,20 +1,24 @@
 # PROJ-41: German/English Internationalisation
 
 ## Status: Deployed
+
 **Created:** 2026-02-25
 **Last Updated:** 2026-03-03
 
 ## Dependencies
+
 - Requires: PROJ-8 (User Profile) — language preference stored per user
 - Requires: PROJ-1 (Multi-tenancy) — default language stored per tenant
 
 ## User Stories
+
 - As a user, I want to switch the app language between German and English at any time so that I can use the language I'm most comfortable with
 - As an admin, I want to set the default language for my tenant so that new users start in the right language
 - As a user, I want all interface elements, warnings, labels, and system messages to be in my chosen language so that the experience is fully localized
 - As a user, I want my language preference to persist across sessions so that I don't have to set it on every login
 
 ## Acceptance Criteria
+
 - [ ] Language toggle visible in the navigation bar for all authenticated users: "DE" / "EN"
 - [ ] Switching language immediately re-renders the UI in the selected language (no page reload required)
 - [ ] Language preference is saved to the user's profile (PROJ-8) and persists across sessions
@@ -26,22 +30,26 @@
 - [ ] All untranslated keys fall back to English
 
 ## Edge Cases
+
 - What if a translation key is missing in German? → Fall back to the English string (no visible error)
 - What if the user changes language mid-form? → Form fields retain their values; only labels and placeholders re-render
 - What if the tenant default language changes after users have set their own preference? → User's individual preference takes priority; tenant default only applies on first login
 
 ## Technical Requirements
+
 - i18n library: `next-intl` or `react-i18next` (defined in /architecture)
 - Translation files: `public/locales/en.json`, `public/locales/de.json`
 - Language detection order: user preference → tenant default → browser language → 'en'
 - All translation strings accessed via a `t('key')` function; no hardcoded UI strings in components
 
 ---
+
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
 
 ### What's already built (no new backend work needed)
+
 - `preferred_language` stored per user in `profiles` table — API reads and writes it
 - `default_language` stored per tenant in `tenants` table
 - `TenantProvider` already exposes both `preferredLanguage` and `defaultLanguage` to all client components
@@ -108,36 +116,39 @@ Both #1 and #2 are already available via `TenantProvider`.
 
 ### New Files
 
-| File | Purpose |
-|------|---------|
-| `public/locales/en.json` | English translation dictionary (~300-400 keys) |
-| `public/locales/de.json` | German translation dictionary (same keys) |
-| `src/providers/i18n-provider.tsx` | Wraps app; initialises react-i18next with correct language |
-| `src/hooks/use-translation.ts` | Re-exports `useTranslation` for convenience |
-| `src/components/language-toggle.tsx` | "DE" / "EN" toggle in app header |
+| File                                 | Purpose                                                    |
+| ------------------------------------ | ---------------------------------------------------------- |
+| `public/locales/en.json`             | English translation dictionary (~300-400 keys)             |
+| `public/locales/de.json`             | German translation dictionary (same keys)                  |
+| `src/providers/i18n-provider.tsx`    | Wraps app; initialises react-i18next with correct language |
+| `src/hooks/use-translation.ts`       | Re-exports `useTranslation` for convenience                |
+| `src/components/language-toggle.tsx` | "DE" / "EN" toggle in app header                           |
 
 ### Modified Files
 
-| File | Change |
-|------|--------|
-| `src/app/(app)/layout.tsx` | Wrap children with `I18nProvider` |
-| `src/app/(auth)/layout.tsx` | Wrap with `I18nProvider` (login/register pages) |
-| `src/components/app-sidebar.tsx` | Replace nav labels with `t('nav.*')` |
-| All board, admin, project, profile components | Replace UI strings with `t('key')` |
+| File                                          | Change                                          |
+| --------------------------------------------- | ----------------------------------------------- |
+| `src/app/(app)/layout.tsx`                    | Wrap children with `I18nProvider`               |
+| `src/app/(auth)/layout.tsx`                   | Wrap with `I18nProvider` (login/register pages) |
+| `src/components/app-sidebar.tsx`              | Replace nav labels with `t('nav.*')`            |
+| All board, admin, project, profile components | Replace UI strings with `t('key')`              |
 
 ### Packages to Install
 
-| Package | Purpose |
-|---------|---------|
-| `react-i18next` | i18n engine for React — provides `useTranslation()` hook |
-| `i18next` | Core i18n library (required by react-i18next) |
-| `i18next-http-backend` | Loads translation JSON files from `public/locales/` |
+| Package                | Purpose                                                  |
+| ---------------------- | -------------------------------------------------------- |
+| `react-i18next`        | i18n engine for React — provides `useTranslation()` hook |
+| `i18next`              | Core i18n library (required by react-i18next)            |
+| `i18next-http-backend` | Loads translation JSON files from `public/locales/`      |
 
 ### Scale Note
+
 This feature touches every component in the app (~40 files). The bulk of the work is mechanical string extraction — identifying each hardcoded UI string, assigning it a translation key, adding it to both JSON files, and replacing the string with `t('key')`. No backend changes needed.
 
 ## QA Test Results
+
 _To be added by /qa_
 
 ## Deployment
+
 _To be added by /deploy_

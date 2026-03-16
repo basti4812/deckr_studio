@@ -1,7 +1,15 @@
 'use client'
 
 import { useTranslation } from 'react-i18next'
-import { GripVertical, LayoutTemplate, Lock, MessageSquare, Pencil, StickyNote, X } from 'lucide-react'
+import {
+  GripVertical,
+  LayoutTemplate,
+  Lock,
+  MessageSquare,
+  Pencil,
+  StickyNote,
+  X,
+} from 'lucide-react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Button } from '@/components/ui/button'
@@ -22,7 +30,13 @@ interface TraySlideItemProps {
   onNote?: () => void
 }
 
-function FillDot({ slide, instanceEdits }: { slide: Slide; instanceEdits: Record<string, string> }) {
+function FillDot({
+  slide,
+  instanceEdits,
+}: {
+  slide: Slide
+  instanceEdits: Record<string, string>
+}) {
   const { t } = useTranslation()
   const required = slide.editable_fields.filter((f) => f.required)
   if (required.length === 0) return null
@@ -64,8 +78,9 @@ export function TraySlideItem({
     !!slide.pptx_updated_at &&
     !!projectUpdatedAt &&
     new Date(slide.pptx_updated_at) > new Date(projectUpdatedAt)
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: instanceId })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: instanceId,
+  })
 
   const hasEditableFields = slide.editable_fields.length > 0
 
@@ -99,7 +114,11 @@ export function TraySlideItem({
       <div className="flex h-8 w-14 shrink-0 items-center justify-center rounded bg-muted overflow-hidden">
         {(previewUrl ?? slide.thumbnail_url) ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={(previewUrl ?? slide.thumbnail_url)!} alt="" className="h-full w-full object-cover" />
+          <img
+            src={(previewUrl ?? slide.thumbnail_url)!}
+            alt=""
+            className="h-full w-full object-cover"
+          />
         ) : (
           <LayoutTemplate className="h-3.5 w-3.5 text-muted-foreground/50" />
         )}
@@ -116,9 +135,7 @@ export function TraySlideItem({
               {t('board.updated')}
             </span>
           )}
-          {hasEditableFields && (
-            <FillDot slide={slide} instanceEdits={instanceEdits} />
-          )}
+          {hasEditableFields && <FillDot slide={slide} instanceEdits={instanceEdits} />}
         </div>
       </div>
 
@@ -146,7 +163,9 @@ export function TraySlideItem({
               : 'text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground'
           }`}
           onClick={onComment}
-          title={commentCount > 0 ? t('board.comments', { count: commentCount }) : t('board.add_comment')}
+          title={
+            commentCount > 0 ? t('board.comments', { count: commentCount }) : t('board.add_comment')
+          }
         >
           <MessageSquare className="h-3 w-3" />
         </Button>

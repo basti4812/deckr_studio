@@ -4,11 +4,7 @@ import { AlertTriangle, LayoutTemplate, Lock, MoreHorizontal, Pencil, Trash2 } f
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Card,
-  CardContent,
-  CardFooter,
-} from '@/components/ui/card'
+import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -91,20 +87,14 @@ export function SlideCard({ slide, onEdit, onDelete, selected, onSelectChange }:
         )}
         {slide.thumbnail_url ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={slide.thumbnail_url}
-            alt={slide.title}
-            className="h-full w-full object-cover"
-          />
+          <img src={slide.thumbnail_url} alt={slide.title} className="h-full w-full object-cover" />
         ) : (
           <div className="flex flex-col items-center gap-2 text-muted-foreground">
             <LayoutTemplate className="h-10 w-10" />
             <span className="text-xs">.pptx</span>
           </div>
         )}
-        {slide.status === 'deprecated' && (
-          <div className="absolute inset-0 bg-destructive/10" />
-        )}
+        {slide.status === 'deprecated' && <div className="absolute inset-0 bg-destructive/10" />}
       </div>
 
       <CardContent className="p-3 pb-2">
@@ -113,7 +103,8 @@ export function SlideCard({ slide, onEdit, onDelete, selected, onSelectChange }:
         </p>
         {slide.editable_fields.length > 0 && (
           <p className="mt-1 text-xs text-muted-foreground">
-            {slide.editable_fields.length} editable field{slide.editable_fields.length !== 1 ? 's' : ''}
+            {slide.editable_fields.length} editable field
+            {slide.editable_fields.length !== 1 ? 's' : ''}
           </p>
         )}
       </CardContent>

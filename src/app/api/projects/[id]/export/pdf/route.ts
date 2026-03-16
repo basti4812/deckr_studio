@@ -23,10 +23,7 @@ interface SlideRecord {
 // POST /api/projects/[id]/export/pdf — generate PDF from slide thumbnails
 // ---------------------------------------------------------------------------
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Params }
-) {
+export async function POST(request: NextRequest, { params }: { params: Params }) {
   const user = await getAuthenticatedUser(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -113,14 +110,14 @@ export async function POST(
     if (item.is_personal && item.personal_slide_id) {
       const ps = personalSlideMap.get(item.personal_slide_id)
       if (!ps) {
-        return NextResponse.json(
-          { error: `Personal slide not found` },
-          { status: 422 }
-        )
+        return NextResponse.json({ error: `Personal slide not found` }, { status: 422 })
       }
       const page = pdfDoc.addPage([PAGE_W, PAGE_H])
       page.drawRectangle({
-        x: 0, y: 0, width: PAGE_W, height: PAGE_H,
+        x: 0,
+        y: 0,
+        width: PAGE_W,
+        height: PAGE_H,
         color: rgb(0.95, 0.95, 0.95),
       })
       const fontSize = 36
@@ -138,10 +135,7 @@ export async function POST(
     // Library slide
     const slide = slideMap.get(item.slide_id)
     if (!slide) {
-      return NextResponse.json(
-        { error: `Slide "${item.slide_id}" not found` },
-        { status: 422 }
-      )
+      return NextResponse.json({ error: `Slide "${item.slide_id}" not found` }, { status: 422 })
     }
 
     const page = pdfDoc.addPage([PAGE_W, PAGE_H])
@@ -189,7 +183,11 @@ export async function POST(
 
   // Auto-snapshot (fire-and-forget — PROJ-38)
   const autoLabel = `Export — ${new Date().toLocaleString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
   })}`
   supabase
     .from('project_versions')
@@ -200,7 +198,12 @@ export async function POST(
       text_edits_snapshot: project.text_edits ?? {},
       is_auto: true,
     })
-    .then(() => {}, (err: unknown) => { console.error('[export-pdf] auto-snapshot failed', err) })
+    .then(
+      () => {},
+      (err: unknown) => {
+        console.error('[export-pdf] auto-snapshot failed', err)
+      }
+    )
 
   const safeName = (project.name as string)
     .replace(/[^\w\s-]/g, '')

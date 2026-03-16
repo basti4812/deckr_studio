@@ -91,7 +91,14 @@ export function useCanvas(initialZoom = 0.5, containerRef?: RefObject<HTMLDivEle
    * Used for zoom-to-slide on double-click.
    */
   const zoomToRect = useCallback(
-    (rectX: number, rectY: number, rectW: number, rectH: number, containerW: number, containerH: number) => {
+    (
+      rectX: number,
+      rectY: number,
+      rectW: number,
+      rectH: number,
+      containerW: number,
+      containerH: number
+    ) => {
       const padding = 80
       const zoomX = (containerW - padding) / rectW
       const zoomY = (containerH - padding) / rectH

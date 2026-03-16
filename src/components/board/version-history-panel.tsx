@@ -78,9 +78,7 @@ export function VersionHistoryPanel({
 
         if (!res.ok) {
           const d = await res.json().catch(() => ({}))
-          setError(
-            (d as { error?: string }).error ?? t('version_history.failed_to_load')
-          )
+          setError((d as { error?: string }).error ?? t('version_history.failed_to_load'))
           return
         }
 
@@ -133,9 +131,7 @@ export function VersionHistoryPanel({
             <Clock className="h-4 w-4" />
             {t('version_history.title')}
           </SheetTitle>
-          <SheetDescription>
-            {t('version_history.description')}
-          </SheetDescription>
+          <SheetDescription>{t('version_history.description')}</SheetDescription>
         </SheetHeader>
 
         <Separator />
@@ -157,11 +153,7 @@ export function VersionHistoryPanel({
           {!loading && error && (
             <div className="flex flex-col items-center gap-3 py-12 px-4 text-center">
               <p className="text-sm text-destructive">{error}</p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => fetchVersions(0, false)}
-              >
+              <Button variant="outline" size="sm" onClick={() => fetchVersions(0, false)}>
                 {t('version_history.try_again')}
               </Button>
             </div>
@@ -171,9 +163,7 @@ export function VersionHistoryPanel({
           {!loading && !error && versions.length === 0 && (
             <div className="flex flex-col items-center gap-3 py-12 px-4 text-center">
               <Clock className="h-8 w-8 text-muted-foreground/40" />
-              <p className="text-sm text-muted-foreground">
-                {t('version_history.no_versions')}
-              </p>
+              <p className="text-sm text-muted-foreground">{t('version_history.no_versions')}</p>
               <p className="text-xs text-muted-foreground max-w-[260px]">
                 {t('version_history.versions_created_info')}
               </p>
@@ -212,7 +202,9 @@ export function VersionHistoryPanel({
                       size="sm"
                       className="gap-1.5 h-7 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={() => onRestore(version)}
-                      aria-label={t('version_history.restore_aria', { name: version.label || t('version_history.unnamed_version') })}
+                      aria-label={t('version_history.restore_aria', {
+                        name: version.label || t('version_history.unnamed_version'),
+                      })}
                     >
                       <RotateCcw className="h-3 w-3" />
                       {t('version_history.restore')}

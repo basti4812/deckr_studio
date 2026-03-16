@@ -13,9 +13,7 @@ export default function DowngradePage() {
             Back to Billing
           </Link>
         </Button>
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">
-          Downgrade Plan
-        </h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">Downgrade Plan</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Switch to a lower plan with fewer features and seats.
         </p>
@@ -29,8 +27,7 @@ export default function DowngradePage() {
               Payment provider integration coming soon
             </p>
             <p className="mt-1 text-xs text-muted-foreground/70">
-              Plan downgrades will be available once the payment provider is
-              connected.
+              Plan downgrades will be available once the payment provider is connected.
             </p>
           </div>
         </CardContent>

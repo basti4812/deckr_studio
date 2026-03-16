@@ -25,10 +25,7 @@ export async function GET(request: NextRequest) {
   })
 
   if (error) {
-    return NextResponse.json(
-      { error: 'Failed to fetch team members' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to fetch team members' }, { status: 500 })
   }
 
   // Fetch subscription for seat info
@@ -104,18 +101,9 @@ export async function POST(request: NextRequest) {
 // Invite handler
 // ---------------------------------------------------------------------------
 
-async function handleInvite(
-  adminUserId: string,
-  tenantId: string,
-  body: unknown
-) {
+async function handleInvite(adminUserId: string, tenantId: string, body: unknown) {
   // Rate limit: 10 invites per 15 minutes
-  const limited = await checkRateLimit(
-    adminUserId,
-    'team:invite',
-    10,
-    15 * 60 * 1000
-  )
+  const limited = await checkRateLimit(adminUserId, 'team:invite', 10, 15 * 60 * 1000)
   if (limited) return limited
 
   const parsed = InviteSchema.safeParse(body)
@@ -144,35 +132,29 @@ async function handleInvite(
   if (existingUser) {
     if (existingUser.is_active) {
       // Check if this is a pending user (not yet confirmed)
-      const { data: authUser } = await supabase.auth.admin.getUserById(
-        existingUser.id
-      )
+      const { data: authUser } = await supabase.auth.admin.getUserById(existingUser.id)
       if (authUser?.user && !authUser.user.email_confirmed_at) {
         return NextResponse.json(
           { error: 'An invitation has already been sent to this email' },
           { status: 409 }
         )
       }
-      return NextResponse.json(
-        { error: 'This email is already a team member' },
-        { status: 409 }
-      )
+      return NextResponse.json({ error: 'This email is already a team member' }, { status: 409 })
     }
     // Inactive user with same email — could be a removed user
-    return NextResponse.json(
-      { error: 'This email is already a team member' },
-      { status: 409 }
-    )
+    return NextResponse.json({ error: 'This email is already a team member' }, { status: 409 })
   }
 
   // Invite via Supabase Auth
-  const { data: inviteData, error: inviteError } =
-    await supabase.auth.admin.inviteUserByEmail(email, {
+  const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
+    email,
+    {
       data: {
         tenant_id: tenantId,
         role: 'employee',
       },
-    })
+    }
+  )
 
   if (inviteError) {
     // Check for "already registered" error from Supabase
@@ -190,10 +172,7 @@ async function handleInvite(
 
   const invitedUserId = inviteData?.user?.id
   if (!invitedUserId) {
-    return NextResponse.json(
-      { error: 'Failed to create invited user' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to create invited user' }, { status: 500 })
   }
 
   // Create user record in our users table
@@ -210,10 +189,7 @@ async function handleInvite(
     console.error('Failed to insert invited user record:', insertError.message)
     // Clean up the auth user if insert fails
     await supabase.auth.admin.deleteUser(invitedUserId)
-    return NextResponse.json(
-      { error: 'Failed to create user record' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to create user record' }, { status: 500 })
   }
 
   // Set app_metadata for tenant_id and role
@@ -253,18 +229,9 @@ async function handleInvite(
 // Create user handler
 // ---------------------------------------------------------------------------
 
-async function handleCreateUser(
-  adminUserId: string,
-  tenantId: string,
-  body: unknown
-) {
+async function handleCreateUser(adminUserId: string, tenantId: string, body: unknown) {
   // Rate limit: 10 creates per 15 minutes
-  const limited = await checkRateLimit(
-    adminUserId,
-    'team:create',
-    10,
-    15 * 60 * 1000
-  )
+  const limited = await checkRateLimit(adminUserId, 'team:create', 10, 15 * 60 * 1000)
   if (limited) return limited
 
   const parsed = CreateUserSchema.safeParse(body)
@@ -291,21 +258,17 @@ async function handleCreateUser(
     .maybeSingle()
 
   if (existingUser) {
-    return NextResponse.json(
-      { error: 'This email is already a team member' },
-      { status: 409 }
-    )
+    return NextResponse.json({ error: 'This email is already a team member' }, { status: 409 })
   }
 
   // Create user in Supabase Auth
-  const { data: createData, error: createError } =
-    await supabase.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: false,
-      app_metadata: { tenant_id: tenantId, role },
-      user_metadata: { display_name },
-    })
+  const { data: createData, error: createError } = await supabase.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: false,
+    app_metadata: { tenant_id: tenantId, role },
+    user_metadata: { display_name },
+  })
 
   if (createError) {
     if (createError.message?.includes('already been registered')) {
@@ -322,10 +285,7 @@ async function handleCreateUser(
 
   const newUserId = createData?.user?.id
   if (!newUserId) {
-    return NextResponse.json(
-      { error: 'Failed to create user account' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to create user account' }, { status: 500 })
   }
 
   // Create user record in our users table
@@ -341,10 +301,7 @@ async function handleCreateUser(
   if (insertError) {
     console.error('Failed to insert created user record:', insertError.message)
     await supabase.auth.admin.deleteUser(newUserId)
-    return NextResponse.json(
-      { error: 'Failed to create user record' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to create user record' }, { status: 500 })
   }
 
   // Notify all admins that a new member joined (fire-and-forget)
@@ -363,7 +320,7 @@ async function handleCreateUser(
         userId: a.id,
         type: 'team_member_joined' as const,
         message: `${display_name} joined your team`,
-      })),
+      }))
     ).catch(() => {})
   }
 

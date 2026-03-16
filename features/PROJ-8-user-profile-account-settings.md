@@ -1,14 +1,17 @@
 # PROJ-8: User Profile & Account Settings
 
 ## Status: Deployed
+
 **Created:** 2026-02-25
 **Last Updated:** 2026-02-27
 
 ## Dependencies
+
 - Requires: PROJ-2 (Authentication & User Sessions)
 - Requires: PROJ-3 (User Roles & Permissions)
 
 ## User Stories
+
 - As a user, I want to update my display name so that colleagues see my correct name throughout the app
 - As a user, I want to upload a profile picture so that I am visually identifiable in comments, sharing, and team lists
 - As a user, I want to change my preferred language (German or English) so that the app displays in my language
@@ -16,6 +19,7 @@
 - As a user, I want changes to take effect immediately without needing to reload the page
 
 ## Acceptance Criteria
+
 - [ ] Profile page is accessible at `/profile` for all authenticated users
 - [ ] Display name field: editable, required, min 1 character, max 80 characters
 - [ ] Profile picture upload: accepts JPEG, PNG, WebP; max 5MB; stored in Supabase Storage
@@ -27,6 +31,7 @@
 - [ ] All changes are saved immediately on submit (not all at once)
 
 ## Edge Cases
+
 - What if the profile picture upload fails? → Show error, keep existing picture
 - What if the display name is empty on save? → Blocked, validation error shown
 - What if the current password entered is incorrect during password change? → Error: "Current password is incorrect"
@@ -35,15 +40,18 @@
 - What if the user changes language — does it persist across sessions? → Yes, stored in user record and loaded on login
 
 ## Technical Requirements
+
 - Profile picture stored in Supabase Storage at path: `avatars/{tenant_id}/{user_id}/{filename}`
 - Old profile picture is deleted from storage when a new one is uploaded
 - Password change delegated to Supabase Auth (`updateUser` method)
 - Language preference stored in `users.preferred_language` column
 
 ---
+
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
+
 _To be added by /architecture_
 
 ## QA Test Results
@@ -72,12 +80,14 @@ _To be added by /architecture_
 ### Re-verification of Round 1 Fixes
 
 #### BUG-3 (FIXED): Rate limiting on profile update and avatar upload endpoints
+
 - [x] `PATCH /api/profile` now calls `checkRateLimit(user.id, 'profile:patch', 20, 15 * 60 * 1000)` -- 20 requests per 15 minutes
 - [x] `POST /api/profile/avatar` now calls `checkRateLimit(user.id, 'profile:avatar', 5, 15 * 60 * 1000)` -- 5 uploads per 15 minutes
 - [x] `POST /api/profile/password` retains `checkRateLimit(user.id, 'profile:password', 5, 15 * 60 * 1000)` -- 5 attempts per 15 minutes
 - [x] Rate limit returns HTTP 429 with `Retry-After` header
 
 #### BUG-4 (FIXED): In-memory rate limiter replaced with Supabase-backed persistence
+
 - [x] `src/lib/rate-limit.ts` now uses `rate_limits` table in Supabase via `createServiceClient()`
 - [x] Rate limit state persists across serverless cold starts
 - [x] Window-based expiry: checks `reset_at > now` for active windows
@@ -87,11 +97,13 @@ _To be added by /architecture_
 ### Acceptance Criteria Status
 
 #### AC-1: Profile page accessible at `/profile` for all authenticated users
+
 - [x] Route exists at `src/app/(app)/profile/page.tsx`
 - [x] Proxy middleware (`src/proxy.ts`) redirects unauthenticated users to `/login` -- `/profile` is not in `PUBLIC_ROUTES`
 - [x] Page renders four separate cards: Display Name, Profile Picture, Language, Password
 
 #### AC-2: Display name field: editable, required, min 1, max 80 characters
+
 - [x] Input field present with `maxLength={80}`
 - [x] Client-side validation blocks empty/whitespace-only names via `name.trim()` check
 - [x] Server-side Zod validation enforces `z.string().min(1).max(80)`
@@ -99,6 +111,7 @@ _To be added by /architecture_
 - [x] `useEffect` syncs local state when `displayName` prop changes from provider
 
 #### AC-3: Profile picture upload: JPEG, PNG, WebP; max 5MB; Supabase Storage
+
 - [x] Client-side 5MB check before upload
 - [x] Server-side 5MB check (`MAX_SIZE = 5 * 1024 * 1024`)
 - [x] MIME type validation: `image/jpeg`, `image/png`, `image/webp`
@@ -108,6 +121,7 @@ _To be added by /architecture_
 - [x] Rate limited to 5 uploads per 15 minutes (BUG-3 fix verified)
 
 #### AC-4: Profile picture displayed in: comments, project sharing panel, team management list, top navigation avatar
+
 - [x] Top navigation avatar in sidebar footer uses `avatarUrl` from `useCurrentUser()`
 - [ ] KNOWN GAP: Profile picture is NOT displayed in comments (PROJ-30 is "Planned")
 - [ ] KNOWN GAP: Profile picture is NOT displayed in project sharing panel (PROJ-25 is "Planned")
@@ -116,6 +130,7 @@ _To be added by /architecture_
 **Note:** These gaps are expected -- dependent features are not built yet. The avatar infrastructure is correctly wired via `TenantProvider` context and `useCurrentUser()` hook, so downstream features can consume it when implemented. Not counted as bugs for PROJ-8.
 
 #### AC-5: Language preference: dropdown with Deutsch/English; saved to user record; triggers immediate UI language switch
+
 - [x] Dropdown present with "Deutsch" (value: `de`) and "English" (value: `en`) options
 - [x] Saved to `users.preferred_language` column via `PATCH /api/profile`
 - [x] Server-side Zod validation: `z.enum(['de', 'en'])`
@@ -123,6 +138,7 @@ _To be added by /architecture_
 - [ ] BUG-8 (NEW): Language dropdown does not sync initial value from server (see new bugs below)
 
 #### AC-6: Password change: current password, new password, confirm new password; validation new != current
+
 - [x] Three password fields with correct `autoComplete` attributes
 - [x] Client-side validation: current required, new >= 8 chars, new != current, confirm matches new
 - [x] Server-side Zod validation mirrors client-side checks
@@ -132,43 +148,52 @@ _To be added by /architecture_
 - [x] Rate limited to 5 attempts per 15 minutes (BUG-3/BUG-4 fix verified)
 
 #### AC-7: Success/error feedback shown inline (no full page reload)
+
 - [x] All sections use `toast()` from `sonner` for success/error messages
 - [x] Password section shows inline error messages below fields via `errors` state
 - [x] No page reload on any action
 
 #### AC-8: Profile picture can be removed (reverts to initials fallback)
+
 - [x] Remove button visible only when avatar exists (`previewUrl && ...`)
 - [x] DELETE endpoint removes all files in user's avatar directory
 - [x] Database `avatar_url` set to `null`
 - [x] `AvatarFallback` component renders initials from display name
 
 #### AC-9: All changes saved immediately on submit (not all at once)
+
 - [x] Each card (Display Name, Avatar, Language, Password) has its own independent save/submit action
 - [x] No global "Save All" button
 
 ### Edge Cases Status
 
 #### EC-1: Profile picture upload fails
+
 - [x] Upload errors are caught and displayed via `toast.error(d.error ?? 'Upload failed')`
 - [x] Existing picture is preserved (`previewUrl` only updates on success)
 
 #### EC-2: Display name empty on save
+
 - [x] Client blocks with `toast.error('Display name cannot be empty')` when trimmed value is empty
 - [x] Server validates via Zod `min(1)`
 
 #### EC-3: Incorrect current password during password change
+
 - [x] Server returns `{ error: 'Current password is incorrect', field: 'currentPassword' }` with status 400
 - [x] Client shows inline error below current password field
 
 #### EC-4: New password doesn't meet minimum requirements
+
 - [x] Client validates `next.length < 8` and shows "New password must be at least 8 characters"
 - [x] Server validates via Zod `min(8)`
 
 #### EC-5: Profile picture larger than 5MB
+
 - [x] Client-side check before upload: `file.size > 5 * 1024 * 1024` shows `toast.error('Image must be smaller than 5 MB')`
 - [x] Server-side check as backup
 
 #### EC-6: Language change persists across sessions
+
 - [x] Stored in `users.preferred_language` column (database level)
 - [x] Loaded via `TenantProvider` on every session init (`/api/tenant` endpoint)
 
@@ -208,6 +233,7 @@ _To be added by /architecture_
 ### Bugs Found
 
 #### BUG-1 (OPEN, from Round 1): Language switch has no visible UI effect
+
 - **Severity:** Medium
 - **Steps to Reproduce:**
   1. Go to `/profile`
@@ -218,6 +244,7 @@ _To be added by /architecture_
 - **Priority:** Fix when PROJ-41 is implemented (not a blocker for PROJ-8)
 
 #### BUG-2 (OPEN, from Round 1): Profile picture not shown in comments, sharing panel, team management
+
 - **Severity:** Low
 - **Steps to Reproduce:**
   1. Upload a profile picture on `/profile`
@@ -228,12 +255,15 @@ _To be added by /architecture_
 - **Priority:** Fix when dependent features are built (not a blocker for PROJ-8)
 
 #### BUG-3 (FIXED in `da891b8`): Rate limiting on profile update and avatar upload endpoints
+
 - Verified: `PATCH /api/profile` and `POST /api/profile/avatar` now have rate limiting
 
 #### BUG-4 (FIXED in `ecd28bd`): In-memory rate limiter replaced with Supabase-backed persistence
+
 - Verified: `src/lib/rate-limit.ts` uses `rate_limits` table in Supabase
 
 #### BUG-5 (OPEN, from Round 1): Avatar card may overflow on mobile (375px)
+
 - **Severity:** Low
 - **Steps to Reproduce:**
   1. View `/profile` at 375px viewport width
@@ -245,6 +275,7 @@ _To be added by /architecture_
 - **Priority:** Fix in next sprint
 
 #### BUG-6 (OPEN, from Round 1): Lint command is broken
+
 - **Severity:** Low
 - **Steps to Reproduce:**
   1. Run `npm run lint`
@@ -254,6 +285,7 @@ _To be added by /architecture_
 - **Priority:** Fix before deployment
 
 #### BUG-7 (NEW): No SQL migration for `rate_limits` and `ip_rate_limits` tables
+
 - **Severity:** High
 - **Steps to Reproduce:**
   1. Inspect `supabase/migrations/` -- only two migration files exist: `20260225000001_proj1_multi_tenancy.sql` and `20260226000002_proj4_subscriptions.sql`
@@ -266,6 +298,7 @@ _To be added by /architecture_
 - **Priority:** Fix before deployment (blocking -- rate limiting will fail without these tables)
 
 #### BUG-8 (NEW): Language dropdown does not sync initial value from server
+
 - **Severity:** Medium
 - **Steps to Reproduce:**
   1. User has `preferred_language = 'en'` saved in the database
@@ -278,6 +311,7 @@ _To be added by /architecture_
 - **Priority:** Fix before deployment (user sees wrong language preference)
 
 #### BUG-9 (NEW): DELETE /api/profile/avatar has no rate limiting
+
 - **Severity:** Medium
 - **Steps to Reproduce:**
   1. Authenticate and obtain a valid Bearer token
@@ -289,6 +323,7 @@ _To be added by /architecture_
 - **Priority:** Fix before deployment (while less critical than upload since DELETE is less resource-intensive, an attacker could still spam the storage API and database)
 
 #### BUG-10 (NEW): Avatar URL caching issue when re-uploading same file type
+
 - **Severity:** Low
 - **Steps to Reproduce:**
   1. Upload a JPEG profile picture
@@ -312,6 +347,7 @@ _To be added by /architecture_
 - [x] Security headers in `next.config.ts` unchanged and properly configured
 
 ### Summary
+
 - **Acceptance Criteria:** 7/9 passed (2 partial failures due to unbuilt dependent features -- expected, not blockers for PROJ-8)
 - **Edge Cases:** 6/6 passed
 - **Bugs Found (Round 2):** 10 total -- 4 new, 2 fixed, 4 open from Round 1
@@ -340,6 +376,7 @@ _To be added by /architecture_
 ---
 
 #### Fix #1: Template set thumbnail size constraint
+
 **File:** `src/components/projects/create-project-dialog.tsx` (line 497)
 **Status:** PASS
 
@@ -352,6 +389,7 @@ _To be added by /architecture_
 ---
 
 #### Fix #2: Filter freehand shapes in PPTX parser
+
 **File:** `src/lib/pptx-parser.ts` (line 56)
 **Status:** PASS
 
@@ -363,6 +401,7 @@ _To be added by /architecture_
 ---
 
 #### Fix #3: Done button in edit fields dialog
+
 **File:** `src/components/board/edit-fields-dialog.tsx` (lines 73-80)
 **Status:** PASS
 
@@ -378,6 +417,7 @@ _To be added by /architecture_
 ---
 
 #### Fix #4: Fill warning scroll area increased
+
 **File:** `src/components/board/fill-warning-dialog.tsx` (line 56)
 **Status:** PASS
 
@@ -389,6 +429,7 @@ _To be added by /architecture_
 ---
 
 #### Fix #5: Text field required default changed
+
 **File:** `src/lib/pptx-parser.ts` (line 102)
 **Status:** PASS
 
@@ -400,6 +441,7 @@ _To be added by /architecture_
 ---
 
 #### Fix #6: Collapsed group thumbnail
+
 **File:** `src/components/board/group-section.tsx` (lines 171-178)
 **Status:** PASS
 
@@ -413,6 +455,7 @@ _To be added by /architecture_
 ---
 
 #### Fix #7: Thumbnail resolution increased
+
 **File:** `src/app/api/slides/generate-thumbnails/route.ts` (lines 88-89)
 **Status:** PASS
 
@@ -426,6 +469,7 @@ _To be added by /architecture_
 ---
 
 #### Fix #8: Text edit indicator in presentation mode
+
 **Files:** `src/components/board/presentation-mode.tsx`, `src/app/(app)/board/page.tsx`
 **Status:** PASS
 
@@ -443,22 +487,27 @@ _To be added by /architecture_
 ---
 
 #### Fix #9: i18n translations
+
 **Files:** `public/locales/en.json`, `public/locales/de.json`, `src/components/projects/create-project-dialog.tsx`, `src/components/view/viewer-slideshow.tsx`, `src/components/slides/edit-slide-dialog.tsx`
 **Status:** PASS with BUGS
 
 **create-project-dialog.tsx:**
+
 - [x] All user-facing strings use `t()` calls with proper key namespacing under `create_project.*`
 - [x] All referenced keys exist in both en.json and de.json (verified: title, description, project_name, project_name_placeholder, project_name_error, project_name_too_long, cancel, next, choose_template, template_description, start_from_scratch, only_mandatory_slides, no_templates, creating_project, back, use_this_template, creating, template_no_slides, deprecated_badge, slide_count)
 - [x] Pluralization key `slide_count` uses i18next `_one`/`_other` suffix pattern correctly
 
 **viewer-slideshow.tsx:**
+
 - [x] Most strings use `t()` calls under `viewer.*` namespace
 - [x] Keys exist in both locales (verified: download_pdf, exit, fullscreen, pdf_failed, dismiss)
 
 **edit-slide-dialog.tsx:**
+
 - [x] Most strings use `t()` calls under `slides.*` namespace
 
 **slide-preview-dialog.tsx (new file):**
+
 - [x] All strings use `t()` calls under `slide_preview.*` namespace
 - [x] Keys exist in both locales (verified: title, text_fields, no_text_edits, field_empty, close)
 
@@ -467,10 +516,12 @@ _To be added by /architecture_
 ---
 
 #### Fix #10: Slide preview dialog
+
 **Files:** `src/components/board/slide-preview-dialog.tsx` (new), `src/components/board/canvas-slide-card.tsx`, `src/app/(app)/board/page.tsx`
 **Status:** PASS with OBSERVATION
 
 **slide-preview-dialog.tsx:**
+
 - [x] Dialog component is well-structured with proper shadcn Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
 - [x] Handles null slide with early return (`if (!slide) return null` at line 32)
 - [x] Large thumbnail preview with `max-h-[50vh] object-contain`
@@ -483,6 +534,7 @@ _To be added by /architecture_
 - [x] All i18n keys present in both locales
 
 **canvas-slide-card.tsx:**
+
 - [x] Eye icon imported from lucide-react (line 5)
 - [x] `onPreview` prop added to interface (line 31)
 - [x] Eye button positioned `absolute top-1.5 right-1.5` on the thumbnail area
@@ -493,6 +545,7 @@ _To be added by /architecture_
 - [x] Only renders when `onPreview` callback is provided (conditional rendering at line 131)
 
 **board/page.tsx:**
+
 - [x] `previewSlideId` state declared (line 225)
 - [x] `SlidePreviewDialog` imported and rendered conditionally (lines 1893-1899)
 - [x] `onPreview` callback wired to `GroupSection` (line 1626)
@@ -505,6 +558,7 @@ _To be added by /architecture_
 ### Bugs Found in Round 3
 
 #### BUG-11 (NEW): Hardcoded English string in edit-slide-dialog.tsx
+
 - **Severity:** Low
 - **File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/src/components/slides/edit-slide-dialog.tsx` line 132
 - **Code:** `setError('All editable fields must have a label')`
@@ -513,6 +567,7 @@ _To be added by /architecture_
 - **Priority:** Fix in next i18n pass
 
 #### BUG-12 (NEW): Hardcoded tooltip in viewer-slideshow.tsx
+
 - **Severity:** Low
 - **File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/src/components/view/viewer-slideshow.tsx` line 265
 - **Code:** `title="Fullscreen (F)"`
@@ -521,6 +576,7 @@ _To be added by /architecture_
 - **Priority:** Fix in next i18n pass
 
 #### BUG-13 (NEW): Hardcoded aria-labels in create-project-dialog.tsx
+
 - **Severity:** Low
 - **File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/src/components/projects/create-project-dialog.tsx` lines 289, 383
 - **Code:** `aria-label="Back to name"` and `aria-label="Back to templates"`
@@ -529,6 +585,7 @@ _To be added by /architecture_
 - **Priority:** Fix in next i18n pass
 
 #### BUG-14 (NEW): Missing i18n keys for fill-warning-dialog.tsx
+
 - **Severity:** Medium
 - **File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/src/components/board/fill-warning-dialog.tsx` lines 65, 71
 - **Keys used but missing from locale files:**
@@ -540,6 +597,7 @@ _To be added by /architecture_
 - **Priority:** Fix before deployment -- visible UI text rendering as raw keys
 
 #### BUG-15 (NEW): Hardcoded English proceedLabel strings in board page
+
 - **Severity:** Low
 - **File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/src/app/(app)/board/page.tsx` lines 800, 811, 821
 - **Code:**
@@ -565,4 +623,5 @@ _To be added by /architecture_
 - **i18n coverage:** Good overall. The new `slide_preview`, `edit_fields.done`, `edit_fields.auto_saved`, and `presentation.text_edited` keys all exist in both en.json and de.json with proper translations.
 
 ## Deployment
+
 _To be added by /deploy_

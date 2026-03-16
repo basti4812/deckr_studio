@@ -85,7 +85,9 @@ export async function PUT(request: NextRequest, { params }: { params: Params }) 
   const { id: projectId } = await params
 
   let rawBody: unknown
-  try { rawBody = await request.json() } catch {
+  try {
+    rawBody = await request.json()
+  } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
@@ -93,7 +95,7 @@ export async function PUT(request: NextRequest, { params }: { params: Params }) 
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message ?? 'Invalid input' },
-      { status: 400 },
+      { status: 400 }
     )
   }
 
@@ -113,7 +115,7 @@ export async function PUT(request: NextRequest, { params }: { params: Params }) 
         user_id: user.id,
         body,
       },
-      { onConflict: 'project_id,slide_id,user_id' },
+      { onConflict: 'project_id,slide_id,user_id' }
     )
     .select('body, updated_at')
     .single()

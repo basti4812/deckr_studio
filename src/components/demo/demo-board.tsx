@@ -1,7 +1,19 @@
 'use client'
 
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, Download, FolderOpen, GripVertical, LayoutTemplate, Lock, Play, Share2, X } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  FolderOpen,
+  GripVertical,
+  LayoutTemplate,
+  Lock,
+  Play,
+  Share2,
+  X,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import {
   DndContext,
@@ -88,8 +100,9 @@ function DemoTraySlideItem({
 }) {
   const { t } = useTranslation()
   const isMandatory = slide.status === 'mandatory'
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: instanceId })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: instanceId,
+  })
 
   return (
     <div
@@ -215,7 +228,9 @@ function DemoTrayPanel({
         <div className="flex items-center gap-2">
           <div className="flex-1 min-w-0">
             <p className="truncate text-sm font-semibold leading-tight">{t('demo.demo_project')}</p>
-            <p className="text-xs text-muted-foreground">{trayItems.length} slide{trayItems.length !== 1 ? 's' : ''}</p>
+            <p className="text-xs text-muted-foreground">
+              {trayItems.length} slide{trayItems.length !== 1 ? 's' : ''}
+            </p>
           </div>
           <Button
             variant="ghost"
@@ -247,7 +262,9 @@ function DemoTrayPanel({
             className="flex-1 gap-1.5"
             onClick={onPresent}
             disabled={trayItems.length === 0}
-            title={trayItems.length === 0 ? t('board.add_slides_to_present') : t('board.present_tooltip')}
+            title={
+              trayItems.length === 0 ? t('board.add_slides_to_present') : t('board.present_tooltip')
+            }
           >
             <Play className="h-3.5 w-3.5" />
             {t('board.present')}
@@ -259,7 +276,11 @@ function DemoTrayPanel({
                 size="sm"
                 className="flex-1 gap-1.5"
                 disabled={trayItems.length === 0}
-                title={trayItems.length === 0 ? t('board.add_slides_to_export') : t('board.export_tooltip')}
+                title={
+                  trayItems.length === 0
+                    ? t('board.add_slides_to_export')
+                    : t('board.export_tooltip')
+                }
               >
                 <Download className="h-3.5 w-3.5" />
                 {t('board.export')}
@@ -289,12 +310,14 @@ function DemoTrayPanel({
         {trayItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
             <FolderOpen className="h-8 w-8 text-muted-foreground/40" />
-            <p className="text-xs text-muted-foreground px-4">
-              {t('board.click_slide_to_add')}
-            </p>
+            <p className="text-xs text-muted-foreground px-4">{t('board.click_slide_to_add')}</p>
           </div>
         ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
             <SortableContext
               items={trayItems.map((t) => t.id)}
               strategy={verticalListSortingStrategy}
@@ -366,11 +389,7 @@ function DemoGroupSection({
           }}
         >
           {filteredSlides.map((slide) => (
-            <CanvasSlideCard
-              key={slide.id}
-              slide={slide}
-              onAddToTray={onAddToTray}
-            />
+            <CanvasSlideCard key={slide.id} slide={slide} onAddToTray={onAddToTray} />
           ))}
         </div>
       )}
@@ -382,13 +401,7 @@ function DemoGroupSection({
 // Simulated presentation overlay (simple slide preview)
 // ---------------------------------------------------------------------------
 
-function DemoPresentationMode({
-  slides,
-  onClose,
-}: {
-  slides: Slide[]
-  onClose: () => void
-}) {
+function DemoPresentationMode({ slides, onClose }: { slides: Slide[]; onClose: () => void }) {
   const { t } = useTranslation()
   const [currentIndex, setCurrentIndex] = useState(0)
   const slide = slides[currentIndex]
@@ -410,7 +423,7 @@ function DemoPresentationMode({
       className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black"
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      // eslint-disable-next-line jsx-a11y/no-autofocus
+       
       autoFocus
       role="dialog"
       aria-label="Presentation mode"
@@ -420,13 +433,19 @@ function DemoPresentationMode({
         <div className="relative w-full max-w-4xl aspect-video rounded-lg bg-gray-900 border border-white/10 flex flex-col items-center justify-center gap-4">
           {slide.thumbnail_url ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={slide.thumbnail_url} alt={slide.title} className="h-full w-full object-contain rounded-lg" />
+            <img
+              src={slide.thumbnail_url}
+              alt={slide.title}
+              className="h-full w-full object-contain rounded-lg"
+            />
           ) : (
             <>
               <LayoutTemplate className="h-16 w-16 text-white/20" />
               <p className="text-2xl font-bold text-white/80">{slide.title}</p>
               {slide.status === 'mandatory' && (
-                <Badge variant="default" className="mt-2">{t('board.mandatory')}</Badge>
+                <Badge variant="default" className="mt-2">
+                  {t('board.mandatory')}
+                </Badge>
               )}
             </>
           )}
@@ -509,7 +528,10 @@ export function DemoBoard() {
   const [filters, setFilters] = useState<ActiveFilters>({ groups: [], tags: [], statuses: [] })
 
   // Dialogs
-  const [exportDialog, setExportDialog] = useState<{ open: boolean; format: 'pptx' | 'pdf' }>({ open: false, format: 'pptx' })
+  const [exportDialog, setExportDialog] = useState<{ open: boolean; format: 'pptx' | 'pdf' }>({
+    open: false,
+    format: 'pptx',
+  })
   const [shareDialog, setShareDialog] = useState(false)
   const [presentationMode, setPresentationMode] = useState(false)
 
@@ -543,8 +565,7 @@ export function DemoBoard() {
         const q = searchQuery.toLowerCase().trim()
         slides = slides.filter(
           (s) =>
-            s.title.toLowerCase().includes(q) ||
-            s.tags.some((t) => t.toLowerCase().includes(q))
+            s.title.toLowerCase().includes(q) || s.tags.some((t) => t.toLowerCase().includes(q))
         )
       }
 
@@ -602,9 +623,7 @@ export function DemoBoard() {
   // ---------------------------------------------------------------------------
 
   const presentationSlides = useMemo(() => {
-    return trayItems
-      .map((item) => DEMO_SLIDE_MAP.get(item.slide_id))
-      .filter((s): s is Slide => !!s)
+    return trayItems.map((item) => DEMO_SLIDE_MAP.get(item.slide_id)).filter((s): s is Slide => !!s)
   }, [trayItems])
 
   // ---------------------------------------------------------------------------
@@ -692,12 +711,7 @@ export function DemoBoard() {
 
             {/* Zoom controls — bottom left */}
             <div className="absolute bottom-4 left-4 z-20">
-              <ZoomControls
-                zoom={zoom}
-                onZoomIn={zoomIn}
-                onZoomOut={zoomOut}
-                onFit={handleFit}
-              />
+              <ZoomControls zoom={zoom} onZoomIn={zoomIn} onZoomOut={zoomOut} onFit={handleFit} />
             </div>
           </div>
         </div>
@@ -722,10 +736,7 @@ export function DemoBoard() {
         onOpenChange={(open) => setExportDialog((prev) => ({ ...prev, open }))}
         format={exportDialog.format}
       />
-      <SimulatedShareDialog
-        open={shareDialog}
-        onOpenChange={setShareDialog}
-      />
+      <SimulatedShareDialog open={shareDialog} onOpenChange={setShareDialog} />
 
       {/* Presentation mode */}
       {presentationMode && presentationSlides.length > 0 && (

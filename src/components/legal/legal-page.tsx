@@ -29,9 +29,7 @@ export function LegalPage({ title, children }: LegalPageProps) {
         </AlertDescription>
       </Alert>
 
-      <div className="mt-8 space-y-8">
-        {children}
-      </div>
+      <div className="mt-8 space-y-8">{children}</div>
     </article>
   )
 }

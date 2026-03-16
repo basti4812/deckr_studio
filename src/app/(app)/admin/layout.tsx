@@ -5,11 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { Skeleton } from '@/components/ui/skeleton'
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { isAdmin, loading } = useCurrentUser()
   const router = useRouter()
 

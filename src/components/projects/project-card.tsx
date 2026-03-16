@@ -3,7 +3,17 @@
 import { useTranslation } from 'react-i18next'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Archive, ArchiveRestore, Copy, Loader2, LogOut, MoreVertical, Pencil, Trash2, Users } from 'lucide-react'
+import {
+  Archive,
+  ArchiveRestore,
+  Copy,
+  Loader2,
+  LogOut,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  Users,
+} from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,7 +57,10 @@ interface ProjectCardProps {
   onDeletePermanently?: (id: string) => Promise<void>
 }
 
-function timeAgo(dateStr: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
+function timeAgo(
+  dateStr: string,
+  t: (key: string, opts?: Record<string, unknown>) => string
+): string {
   const diff = Date.now() - new Date(dateStr).getTime()
   const days = Math.floor(diff / 86_400_000)
   if (days === 0) return t('project_card.today')
@@ -186,13 +199,18 @@ export function ProjectCard({
               onBlur={commitRename}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') commitRename()
-                if (e.key === 'Escape') { setEditing(false); setName(project.name) }
+                if (e.key === 'Escape') {
+                  setEditing(false)
+                  setName(project.name)
+                }
               }}
               className="h-7 flex-1 text-sm font-semibold"
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
-            <p className="flex-1 text-sm font-semibold leading-tight line-clamp-2">{project.name}</p>
+            <p className="flex-1 text-sm font-semibold leading-tight line-clamp-2">
+              {project.name}
+            </p>
           )}
 
           <DropdownMenu>
@@ -210,7 +228,12 @@ export function ProjectCard({
             <DropdownMenuContent align="end">
               {/* Active project actions */}
               {!isArchived && isOwner && onRename && (
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditing(true) }}>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setEditing(true)
+                  }}
+                >
                   <Pencil className="mr-2 h-4 w-4" />
                   {t('project_card.rename')}
                 </DropdownMenuItem>
@@ -218,7 +241,10 @@ export function ProjectCard({
               {!isArchived && onDuplicate && (
                 <DropdownMenuItem
                   disabled={duplicating}
-                  onClick={(e) => { e.stopPropagation(); handleDuplicate() }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleDuplicate()
+                  }}
                 >
                   {duplicating ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -231,7 +257,10 @@ export function ProjectCard({
               {!isArchived && isOwner && onArchive && (
                 <DropdownMenuItem
                   disabled={archiving}
-                  onClick={(e) => { e.stopPropagation(); handleArchive() }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleArchive()
+                  }}
                 >
                   {archiving ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -246,7 +275,10 @@ export function ProjectCard({
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
-                    onClick={(e) => { e.stopPropagation(); setConfirmDelete(true) }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setConfirmDelete(true)
+                    }}
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
                     {t('project_card.delete')}
@@ -258,7 +290,10 @@ export function ProjectCard({
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
-                    onClick={(e) => { e.stopPropagation(); setConfirmLeave(true) }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setConfirmLeave(true)
+                    }}
                   >
                     <LogOut className="mr-2 h-4 w-4" />
                     {t('project_card.leave_project')}
@@ -270,7 +305,10 @@ export function ProjectCard({
               {isArchived && onRestore && (
                 <DropdownMenuItem
                   disabled={restoring}
-                  onClick={(e) => { e.stopPropagation(); handleRestore() }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleRestore()
+                  }}
                 >
                   {restoring ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -285,7 +323,10 @@ export function ProjectCard({
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
-                    onClick={(e) => { e.stopPropagation(); setConfirmDeletePermanently(true) }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setConfirmDeletePermanently(true)
+                    }}
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
                     {t('project_card.delete_permanently')}

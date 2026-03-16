@@ -76,7 +76,12 @@ export function SearchFilterBar({
 
       {/* Clear all */}
       {isFiltering && (
-        <Button variant="ghost" size="sm" onClick={onClearAll} className="text-muted-foreground h-9">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onClearAll}
+          className="text-muted-foreground h-9"
+        >
           {t('board.clear_all')}
         </Button>
       )}

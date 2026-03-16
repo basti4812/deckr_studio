@@ -20,8 +20,9 @@ export function PersonalTraySlideItem({
   onRemove,
 }: PersonalTraySlideItemProps) {
   const { t } = useTranslation()
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: instanceId })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: instanceId,
+  })
 
   return (
     <div

@@ -1,15 +1,18 @@
 # PROJ-25: Project Sharing (within tenant)
 
 ## Status: In Review
+
 **Created:** 2026-02-25
 **Last Updated:** 2026-02-28
 
 ## Dependencies
+
 - Requires: PROJ-24 (Project Creation & Management) — projects to share
 - Requires: PROJ-3 (User Roles & Permissions) — tenant-scoped user lookup
 - Optional: PROJ-13 (In-app Notifications) — sharing notification trigger (added later)
 
 ## User Stories
+
 - As a project owner, I want to share my project with specific colleagues so that we can collaborate on the presentation
 - As a project owner, I want to choose whether a colleague can view or edit my project so that I control the level of access
 - As a project owner, I want to change a shared user's permission level at any time so that I can upgrade or downgrade access
@@ -22,12 +25,14 @@
 ## Acceptance Criteria
 
 ### Data Model
+
 - [ ] `project_shares` table: `id`, `project_id`, `user_id`, `permission` ('view' | 'edit'), `shared_by`, `created_at`
 - [ ] Foreign keys to `projects(id)` and `users(id)` with `ON DELETE CASCADE`
 - [ ] Unique constraint on `(project_id, user_id)` — a user can only have one share record per project
 - [ ] RLS: user can read their own share records; owner can manage shares for their projects
 
 ### Sharing Panel
+
 - [ ] Share icon in the project board toolbar opens a sharing panel/dialog
 - [ ] Sharing panel shows: list of users currently with access (avatar, name, permission level dropdown, "Remove" button)
 - [ ] Owner appears at the top of the list with "Owner" label (not removable, no dropdown)
@@ -37,11 +42,13 @@
 - [ ] Only the project owner can open the sharing panel and manage shares
 
 ### Permission Levels
+
 - [ ] **Can view:** User can open the project and see all slides, but cannot add/remove/reorder slides, edit text fields, or export
 - [ ] **Can edit:** User has full access — same as owner, except they cannot delete the project, archive it, or manage sharing
 - [ ] Permission enforced both in the UI (buttons hidden/disabled) and in the API (server-side checks)
 
 ### Shared Projects UX
+
 - [ ] Shared projects appear in a "Shared with me" section on the home/projects page
 - [ ] Shared projects show a "Shared" badge on the project card
 - [ ] When opening a shared project, the board view is identical to owned projects; a small "Shared" badge appears in the toolbar
@@ -49,15 +56,18 @@
 - [ ] Shared users with view access see all editing controls disabled/hidden
 
 ### Leave & Remove
+
 - [ ] Owner can remove any shared user via the sharing panel; removal takes effect immediately
 - [ ] Shared users can leave a shared project via a "Leave project" option (e.g., in project card menu or board toolbar)
 - [ ] Leaving removes the `project_shares` record; the project disappears from "Shared with me"
 
 ### Tenant Scoping
+
 - [ ] User search only returns active users within the same tenant
 - [ ] Sharing is impossible with users outside the tenant
 
 ## Edge Cases
+
 - Owner tries to share with themselves → Blocked: "You already own this project"
 - Owner tries to share with someone who already has access → Error: "{{user}} already has access to this project"
 - Shared user is removed from the team (PROJ-9) → Their `project_shares` records are cascade-deleted via `users(id)` FK; they lose access
@@ -67,6 +77,7 @@
 - Owner changes a user's permission from edit to view while they're actively editing → Next API call returns 403; UI refreshes to view mode
 
 ## Technical Requirements
+
 - RLS policy on `projects`: readable/writable by owner OR by user with matching `project_shares` record (check permission level)
 - RLS policy on `project_shares`: owner can CRUD; shared user can SELECT (to see their own shares) and DELETE (to leave)
 - User search endpoint: `GET /api/team/search?q=...` — returns users matching name/email within the same tenant (reuses existing user data)
@@ -74,6 +85,7 @@
 - Notification trigger prepared as a comment/placeholder for when PROJ-13 is built
 
 ---
+
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
@@ -118,14 +130,14 @@ SharePanel (NEW component — Sheet sliding in from the right)
 
 **New table: `project_shares`**
 
-| Field | Type | Notes |
-|-------|------|-------|
-| id | UUID | Primary key |
-| project_id | UUID | → projects(id), CASCADE delete |
-| user_id | UUID | → users(id), CASCADE delete |
-| permission | text | `'view'` or `'edit'` |
-| shared_by | UUID | → users(id), who created the share |
-| created_at | timestamptz | When the share was created |
+| Field      | Type        | Notes                              |
+| ---------- | ----------- | ---------------------------------- |
+| id         | UUID        | Primary key                        |
+| project_id | UUID        | → projects(id), CASCADE delete     |
+| user_id    | UUID        | → users(id), CASCADE delete        |
+| permission | text        | `'view'` or `'edit'`               |
+| shared_by  | UUID        | → users(id), who created the share |
+| created_at | timestamptz | When the share was created         |
 
 Unique constraint on `(project_id, user_id)` — one share record per user per project.
 
@@ -137,22 +149,22 @@ When a user is removed from the team (PROJ-9), their `user_id` FK CASCADE delete
 
 **New endpoints:**
 
-| Method | Path | Who | Purpose |
-|--------|------|-----|---------|
-| GET | `/api/projects/shared` | Authenticated user | Returns projects shared with the caller |
-| GET | `/api/projects/[id]/shares` | Project owner | Returns the share list for a project |
-| POST | `/api/projects/[id]/shares` | Project owner | Adds a new user to the project |
-| PATCH | `/api/projects/[id]/shares/[shareId]` | Project owner | Updates permission level |
+| Method | Path                                  | Who                      | Purpose                                             |
+| ------ | ------------------------------------- | ------------------------ | --------------------------------------------------- |
+| GET    | `/api/projects/shared`                | Authenticated user       | Returns projects shared with the caller             |
+| GET    | `/api/projects/[id]/shares`           | Project owner            | Returns the share list for a project                |
+| POST   | `/api/projects/[id]/shares`           | Project owner            | Adds a new user to the project                      |
+| PATCH  | `/api/projects/[id]/shares/[shareId]` | Project owner            | Updates permission level                            |
 | DELETE | `/api/projects/[id]/shares/[shareId]` | Owner or the shared user | Removes a share (owner: remove; shared user: leave) |
-| GET | `/api/team/search?q=` | Authenticated user | Searches active users within the same tenant |
+| GET    | `/api/team/search?q=`                 | Authenticated user       | Searches active users within the same tenant        |
 
 **Modified endpoints:**
 
-| Method | Path | Change |
-|--------|------|--------|
-| GET | `/api/projects/[id]` | Allow access if caller has a share record, return `userPermission` field |
-| PATCH | `/api/projects/[id]` | Allow edits if caller has an `'edit'` share record (not just owner) |
-| DELETE | `/api/projects/[id]` | Owner only — no change |
+| Method | Path                 | Change                                                                   |
+| ------ | -------------------- | ------------------------------------------------------------------------ |
+| GET    | `/api/projects/[id]` | Allow access if caller has a share record, return `userPermission` field |
+| PATCH  | `/api/projects/[id]` | Allow edits if caller has an `'edit'` share record (not just owner)      |
+| DELETE | `/api/projects/[id]` | Owner only — no change                                                   |
 
 The existing `GET /api/projects` (owned list) is NOT changed — shared projects come from the separate `/api/projects/shared` endpoint.
 
@@ -178,23 +190,23 @@ A "Can view" user could manually call the PATCH API. Server-side checks (checkin
 
 ### New Files
 
-| File | Purpose |
-|------|---------|
-| `src/components/projects/share-panel.tsx` | Sheet panel: people list + add user section |
-| `src/app/api/projects/shared/route.ts` | GET shared projects for current user |
-| `src/app/api/projects/[id]/shares/route.ts` | GET share list; POST add share |
-| `src/app/api/projects/[id]/shares/[shareId]/route.ts` | PATCH permission; DELETE share |
-| `src/app/api/team/search/route.ts` | GET user search within tenant |
-| `supabase/migrations/20260228000005_proj25_project_sharing.sql` | project_shares table + RLS |
+| File                                                            | Purpose                                     |
+| --------------------------------------------------------------- | ------------------------------------------- |
+| `src/components/projects/share-panel.tsx`                       | Sheet panel: people list + add user section |
+| `src/app/api/projects/shared/route.ts`                          | GET shared projects for current user        |
+| `src/app/api/projects/[id]/shares/route.ts`                     | GET share list; POST add share              |
+| `src/app/api/projects/[id]/shares/[shareId]/route.ts`           | PATCH permission; DELETE share              |
+| `src/app/api/team/search/route.ts`                              | GET user search within tenant               |
+| `supabase/migrations/20260228000005_proj25_project_sharing.sql` | project_shares table + RLS                  |
 
 ### Modified Files
 
-| File | Change |
-|------|--------|
-| `src/app/(app)/projects/page.tsx` | Add "Shared with me" section; fetch from `/api/projects/shared` |
+| File                                       | Change                                                                 |
+| ------------------------------------------ | ---------------------------------------------------------------------- |
+| `src/app/(app)/projects/page.tsx`          | Add "Shared with me" section; fetch from `/api/projects/shared`        |
 | `src/components/projects/project-card.tsx` | Add `isOwner` prop; show/hide Rename/Delete/Leave; show "Shared" badge |
-| `src/app/(app)/board/page.tsx` | Add share button (owner only), "Shared" badge, view-permission guard |
-| `src/app/api/projects/[id]/route.ts` | Extend GET + PATCH to accept shared users |
+| `src/app/(app)/board/page.tsx`             | Add share button (owner only), "Shared" badge, view-permission guard   |
+| `src/app/api/projects/[id]/route.ts`       | Extend GET + PATCH to accept shared users                              |
 
 ## QA Test Results (Re-test Round 2)
 
@@ -208,21 +220,22 @@ A "Can view" user could manually call the PATCH API. Server-side checks (checkin
 
 ### Previous Bug Status (from Round 1)
 
-| Bug | Status | Notes |
-|-----|--------|-------|
-| BUG-1 (Export blocked for edit-shared users) | FIXED | Export routes now check `project_shares.permission` for 'edit' access |
-| BUG-2 (Dead code `hasEditShare`) | FIXED | Variable removed; code refactored cleanly |
-| BUG-3 (ILIKE wildcard injection) | FIXED | `safeQuery` now escapes `\`, `%`, `_` before ILIKE usage |
-| BUG-4 (Permission change no auto-refresh) | OPEN | Still no polling/WebSocket; `visibilitychange` listener added but only fires on tab switch |
-| BUG-5 (Missing rate limits) | FIXED | All sharing endpoints now have `checkRateLimit`: GET shared (30/min), GET shares list (30/min), leave (10/min), DELETE share (20/min) |
-| BUG-6 (No error feedback on add-share) | FIXED | `handleAddShare` returns error string; `share-panel.tsx` displays inline error via `error` state |
-| BUG-7 (View users can present) | NOT A BUG | Product decision -- presentation is read-only, not restricted by AC-3 |
+| Bug                                          | Status    | Notes                                                                                                                                 |
+| -------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| BUG-1 (Export blocked for edit-shared users) | FIXED     | Export routes now check `project_shares.permission` for 'edit' access                                                                 |
+| BUG-2 (Dead code `hasEditShare`)             | FIXED     | Variable removed; code refactored cleanly                                                                                             |
+| BUG-3 (ILIKE wildcard injection)             | FIXED     | `safeQuery` now escapes `\`, `%`, `_` before ILIKE usage                                                                              |
+| BUG-4 (Permission change no auto-refresh)    | OPEN      | Still no polling/WebSocket; `visibilitychange` listener added but only fires on tab switch                                            |
+| BUG-5 (Missing rate limits)                  | FIXED     | All sharing endpoints now have `checkRateLimit`: GET shared (30/min), GET shares list (30/min), leave (10/min), DELETE share (20/min) |
+| BUG-6 (No error feedback on add-share)       | FIXED     | `handleAddShare` returns error string; `share-panel.tsx` displays inline error via `error` state                                      |
+| BUG-7 (View users can present)               | NOT A BUG | Product decision -- presentation is read-only, not restricted by AC-3                                                                 |
 
 ---
 
 ### Acceptance Criteria Status
 
 #### AC-1: Data Model (`project_shares` table) -- PASS
+
 - [x] `project_shares` table with correct columns: `id`, `project_id`, `user_id`, `permission`, `shared_by`, `created_at`
 - [x] Foreign keys to `projects(id)` and `users(id)` with `ON DELETE CASCADE`
 - [x] Unique constraint on `(project_id, user_id)`
@@ -230,6 +243,7 @@ A "Can view" user could manually call the PATCH API. Server-side checks (checkin
 - [x] RLS enabled with three policies: owner manages all, user views own shares, user can delete own shares (leave)
 
 #### AC-2: Sharing Panel -- PASS
+
 - [x] Share icon (Share2) in board toolbar opens a Sheet sliding in from the right
 - [x] Panel shows list of users with access: avatar, display name, permission dropdown, remove button
 - [x] Owner row at top with Crown icon and "Owner" badge (not removable, no dropdown)
@@ -239,11 +253,13 @@ A "Can view" user could manually call the PATCH API. Server-side checks (checkin
 - [x] Only the project owner can see/open the share button and panel (`isProjectOwner` guards)
 
 #### AC-3: Permission Levels -- PASS
+
 - [x] **Can view:** Cannot add/remove/reorder slides, edit text fields, or export. `canEdit` var controls `onAddToTray`, `onExport`, `onPdfExport`, `onEditFields`. Server returns 403 on PATCH for view-only users.
 - [x] **Can edit:** Full access except delete/archive/manage-sharing. Export now works for edit-shared users (both PPTX and PDF routes check share records). Rename blocked server-side for non-owners (403).
 - [x] Permission enforced both UI-side (`canEdit` variable) and server-side (PATCH route checks `project_shares.permission`, export routes check share records)
 
 #### AC-4: Shared Projects UX -- PASS (with minor note)
+
 - [x] "Shared with me" section on projects page, only shown when shared projects exist
 - [x] "Shared" badge on project cards for non-owned projects (Users icon + text)
 - [x] Board view shows "Shared" badge in top-right toolbar for non-owners
@@ -251,11 +267,13 @@ A "Can view" user could manually call the PATCH API. Server-side checks (checkin
 - [ ] NOTE: View-only users see tray drag handles and remove buttons that are non-functional (no-op callbacks). Controls are rendered but do nothing. See BUG-8.
 
 #### AC-5: Leave & Remove -- PASS
+
 - [x] Owner removes shared users via share panel; removal immediate (DELETE with rate limit 20/min)
 - [x] "Leave project" option in project card dropdown menu for non-owners with AlertDialog confirmation
 - [x] Leaving deletes `project_shares` record; project disappears from "Shared with me" list
 
 #### AC-6: Tenant Scoping -- PASS
+
 - [x] User search returns only active users in same tenant (`.eq('tenant_id', ...).eq('is_active', true)`)
 - [x] Share creation verifies target user's `tenant_id` matches project's `tenant_id`
 - [x] ILIKE wildcards now escaped (BUG-3 fix verified)
@@ -265,48 +283,62 @@ A "Can view" user could manually call the PATCH API. Server-side checks (checkin
 ### Edge Cases Status
 
 #### EC-1: Owner tries to share with themselves -- PASS
+
 - [x] Returns 400 "You already own this project"
 
 #### EC-2: Owner tries to share with someone who already has access -- PASS
+
 - [x] Catches unique constraint violation (Postgres error code 23505), returns 409
 
 #### EC-3: Shared user is removed from the team -- PASS
+
 - [x] FK `users(id) ON DELETE CASCADE` removes all share records automatically
 
 #### EC-4: Project is deleted by the owner -- PASS
+
 - [x] FK `projects(id) ON DELETE CASCADE` removes all share records automatically
 
 #### EC-5: Two simultaneous share attempts for same user -- PASS
+
 - [x] Unique constraint prevents duplicates; second request gets 409
 
 #### EC-6: Shared user with view access calls edit API -- PASS
+
 - [x] PATCH route returns 403; export routes return 403 for view-only users
 
 #### EC-7: Owner changes permission from edit to view while user is editing -- PARTIAL
+
 - [x] Server-side: Next API call correctly returns 403
 - [ ] Client-side: UI does not auto-detect permission change. A `visibilitychange` listener re-fetches on tab switch, but no polling while tab is active. See BUG-4 (still open, classified as next-sprint UX improvement).
 
 #### EC-8: Shared user with 'edit' permission exports -- PASS (was BUG-1, now fixed)
+
 - [x] PPTX export: route checks `project_shares.permission === 'edit'`, allows export
 - [x] PDF export: same check, allows export
 - [x] UI: Export buttons visible when `canEdit === true`
 
 #### EC-9: Shared user with 'view' permission attempts export via API -- PASS
+
 - [x] Export routes return 403 when share permission is not 'edit'
 
 #### EC-10: Inactive user attempts to access shared project -- PASS
+
 - [x] `getAuthenticatedUser` validates session token; deactivated accounts fail
 
 #### EC-11: Shared user tries to rename via PATCH API -- PASS
+
 - [x] Returns 403 "Only the owner can rename projects"
 
 #### EC-12: ILIKE wildcard injection -- PASS (was BUG-3, now fixed)
+
 - [x] `safeQuery` escapes `\`, `%`, `_` before ILIKE usage
 
 #### EC-13: Leave endpoint called by project owner -- PASS
+
 - [x] No share record exists for owner; returns 404 "Share not found" (benign)
 
 #### EC-14: Rate limiting on all sharing endpoints -- PASS (was BUG-5, now fixed)
+
 - [x] GET `/api/projects/shared` -- 30/min
 - [x] GET `/api/projects/[id]/shares` -- 30/min
 - [x] POST `/api/projects/[id]/shares` -- 30/min
@@ -320,12 +352,15 @@ A "Can view" user could manually call the PATCH API. Server-side checks (checkin
 ### Additional Edge Cases Identified in Round 2
 
 #### EC-15: Shared edit user attempts to change `owner_id` via PATCH body injection
+
 - [x] PASS -- PATCH route only extracts `name`, `slide_order`, `text_edits` from request body. No path to modify `owner_id`, `status`, or `tenant_id`.
 
 #### EC-16: Non-shared user attempts to access project via direct URL
+
 - [x] PASS -- `GET /api/projects/[id]` returns 404 if caller is not owner and has no share record.
 
 #### EC-17: Share panel error feedback for duplicate add
+
 - [x] PASS (was BUG-6, now fixed) -- `onAddShare` returns error string; `share-panel.tsx` displays inline error message.
 
 ---
@@ -364,6 +399,7 @@ Code-review based analysis. The implementation uses standard shadcn/ui component
 ### Bugs Found (Round 2 -- New or Still Open)
 
 #### BUG-4 (carried forward): Permission change does not auto-refresh shared user's UI
+
 - **Severity:** Medium
 - **Status:** OPEN (from Round 1)
 - **Steps to Reproduce:**
@@ -378,6 +414,7 @@ Code-review based analysis. The implementation uses standard shadcn/ui component
 - **Priority:** Fix in next sprint
 
 #### BUG-8 (new): View-only users see non-functional tray controls (drag handles, remove buttons)
+
 - **Severity:** Low
 - **Steps to Reproduce:**
   1. Share a project with User B as "Can view"
@@ -390,6 +427,7 @@ Code-review based analysis. The implementation uses standard shadcn/ui component
 - **Priority:** Fix in next sprint
 
 #### BUG-9 (new): No rate limiting on core project routes now accessible by shared users
+
 - **Severity:** Low
 - **Steps to Reproduce:**
   1. `GET /api/projects/[id]` has no `checkRateLimit` call
@@ -409,28 +447,34 @@ Code-review based analysis. The implementation uses standard shadcn/ui component
 ### Regression Testing
 
 #### PROJ-24: Project Creation & Management -- PASS
+
 - [x] `GET /api/projects` (owned list) unchanged -- still filters by `owner_id`
 - [x] `POST /api/projects` unchanged -- new projects created normally
 - [x] `DELETE /api/projects/[id]` unchanged -- still checks `owner_id`
 - [x] `PATCH /api/projects/[id]` extended but backward-compatible -- owner can rename and update; shared edit users can update content but not rename
 
 #### PROJ-33: PowerPoint Export -- PASS
+
 - [x] Export route now allows owner AND shared edit users (correctly updated)
 - [x] View-only shared users correctly blocked (403)
 - [x] Non-shared users correctly blocked (403)
 
 #### PROJ-34: PDF Export -- PASS
+
 - [x] Same access model as PPTX export -- owner + edit-shared users allowed; view-only blocked
 
 #### PROJ-37: Fullscreen Presentation Mode -- PASS
+
 - [x] Presentation mode works for all users who can open a project (owner, edit-shared, view-shared)
 - [x] `handlePresent` function unchanged
 
 #### PROJ-18: Board Canvas -- PASS
+
 - [x] Canvas rendering unchanged -- zoom, pan, group sections all intact
 - [x] `onAddToTray` correctly guarded by `canEdit` for shared users
 
 #### PROJ-9: Team Management -- PASS
+
 - [x] Team search endpoint (`/api/team/search`) has ILIKE escaping and rate limiting
 - [x] User removal cascades to project_shares via FK
 
@@ -451,4 +495,5 @@ Code-review based analysis. The implementation uses standard shadcn/ui component
 - **Recommendation:** Deploy. BUG-4 and BUG-8 are UX polish items for the next sprint. BUG-9 is a pre-existing issue to address as part of a broader rate-limiting sweep.
 
 ## Deployment
+
 _To be added by /deploy_

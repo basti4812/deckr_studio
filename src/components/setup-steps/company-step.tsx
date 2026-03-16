@@ -58,9 +58,7 @@ export function CompanyStep({ initialName, onNext, onSkip }: CompanyStepProps) {
             <p className="text-xs">{t('setup.logo_upload_coming')}</p>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">
-          {t('setup.logo_available_later')}
-        </p>
+        <p className="text-xs text-muted-foreground">{t('setup.logo_available_later')}</p>
       </div>
 
       <div className="flex justify-between">

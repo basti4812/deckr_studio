@@ -34,7 +34,9 @@ interface MobileSlideDetailProps {
 
 async function getAccessToken(): Promise<string | null> {
   const supabase = createBrowserSupabaseClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
   return session?.access_token ?? null
 }
 
@@ -70,10 +72,9 @@ export function MobileSlideDetail({
     try {
       const token = await getAccessToken()
       if (!token) return
-      const res = await fetch(
-        `/api/projects/${projectId}/notes?slide_id=${slideId}`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      )
+      const res = await fetch(`/api/projects/${projectId}/notes?slide_id=${slideId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       if (res.ok) {
         const d = await res.json()
         const noteBody = d.note?.body ?? ''
@@ -99,41 +100,46 @@ export function MobileSlideDetail({
   // Auto-save with debounce
   // -------------------------------------------------------------------------
 
-  const saveNote = useCallback(async (text: string) => {
-    if (isPersonal) return
-    if (text === lastSavedRef.current) return
-    setSaveStatus('saving')
-    try {
-      const token = await getAccessToken()
-      if (!token) return
-      const res = await fetch(`/api/projects/${projectId}/notes`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ slide_id: slideId, body: text }),
-      })
-      if (res.ok) {
-        lastSavedRef.current = text
-        setSaveStatus('saved')
-        onNoteChange?.(slideId, text.trim().length > 0)
-      } else {
-        const d = await res.json().catch(() => null)
-        toast.error(d?.error ?? t('notes.failed_to_save'))
+  const saveNote = useCallback(
+    async (text: string) => {
+      if (isPersonal) return
+      if (text === lastSavedRef.current) return
+      setSaveStatus('saving')
+      try {
+        const token = await getAccessToken()
+        if (!token) return
+        const res = await fetch(`/api/projects/${projectId}/notes`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ slide_id: slideId, body: text }),
+        })
+        if (res.ok) {
+          lastSavedRef.current = text
+          setSaveStatus('saved')
+          onNoteChange?.(slideId, text.trim().length > 0)
+        } else {
+          const d = await res.json().catch(() => null)
+          toast.error(d?.error ?? t('notes.failed_to_save'))
+          setSaveStatus('idle')
+        }
+      } catch {
+        toast.error(t('notes.failed_to_save'))
         setSaveStatus('idle')
       }
-    } catch {
-      toast.error(t('notes.failed_to_save'))
-      setSaveStatus('idle')
-    }
-  }, [projectId, slideId, isPersonal, onNoteChange, t])
+    },
+    [projectId, slideId, isPersonal, onNoteChange, t]
+  )
 
   function handleChange(text: string) {
     setBody(text)
     setSaveStatus('idle')
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => { saveNote(text) }, 1000)
+    debounceRef.current = setTimeout(() => {
+      saveNote(text)
+    }, 1000)
   }
 
   function handleBlur() {
@@ -155,12 +161,18 @@ export function MobileSlideDetail({
 
   function StatusBadge() {
     if (!status) return null
-    const config: Record<string, { variant: 'default' | 'secondary' | 'destructive'; key: string }> = {
+    const config: Record<
+      string,
+      { variant: 'default' | 'secondary' | 'destructive'; key: string }
+    > = {
       mandatory: { variant: 'default', key: 'board.mandatory' },
       deprecated: { variant: 'destructive', key: 'board.deprecated' },
       standard: { variant: 'secondary', key: 'board.standard' },
     }
-    const { variant, key } = config[status] ?? { variant: 'secondary' as const, key: 'board.standard' }
+    const { variant, key } = config[status] ?? {
+      variant: 'secondary' as const,
+      key: 'board.standard',
+    }
     return (
       <Badge variant={variant} className="text-[10px]">
         {t(key)}
@@ -189,11 +201,7 @@ export function MobileSlideDetail({
         {thumbnailUrl ? (
           <div className="mx-4 mt-3 overflow-hidden rounded-lg border bg-muted">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={thumbnailUrl}
-              alt={slideTitle}
-              className="w-full object-contain max-h-48"
-            />
+            <img src={thumbnailUrl} alt={slideTitle} className="w-full object-contain max-h-48" />
           </div>
         ) : (
           <div className="mx-4 mt-3 flex items-center justify-center h-32 rounded-lg border bg-muted">

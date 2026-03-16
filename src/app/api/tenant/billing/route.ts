@@ -11,7 +11,11 @@ import { checkRateLimit } from '@/lib/rate-limit'
 
 // Strip HTML tags from strings
 const safeString = (maxLen: number) =>
-  z.string().max(maxLen).transform((s) => s.trim().replace(/<[^>]*>/g, '')).optional()
+  z
+    .string()
+    .max(maxLen)
+    .transform((s) => s.trim().replace(/<[^>]*>/g, ''))
+    .optional()
 
 const BillingContactSchema = z.object({
   billing_company_name: safeString(255),
@@ -29,12 +33,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   // Rate limit: 10 updates per 5 minutes
-  const limited = await checkRateLimit(
-    auth.user.id,
-    'tenant:billing',
-    10,
-    5 * 60 * 1000
-  )
+  const limited = await checkRateLimit(auth.user.id, 'tenant:billing', 10, 5 * 60 * 1000)
   if (limited) return limited
 
   let body: unknown
@@ -67,10 +66,7 @@ export async function PATCH(request: NextRequest) {
     .single()
 
   if (error || !tenant) {
-    return NextResponse.json(
-      { error: 'Failed to update billing contact' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to update billing contact' }, { status: 500 })
   }
 
   return NextResponse.json({ tenant }, { status: 200 })

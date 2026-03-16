@@ -3,7 +3,7 @@ import type { Slide } from '@/components/slides/slide-card'
 
 export interface UnfilledField {
   instanceId: string
-  trayPosition: number  // 1-based display index
+  trayPosition: number // 1-based display index
   slideTitle: string
   fieldId: string
   fieldLabel: string

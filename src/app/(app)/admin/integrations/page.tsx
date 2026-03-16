@@ -48,7 +48,9 @@ export default function IntegrationsPage() {
 
     try {
       const supabase = createBrowserSupabaseClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       if (!session) throw new Error('Not authenticated')
 
       const res = await fetch('/api/tenant', {
@@ -79,7 +81,9 @@ export default function IntegrationsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-1">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">{t('admin.integrations')}</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">
+          {t('admin.integrations')}
+        </h1>
         <p className="text-sm text-muted-foreground">{t('admin.integrations_description')}</p>
       </div>
 
@@ -99,7 +103,10 @@ export default function IntegrationsPage() {
             <Label>{t('admin.crm_provider')}</Label>
             <Select
               value={provider ?? 'none'}
-              onValueChange={(v) => { setProvider(v === 'none' ? null : v); setSaved(false) }}
+              onValueChange={(v) => {
+                setProvider(v === 'none' ? null : v)
+                setSaved(false)
+              }}
             >
               <SelectTrigger className="w-64">
                 <SelectValue placeholder={t('admin.crm_select_provider')} />
@@ -116,12 +123,8 @@ export default function IntegrationsPage() {
             <p className="text-xs text-muted-foreground">{t('admin.crm_provider_hint')}</p>
           </div>
 
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
-          {saved && (
-            <p className="text-sm text-green-600">{t('admin.crm_saved')}</p>
-          )}
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          {saved && <p className="text-sm text-green-600">{t('admin.crm_saved')}</p>}
 
           <Button onClick={handleSave} disabled={saving}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

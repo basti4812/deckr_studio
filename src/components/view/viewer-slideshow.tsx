@@ -2,7 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ChevronLeft, ChevronRight, Download, LayoutTemplate, Loader2, Maximize2, Minimize2, X } from 'lucide-react'
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  LayoutTemplate,
+  Loader2,
+  Maximize2,
+  Minimize2,
+  X,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 // ---------------------------------------------------------------------------
@@ -65,7 +74,9 @@ export function ViewerSlideshow({
 
   // Cleanup hide timer
   useEffect(() => {
-    return () => { if (fsHideTimer.current) clearTimeout(fsHideTimer.current) }
+    return () => {
+      if (fsHideTimer.current) clearTimeout(fsHideTimer.current)
+    }
   }, [])
 
   // Keyboard navigation
@@ -110,7 +121,12 @@ export function ViewerSlideshow({
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `${projectName.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_') || 'presentation'}.pdf`
+      a.download = `${
+        projectName
+          .replace(/[^\w\s-]/g, '')
+          .trim()
+          .replace(/\s+/g, '_') || 'presentation'
+      }.pdf`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -177,7 +193,9 @@ export function ViewerSlideshow({
         )}
 
         {/* Overlay UI — fades after 3s */}
-        <div className={`pointer-events-none fixed inset-0 z-[55] transition-opacity duration-500 ${showFsUI ? 'opacity-100' : 'opacity-0'}`}>
+        <div
+          className={`pointer-events-none fixed inset-0 z-[55] transition-opacity duration-500 ${showFsUI ? 'opacity-100' : 'opacity-0'}`}
+        >
           {/* Top bar */}
           <div className="pointer-events-auto flex items-center justify-between p-4">
             <button
@@ -248,9 +266,7 @@ export function ViewerSlideshow({
               className="h-8 max-w-[120px] object-contain"
             />
           ) : (
-            <span className="text-sm font-semibold text-foreground truncate">
-              {tenantName}
-            </span>
+            <span className="text-sm font-semibold text-foreground truncate">{tenantName}</span>
           )}
           <span className="hidden sm:block text-sm text-muted-foreground truncate">
             {projectName}

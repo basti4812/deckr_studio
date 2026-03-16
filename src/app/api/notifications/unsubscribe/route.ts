@@ -28,8 +28,11 @@ export async function GET(request: NextRequest) {
   // Cannot unsubscribe from mandatory types
   if (MANDATORY_EMAIL_TYPES.includes(type as NotificationEmailType)) {
     return NextResponse.json(
-      { message: 'This notification type cannot be disabled as it contains critical account information.' },
-      { status: 200 },
+      {
+        message:
+          'This notification type cannot be disabled as it contains critical account information.',
+      },
+      { status: 200 }
     )
   }
 
@@ -45,7 +48,7 @@ export async function GET(request: NextRequest) {
   if (!user) {
     return NextResponse.json(
       { message: 'You are no longer a member of this account.' },
-      { status: 200 },
+      { status: 200 }
     )
   }
 
@@ -55,10 +58,7 @@ export async function GET(request: NextRequest) {
     [type]: false,
   }
 
-  await supabase
-    .from('users')
-    .update({ notification_preferences: merged })
-    .eq('id', userId)
+  await supabase.from('users').update({ notification_preferences: merged }).eq('id', userId)
 
   return NextResponse.json({
     message: `You have been unsubscribed from "${type.replace(/_/g, ' ')}" email notifications. You can re-enable this in your profile settings.`,

@@ -15,20 +15,14 @@ export async function POST(request: NextRequest) {
   }
 
   // Rate limit: 3 cancel requests per hour
-  const limited = await checkRateLimit(
-    auth.user.id,
-    'billing:cancel',
-    3,
-    60 * 60 * 1000
-  )
+  const limited = await checkRateLimit(auth.user.id, 'billing:cancel', 3, 60 * 60 * 1000)
   if (limited) return limited
 
   console.log('[billing/cancel] Cancellation requested')
 
   return NextResponse.json(
     {
-      message:
-        'Cancellation requested — our team will be in touch shortly.',
+      message: 'Cancellation requested — our team will be in touch shortly.',
     },
     { status: 200 }
   )

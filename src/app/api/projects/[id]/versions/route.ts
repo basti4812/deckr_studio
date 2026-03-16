@@ -81,7 +81,11 @@ export async function POST(request: NextRequest, { params }: { params: Params })
 
   const { id } = await params
   let body: unknown = {}
-  try { body = await request.json() } catch { /* ok */ }
+  try {
+    body = await request.json()
+  } catch {
+    /* ok */
+  }
 
   const parsed = CreateSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
@@ -116,9 +120,15 @@ export async function POST(request: NextRequest, { params }: { params: Params })
   }
 
   // Generate default label if none provided
-  const label = parsed.data.label?.trim() || `Unnamed version — ${new Date().toLocaleString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
-  })}`
+  const label =
+    parsed.data.label?.trim() ||
+    `Unnamed version — ${new Date().toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    })}`
 
   const { data: version, error } = await supabase
     .from('project_versions')

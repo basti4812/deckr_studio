@@ -92,7 +92,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
       categoryFilter === 'All'
         ? templateSets
         : templateSets.filter((s) => s.category === categoryFilter),
-    [templateSets, categoryFilter],
+    [templateSets, categoryFilter]
   )
 
   // -----------------------------------------------------------------------
@@ -101,7 +101,9 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
 
   const getAccessToken = useCallback(async () => {
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) throw new Error('Not authenticated')
     return session.access_token
   }, [])
@@ -129,7 +131,9 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
     }
 
     load()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [view, getAccessToken])
 
   // Load slides when a template set is selected for preview
@@ -155,7 +159,9 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
     }
 
     load()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [view, selectedSet, getAccessToken])
 
   // -----------------------------------------------------------------------
@@ -164,8 +170,14 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
 
   function handleNext() {
     const trimmed = name.trim()
-    if (!trimmed) { setError(t('create_project.project_name_error')); return }
-    if (trimmed.length > 120) { setError(t('create_project.project_name_too_long')); return }
+    if (!trimmed) {
+      setError(t('create_project.project_name_error'))
+      return
+    }
+    if (trimmed.length > 120) {
+      setError(t('create_project.project_name_too_long'))
+      return
+    }
     setError('')
     setView('picker')
   }
@@ -247,9 +259,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
           <>
             <DialogHeader>
               <DialogTitle>{t('create_project.title')}</DialogTitle>
-              <DialogDescription>
-                {t('create_project.description')}
-              </DialogDescription>
+              <DialogDescription>{t('create_project.description')}</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-2 py-2">
@@ -258,8 +268,13 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                 id="project-name"
                 placeholder={t('create_project.project_name_placeholder')}
                 value={name}
-                onChange={(e) => { setName(e.target.value); setError('') }}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleNext() }}
+                onChange={(e) => {
+                  setName(e.target.value)
+                  setError('')
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleNext()
+                }}
                 maxLength={120}
                 autoFocus
               />
@@ -292,9 +307,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                 </button>
                 <div>
                   <DialogTitle>{t('create_project.choose_template')}</DialogTitle>
-                  <DialogDescription>
-                    {t('create_project.template_description')}
-                  </DialogDescription>
+                  <DialogDescription>{t('create_project.template_description')}</DialogDescription>
                 </div>
               </div>
             </DialogHeader>
@@ -338,8 +351,12 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                   >
                     <FileStack className="h-8 w-8 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium">{t('create_project.start_from_scratch')}</p>
-                      <p className="text-xs text-muted-foreground">{t('create_project.only_mandatory_slides')}</p>
+                      <p className="text-sm font-medium">
+                        {t('create_project.start_from_scratch')}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {t('create_project.only_mandatory_slides')}
+                      </p>
                     </div>
                   </button>
 
@@ -365,7 +382,9 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
 
             {creating && (
               <div className="flex items-center justify-center py-2">
-                <p className="text-sm text-muted-foreground">{t('create_project.creating_project')}</p>
+                <p className="text-sm text-muted-foreground">
+                  {t('create_project.creating_project')}
+                </p>
               </div>
             )}
           </>

@@ -37,40 +37,35 @@ function getAnalyticsData(tenantId: string) {
       const supabase = createServiceClient()
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
-      const [
-        slidesCount,
-        projectsCount,
-        exportsCount,
-        slideAnalytics,
-        templateAnalytics,
-      ] = await Promise.all([
-        // Total active slides
-        supabase
-          .from('slides')
-          .select('id', { count: 'exact', head: true })
-          .eq('tenant_id', tenantId)
-          .neq('status', 'deprecated'),
+      const [slidesCount, projectsCount, exportsCount, slideAnalytics, templateAnalytics] =
+        await Promise.all([
+          // Total active slides
+          supabase
+            .from('slides')
+            .select('id', { count: 'exact', head: true })
+            .eq('tenant_id', tenantId)
+            .neq('status', 'deprecated'),
 
-        // Total projects
-        supabase
-          .from('projects')
-          .select('id', { count: 'exact', head: true })
-          .eq('tenant_id', tenantId),
+          // Total projects
+          supabase
+            .from('projects')
+            .select('id', { count: 'exact', head: true })
+            .eq('tenant_id', tenantId),
 
-        // Exports last 30 days
-        supabase
-          .from('activity_logs')
-          .select('id', { count: 'exact', head: true })
-          .eq('tenant_id', tenantId)
-          .eq('event_type', 'project.exported')
-          .gte('created_at', thirtyDaysAgo),
+          // Exports last 30 days
+          supabase
+            .from('activity_logs')
+            .select('id', { count: 'exact', head: true })
+            .eq('tenant_id', tenantId)
+            .eq('event_type', 'project.exported')
+            .gte('created_at', thirtyDaysAgo),
 
-        // Slide usage via RPC
-        supabase.rpc('get_slide_analytics', { p_tenant_id: tenantId }),
+          // Slide usage via RPC
+          supabase.rpc('get_slide_analytics', { p_tenant_id: tenantId }),
 
-        // Template usage via RPC
-        supabase.rpc('get_template_analytics', { p_tenant_id: tenantId }),
-      ])
+          // Template usage via RPC
+          supabase.rpc('get_template_analytics', { p_tenant_id: tenantId }),
+        ])
 
       return {
         summary: {
@@ -112,9 +107,6 @@ export async function GET(request: NextRequest) {
     const data = await getAnalyticsData(profile.tenant_id)
     return NextResponse.json(data)
   } catch {
-    return NextResponse.json(
-      { error: 'Failed to fetch analytics' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to fetch analytics' }, { status: 500 })
   }
 }

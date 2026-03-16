@@ -27,8 +27,7 @@ export default function UpgradePage() {
               Payment provider integration coming soon
             </p>
             <p className="mt-1 text-xs text-muted-foreground/70">
-              Plan upgrades will be available once the payment provider is
-              connected.
+              Plan upgrades will be available once the payment provider is connected.
             </p>
           </div>
         </CardContent>

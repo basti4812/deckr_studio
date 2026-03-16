@@ -51,18 +51,12 @@ export async function GET(request: NextRequest) {
     .single()
 
   if (error || !data) {
-    return NextResponse.json(
-      { error: 'User profile not found' },
-      { status: 404 }
-    )
+    return NextResponse.json({ error: 'User profile not found' }, { status: 404 })
   }
 
   // Validate tenant exists
   if (!data.tenant) {
-    return NextResponse.json(
-      { error: 'Tenant not found for this user' },
-      { status: 403 }
-    )
+    return NextResponse.json({ error: 'Tenant not found for this user' }, { status: 403 })
   }
 
   return NextResponse.json({ user: data }, { status: 200 })
@@ -117,10 +111,7 @@ export async function PATCH(request: NextRequest) {
 
   const updates = parsed.data
   if (Object.keys(updates).length === 0) {
-    return NextResponse.json(
-      { error: 'No fields to update' },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
   }
 
   const supabaseAdmin = createServiceClient()
@@ -133,17 +124,11 @@ export async function PATCH(request: NextRequest) {
     .single()
 
   if (userError || !userRow) {
-    return NextResponse.json(
-      { error: 'User profile not found' },
-      { status: 404 }
-    )
+    return NextResponse.json({ error: 'User profile not found' }, { status: 404 })
   }
 
   if (userRow.role !== 'admin') {
-    return NextResponse.json(
-      { error: 'Only admins can update tenant settings' },
-      { status: 403 }
-    )
+    return NextResponse.json({ error: 'Only admins can update tenant settings' }, { status: 403 })
   }
 
   // Update tenant
@@ -155,10 +140,7 @@ export async function PATCH(request: NextRequest) {
     .single()
 
   if (tenantError) {
-    return NextResponse.json(
-      { error: 'Failed to update tenant' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to update tenant' }, { status: 500 })
   }
 
   return NextResponse.json({ tenant }, { status: 200 })

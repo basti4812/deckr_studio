@@ -19,16 +19,19 @@ interface ResetLayoutDialogProps {
   resetting: boolean
 }
 
-export function ResetLayoutDialog({ open, onOpenChange, onConfirm, resetting }: ResetLayoutDialogProps) {
+export function ResetLayoutDialog({
+  open,
+  onOpenChange,
+  onConfirm,
+  resetting,
+}: ResetLayoutDialogProps) {
   const { t } = useTranslation()
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{t('board.reset_layout_title')}</AlertDialogTitle>
-          <AlertDialogDescription>
-            {t('board.reset_layout_description')}
-          </AlertDialogDescription>
+          <AlertDialogDescription>{t('board.reset_layout_description')}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={resetting}>{t('common.cancel')}</AlertDialogCancel>

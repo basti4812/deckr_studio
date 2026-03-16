@@ -31,7 +31,9 @@ export default function ProjectsPage() {
 
   const fetchProjects = useCallback(async () => {
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return
     const token = session.access_token
 
@@ -56,7 +58,9 @@ export default function ProjectsPage() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { if (!userLoading) fetchProjects() }, [userLoading, fetchProjects])
+  useEffect(() => {
+    if (!userLoading) fetchProjects()
+  }, [userLoading, fetchProjects])
 
   // ---------------------------------------------------------------------------
   // Actions
@@ -64,7 +68,9 @@ export default function ProjectsPage() {
 
   async function getToken() {
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     return session?.access_token ?? ''
   }
 
@@ -178,10 +184,10 @@ export default function ProjectsPage() {
     <>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">{t('projects.title')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t('projects.description')}
-          </p>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">
+            {t('projects.title')}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('projects.description')}</p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
@@ -198,10 +204,10 @@ export default function ProjectsPage() {
         </div>
       ) : projects.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-20 text-center">
-          <p className="text-sm font-medium text-muted-foreground">{t('projects.no_projects_yet')}</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {t('projects.create_first_project')}
+          <p className="text-sm font-medium text-muted-foreground">
+            {t('projects.no_projects_yet')}
           </p>
+          <p className="mt-1 text-xs text-muted-foreground">{t('projects.create_first_project')}</p>
           <Button variant="outline" size="sm" className="mt-4" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             {t('home.new_project')}
@@ -254,7 +260,9 @@ export default function ProjectsPage() {
               <Badge variant="secondary" className="text-xs">
                 {archivedProjects.length}
               </Badge>
-              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${archiveOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown
+                className={`h-4 w-4 text-muted-foreground transition-transform ${archiveOpen ? 'rotate-180' : ''}`}
+              />
             </button>
           </CollapsibleTrigger>
           <CollapsibleContent>

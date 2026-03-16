@@ -18,13 +18,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Params }
 
   const { id } = await params
   let rawBody: unknown
-  try { rawBody = await request.json() } catch {
+  try {
+    rawBody = await request.json()
+  } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
   const parsed = UpdateGroupSchema.safeParse(rawBody)
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid input' }, { status: 400 })
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? 'Invalid input' },
+      { status: 400 }
+    )
   }
 
   const supabase = createServiceClient()
@@ -43,9 +48,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Params }
   if (parsed.data.position !== undefined) updates.position = parsed.data.position
   if (parsed.data.x !== undefined) updates.x = parsed.data.x
   if (parsed.data.y !== undefined) updates.y = parsed.data.y
-  if (!Object.keys(updates).length) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
+  if (!Object.keys(updates).length)
+    return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
 
-  const { data, error } = await supabase.from('slide_groups').update(updates).eq('id', id).select().single()
+  const { data, error } = await supabase
+    .from('slide_groups')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ group: data })
 }

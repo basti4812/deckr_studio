@@ -8,15 +8,13 @@ import { createServiceClient } from '@/lib/supabase'
 // PATCH /api/notifications/[id] — mark a single notification as read
 // ---------------------------------------------------------------------------
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthenticatedUser(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const profile = await getUserProfile(user.id)
-  if (!profile || !profile.is_active) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!profile || !profile.is_active)
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const limited = await checkRateLimit(user.id, 'notifications:read', 30, 60 * 1000)
   if (limited) return limited

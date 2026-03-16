@@ -32,7 +32,12 @@ export function EditFieldsDialog({
 }: EditFieldsDialogProps) {
   const { t } = useTranslation()
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose()
+      }}
+    >
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="truncate pr-6">{slide.title}</DialogTitle>
@@ -50,7 +55,10 @@ export function EditFieldsDialog({
                     {field.required && <span className="ml-0.5 text-destructive">*</span>}
                   </Label>
                   {field.required && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 text-muted-foreground">
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] px-1.5 py-0 h-4 text-muted-foreground"
+                    >
                       {t('edit_fields.required')}
                     </Badge>
                   )}
@@ -71,12 +79,8 @@ export function EditFieldsDialog({
         )}
 
         <DialogFooter className="flex items-center justify-between sm:justify-between">
-          <p className="text-xs text-muted-foreground">
-            {t('edit_fields.auto_saved')}
-          </p>
-          <Button onClick={onClose}>
-            {t('edit_fields.done')}
-          </Button>
+          <p className="text-xs text-muted-foreground">{t('edit_fields.auto_saved')}</p>
+          <Button onClick={onClose}>{t('edit_fields.done')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -13,7 +13,7 @@ type Params = Promise<{ id: string }>
 
 async function verifyProjectAccess(
   projectId: string,
-  userId: string,
+  userId: string
 ): Promise<{
   project: { id: string; owner_id: string; tenant_id: string; name: string; status: string }
 } | null> {
@@ -62,7 +62,9 @@ export async function GET(request: NextRequest, { params }: { params: Params }) 
   const supabase = createServiceClient()
   const { data: comments, error } = await supabase
     .from('comments')
-    .select('id, project_id, slide_id, slide_instance_index, parent_comment_id, author_id, body, created_at, deleted_at')
+    .select(
+      'id, project_id, slide_id, slide_instance_index, parent_comment_id, author_id, body, created_at, deleted_at'
+    )
     .eq('project_id', id)
     .eq('slide_id', slideId)
     .order('created_at', { ascending: true })
@@ -72,12 +74,13 @@ export async function GET(request: NextRequest, { params }: { params: Params }) 
 
   // Fetch author info for all unique author IDs
   const authorIds = [...new Set((comments ?? []).map((c) => c.author_id))]
-  const { data: authors } = authorIds.length > 0
-    ? await supabase
-        .from('users')
-        .select('id, display_name, avatar_url, is_active')
-        .in('id', authorIds)
-    : { data: [] }
+  const { data: authors } =
+    authorIds.length > 0
+      ? await supabase
+          .from('users')
+          .select('id, display_name, avatar_url, is_active')
+          .in('id', authorIds)
+      : { data: [] }
 
   const authorMap = new Map((authors ?? []).map((a) => [a.id, a]))
 
@@ -85,7 +88,8 @@ export async function GET(request: NextRequest, { params }: { params: Params }) 
     const author = authorMap.get(c.author_id)
     return {
       ...c,
-      author_name: author?.is_active !== false ? (author?.display_name ?? 'Unknown') : 'Former member',
+      author_name:
+        author?.is_active !== false ? (author?.display_name ?? 'Unknown') : 'Former member',
       author_avatar: author?.is_active !== false ? (author?.avatar_url ?? null) : null,
     }
   })
@@ -114,7 +118,9 @@ export async function POST(request: NextRequest, { params }: { params: Params })
   const { id } = await params
 
   let rawBody: unknown
-  try { rawBody = await request.json() } catch {
+  try {
+    rawBody = await request.json()
+  } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
@@ -122,7 +128,7 @@ export async function POST(request: NextRequest, { params }: { params: Params })
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message ?? 'Invalid input' },
-      { status: 400 },
+      { status: 400 }
     )
   }
 
@@ -151,7 +157,10 @@ export async function POST(request: NextRequest, { params }: { params: Params })
       return NextResponse.json({ error: 'Parent comment not found' }, { status: 404 })
     }
     if (parent.parent_comment_id) {
-      return NextResponse.json({ error: 'Cannot reply to a reply — only one level of nesting' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Cannot reply to a reply — only one level of nesting' },
+        { status: 400 }
+      )
     }
   }
 
@@ -184,7 +193,7 @@ async function notifyCommentAdded(
   project: { id: string; owner_id: string; tenant_id: string; name: string },
   commenterId: string,
   slideId: string,
-  body: string,
+  body: string
 ): Promise<void> {
   const supabase = createServiceClient()
 
@@ -217,6 +226,6 @@ async function notifyCommentAdded(
       message: `${commenterName} commented on "${slideTitle}" in "${project.name}": "${preview}"`,
       resourceType: 'project' as const,
       resourceId: project.id,
-    })),
+    }))
   )
 }

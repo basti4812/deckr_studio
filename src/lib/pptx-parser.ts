@@ -116,10 +116,7 @@ function parseSlideXml(slideXml: string): DetectedField[] {
  * @param pageIndex - Zero-based page index
  * @returns Array of detected editable fields
  */
-export async function parsePptxFields(
-  file: File,
-  pageIndex: number
-): Promise<DetectedField[]> {
+export async function parsePptxFields(file: File, pageIndex: number): Promise<DetectedField[]> {
   const zip = await JSZip.loadAsync(file)
 
   // Read presentation.xml.rels for rId → target mapping
@@ -150,9 +147,7 @@ export async function parsePptxFields(
   // Get the slide file for this page
   const slideTarget = orderedSlideTargets[pageIndex]
   // Target is relative to ppt/ (e.g., "slides/slide1.xml")
-  const slidePath = slideTarget.startsWith('/')
-    ? `ppt${slideTarget}`
-    : `ppt/${slideTarget}`
+  const slidePath = slideTarget.startsWith('/') ? `ppt${slideTarget}` : `ppt/${slideTarget}`
 
   const slideFile = zip.file(slidePath)
   if (!slideFile) return []

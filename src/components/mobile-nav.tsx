@@ -34,7 +34,9 @@ export function MobileNav() {
 
   const fetchNotifications = useCallback(async (cursor?: string | null) => {
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return
     setLoading(true)
     const url = cursor
@@ -70,7 +72,9 @@ export function MobileNav() {
     const supabase = createBrowserSupabaseClient()
 
     async function getUnreadCount() {
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       if (!session) return
       const res = await fetch('/api/notifications?limit=1', {
         headers: { Authorization: `Bearer ${session.access_token}` },
@@ -84,20 +88,26 @@ export function MobileNav() {
 
     const channel = supabase
       .channel('mobile-nav-notifications-badge')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'notifications',
-        filter: `user_id=eq.${userId}`,
-      }, (payload) => {
-        setUnreadCount((c) => c + 1)
-        if (hasFetched.current) {
-          setNotifications((prev) => [payload.new as Notification, ...prev])
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          setUnreadCount((c) => c + 1)
+          if (hasFetched.current) {
+            setNotifications((prev) => [payload.new as Notification, ...prev])
+          }
         }
-      })
+      )
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [userId])
 
   // -------------------------------------------------------------------------
@@ -106,11 +116,13 @@ export function MobileNav() {
 
   async function markRead(notificationId: string) {
     setNotifications((prev) =>
-      prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n)),
+      prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n))
     )
     setUnreadCount((c) => Math.max(0, c - 1))
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return
     await fetch(`/api/notifications/${notificationId}`, {
       method: 'PATCH',
@@ -122,7 +134,9 @@ export function MobileNav() {
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
     setUnreadCount(0)
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return
     await fetch('/api/notifications/read-all', {
       method: 'PATCH',
@@ -190,21 +204,11 @@ export function MobileNav() {
             )}
           </button>
         </PopoverTrigger>
-        <PopoverContent
-          side="top"
-          align="center"
-          sideOffset={8}
-          className="w-80 p-0"
-        >
+        <PopoverContent side="top" align="center" sideOffset={8} className="w-80 p-0">
           <div className="flex items-center justify-between border-b px-3 py-2">
             <span className="text-sm font-semibold">{t('notifications.tooltip')}</span>
             {unreadCount > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 gap-1 text-xs"
-                onClick={markAllRead}
-              >
+              <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={markAllRead}>
                 <CheckCheck className="h-3.5 w-3.5" />
                 {t('notifications.mark_all_read')}
               </Button>
@@ -214,7 +218,9 @@ export function MobileNav() {
             {notifications.length === 0 && !loading ? (
               <div className="flex flex-col items-center justify-center gap-1 py-8">
                 <Bell className="h-6 w-6 text-muted-foreground/40" />
-                <p className="text-xs text-muted-foreground">{t('notifications.no_notifications')}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t('notifications.no_notifications')}
+                </p>
               </div>
             ) : (
               <div className="divide-y">

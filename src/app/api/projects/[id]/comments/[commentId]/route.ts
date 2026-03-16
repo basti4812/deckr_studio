@@ -28,11 +28,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Params 
       .eq('id', commentId)
       .eq('project_id', projectId)
       .single(),
-    supabase
-      .from('projects')
-      .select('id, owner_id, tenant_id')
-      .eq('id', projectId)
-      .single(),
+    supabase.from('projects').select('id, owner_id, tenant_id').eq('id', projectId).single(),
   ])
 
   if (!comment || !project) {

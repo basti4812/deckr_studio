@@ -1,11 +1,7 @@
 'use client'
 
 import { AppSidebar } from '@/components/app-sidebar'
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from '@/components/ui/sidebar'
+import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import { SubscriptionBanner } from '@/components/subscription-banner'
 import { LanguageToggle } from '@/components/language-toggle'

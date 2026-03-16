@@ -5,9 +5,29 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Briefcase, ChevronsDownUp, ChevronsUpDown, Clock, Eye, Maximize2, Minimize2, Plus, RotateCcw, Share2, Upload, X } from 'lucide-react'
+import {
+  Briefcase,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  Clock,
+  Eye,
+  Maximize2,
+  Minimize2,
+  Plus,
+  RotateCcw,
+  Share2,
+  Upload,
+  X,
+} from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -40,7 +60,10 @@ import { SharePanel, type ShareRecord, type SearchUser } from '@/components/proj
 import { CrmDetailsDialog } from '@/components/projects/crm-details-dialog'
 import { CommentPanel } from '@/components/board/comment-panel'
 import { NotePanel } from '@/components/board/note-panel'
-import { UploadPersonalSlideDialog, type PersonalSlideRecord } from '@/components/board/upload-personal-slide-dialog'
+import {
+  UploadPersonalSlideDialog,
+  type PersonalSlideRecord,
+} from '@/components/board/upload-personal-slide-dialog'
 import { SearchFilterBar } from '@/components/board/search-filter-bar'
 import { FilterPanel, type ActiveFilters } from '@/components/board/filter-panel'
 import { VersionHistoryPanel, type ProjectVersion } from '@/components/board/version-history-panel'
@@ -183,9 +206,18 @@ const initialBoardData: BoardDataState = {
 function boardDataReducer(state: BoardDataState, action: BoardDataAction): BoardDataState {
   switch (action.type) {
     case 'SET_BOARD_DATA':
-      return { ...state, slides: action.slides, groups: action.groups, memberships: action.memberships, loading: false }
+      return {
+        ...state,
+        slides: action.slides,
+        groups: action.groups,
+        memberships: action.memberships,
+        loading: false,
+      }
     case 'UPDATE_GROUP':
-      return { ...state, groups: state.groups.map((g) => g.id === action.groupId ? { ...g, ...action.update } : g) }
+      return {
+        ...state,
+        groups: state.groups.map((g) => (g.id === action.groupId ? { ...g, ...action.update } : g)),
+      }
     default:
       return state
   }
@@ -210,7 +242,8 @@ function BoardPageInner() {
   const searchParams = useSearchParams()
   const projectId = searchParams.get('project')
   const isMobile = useIsMobile()
-  const { isFullscreen: isBoardFullscreen, toggleFullscreen: toggleBoardFullscreen } = useBoardFullscreen()
+  const { isFullscreen: isBoardFullscreen, toggleFullscreen: toggleBoardFullscreen } =
+    useBoardFullscreen()
 
   const [boardData, dispatchBoard] = useReducer(boardDataReducer, initialBoardData)
   const { slides, groups, memberships, loading } = boardData
@@ -224,8 +257,17 @@ function BoardPageInner() {
   const [deprecatedError, setDeprecatedError] = useState('')
   const [editingInstance, setEditingInstance] = useState<string | null>(null)
   const [previewSlideId, setPreviewSlideId] = useState<string | null>(null)
-  const [fillWarning, setFillWarning] = useState<{ issues: UnfilledField[]; proceed: () => void; proceedLabel: string } | null>(null)
-  const [exportState, setExportState] = useState<{ open: boolean; error: string | null; step: number; format: 'pptx' | 'pdf' } | null>(null)
+  const [fillWarning, setFillWarning] = useState<{
+    issues: UnfilledField[]
+    proceed: () => void
+    proceedLabel: string
+  } | null>(null)
+  const [exportState, setExportState] = useState<{
+    open: boolean
+    error: string | null
+    step: number
+    format: 'pptx' | 'pdf'
+  } | null>(null)
   const [presentationMode, setPresentationMode] = useState(false)
 
   // Share panel state
@@ -255,7 +297,10 @@ function BoardPageInner() {
   const [resetting, setResetting] = useState(false)
   const [addingGroup, setAddingGroup] = useState(false)
   const [newGroupName, setNewGroupName] = useState('')
-  const [editingAnnotation, setEditingAnnotation] = useState<{ slideId: string; value: string } | null>(null)
+  const [editingAnnotation, setEditingAnnotation] = useState<{
+    slideId: string
+    value: string
+  } | null>(null)
   const layoutSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const layoutRef = useRef<PersonalLayout | null>(null)
 
@@ -271,33 +316,42 @@ function BoardPageInner() {
   const [searchInput, setSearchInput] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
-  const [activeFilters, setActiveFilters] = useState<ActiveFilters>({ groups: [], tags: [], statuses: [] })
+  const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
+    groups: [],
+    tags: [],
+    statuses: [],
+  })
 
   // Collapsed groups state (persisted to localStorage)
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => {
     if (typeof window === 'undefined') return new Set<string>()
     try {
-      const stored = localStorage.getItem(`deckr-collapsed-groups-${projectId ?? 'board'}`)
+      const stored = localStorage.getItem(`onslide-collapsed-groups-${projectId ?? 'board'}`)
       return stored ? new Set(JSON.parse(stored) as string[]) : new Set<string>()
     } catch {
       return new Set<string>()
     }
   })
 
-  const toggleGroupCollapse = useCallback((groupId: string) => {
-    setCollapsedGroups((prev) => {
-      const next = new Set(prev)
-      if (next.has(groupId)) next.delete(groupId)
-      else next.add(groupId)
-      try {
-        localStorage.setItem(
-          `deckr-collapsed-groups-${projectId ?? 'board'}`,
-          JSON.stringify([...next])
-        )
-      } catch { /* quota exceeded */ }
-      return next
-    })
-  }, [projectId])
+  const toggleGroupCollapse = useCallback(
+    (groupId: string) => {
+      setCollapsedGroups((prev) => {
+        const next = new Set(prev)
+        if (next.has(groupId)) next.delete(groupId)
+        else next.add(groupId)
+        try {
+          localStorage.setItem(
+            `onslide-collapsed-groups-${projectId ?? 'board'}`,
+            JSON.stringify([...next])
+          )
+        } catch {
+          /* quota exceeded */
+        }
+        return next
+      })
+    },
+    [projectId]
+  )
 
   const collapseAll = useCallback(() => {
     const sections = buildSections()
@@ -305,18 +359,22 @@ function BoardPageInner() {
     setCollapsedGroups(allIds)
     try {
       localStorage.setItem(
-        `deckr-collapsed-groups-${projectId ?? 'board'}`,
+        `onslide-collapsed-groups-${projectId ?? 'board'}`,
         JSON.stringify([...allIds])
       )
-    } catch { /* quota exceeded */ }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    } catch {
+      /* quota exceeded */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, slides, groups, memberships, personalLayout])
 
   const expandAll = useCallback(() => {
     setCollapsedGroups(new Set())
     try {
-      localStorage.removeItem(`deckr-collapsed-groups-${projectId ?? 'board'}`)
-    } catch { /* ignore */ }
+      localStorage.removeItem(`onslide-collapsed-groups-${projectId ?? 'board'}`)
+    } catch {
+      /* ignore */
+    }
   }, [projectId])
 
   // Derived permission state
@@ -343,7 +401,11 @@ function BoardPageInner() {
    * Schedule a background re-render of a slide thumbnail with text edits.
    * Debounced to 2 seconds after the last edit to avoid hammering ConvertAPI.
    */
-  function scheduleRenderPreview(instanceId: string, slideId: string, edits: Record<string, string>) {
+  function scheduleRenderPreview(
+    instanceId: string,
+    slideId: string,
+    edits: Record<string, string>
+  ) {
     if (!projectId) return
     // Clear any pending render for this instance
     if (renderTimers.current[instanceId]) {
@@ -352,7 +414,9 @@ function BoardPageInner() {
     renderTimers.current[instanceId] = setTimeout(async () => {
       try {
         const supabase = createBrowserSupabaseClient()
-        const { data: { session } } = await supabase.auth.getSession()
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
         if (!session) return
 
         const res = await fetch('/api/slides/render-preview', {
@@ -384,14 +448,18 @@ function BoardPageInner() {
 
     async function load() {
       const supabase = createBrowserSupabaseClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       if (!session) return
       const token = session.access_token
 
       const [slidesRes, groupsRes, layoutRes] = await Promise.all([
         fetch('/api/slides', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
         fetch('/api/groups', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
-        fetch('/api/board/layout', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
+        fetch('/api/board/layout', { headers: { Authorization: `Bearer ${token}` } }).catch(
+          () => null
+        ),
       ])
 
       let newSlides: Slide[] = []
@@ -415,7 +483,12 @@ function BoardPageInner() {
           layoutRef.current = d.layout
         }
       }
-      dispatchBoard({ type: 'SET_BOARD_DATA', slides: newSlides, groups: newGroups, memberships: newMemberships })
+      dispatchBoard({
+        type: 'SET_BOARD_DATA',
+        slides: newSlides,
+        groups: newGroups,
+        memberships: newMemberships,
+      })
     }
 
     load()
@@ -425,33 +498,43 @@ function BoardPageInner() {
   // Fetch project when ?project= param is set
   // -------------------------------------------------------------------------
 
-  const loadProject = useCallback(async (showLoading = true) => {
-    if (!projectId) return
-    const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) { if (showLoading) setTrayLoading(false); return }
-
-    if (showLoading) setTrayLoading(true)
-    const res = await fetch(`/api/projects/${projectId}`, {
-      headers: { Authorization: `Bearer ${session.access_token}` },
-    })
-    if (res.ok) {
-      const d = await res.json()
-      if (d.project.status === 'archived') {
-        router.replace('/projects')
+  const loadProject = useCallback(
+    async (showLoading = true) => {
+      if (!projectId) return
+      const supabase = createBrowserSupabaseClient()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session) {
+        if (showLoading) setTrayLoading(false)
         return
       }
-      setProject(d.project)
-      const items: TrayItem[] = Array.isArray(d.project.slide_order) ? d.project.slide_order : []
-      const edits: Record<string, Record<string, string>> =
-        d.project.text_edits && typeof d.project.text_edits === 'object' ? d.project.text_edits : {}
-      setTrayItems(items)
-      setTextEdits(edits)
-      trayItemsRef.current = items
-      textEditsRef.current = edits
-    }
-    if (showLoading) setTrayLoading(false)
-  }, [projectId])
+
+      if (showLoading) setTrayLoading(true)
+      const res = await fetch(`/api/projects/${projectId}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      if (res.ok) {
+        const d = await res.json()
+        if (d.project.status === 'archived') {
+          router.replace('/projects')
+          return
+        }
+        setProject(d.project)
+        const items: TrayItem[] = Array.isArray(d.project.slide_order) ? d.project.slide_order : []
+        const edits: Record<string, Record<string, string>> = d.project.text_edits &&
+        typeof d.project.text_edits === 'object'
+          ? d.project.text_edits
+          : {}
+        setTrayItems(items)
+        setTextEdits(edits)
+        trayItemsRef.current = items
+        textEditsRef.current = edits
+      }
+      if (showLoading) setTrayLoading(false)
+    },
+    [projectId]
+  )
 
   useEffect(() => {
     if (!projectId || userLoading) return
@@ -487,13 +570,16 @@ function BoardPageInner() {
     const tagParam = searchParams.get('tags')
     const statusParam = searchParams.get('statuses')
     const groupParam = searchParams.get('groups')
-    if (q) { setSearchInput(q); setDebouncedQuery(q) }
+    if (q) {
+      setSearchInput(q)
+      setDebouncedQuery(q)
+    }
     setActiveFilters({
       tags: tagParam ? tagParam.split('|').filter(Boolean) : [],
       statuses: statusParam ? statusParam.split('|').filter(Boolean) : [],
       groups: groupParam ? groupParam.split('|').filter(Boolean) : [],
     })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // mount only
 
   // Debounce search input → debouncedQuery
@@ -505,10 +591,14 @@ function BoardPageInner() {
   // Sync filter state to URL params
   useEffect(() => {
     const current = new URLSearchParams(window.location.search)
-    if (debouncedQuery) current.set('q', debouncedQuery); else current.delete('q')
-    if (activeFilters.tags.length) current.set('tags', activeFilters.tags.join('|')); else current.delete('tags')
-    if (activeFilters.statuses.length) current.set('statuses', activeFilters.statuses.join('|')); else current.delete('statuses')
-    if (activeFilters.groups.length) current.set('groups', activeFilters.groups.join('|')); else current.delete('groups')
+    if (debouncedQuery) current.set('q', debouncedQuery)
+    else current.delete('q')
+    if (activeFilters.tags.length) current.set('tags', activeFilters.tags.join('|'))
+    else current.delete('tags')
+    if (activeFilters.statuses.length) current.set('statuses', activeFilters.statuses.join('|'))
+    else current.delete('statuses')
+    if (activeFilters.groups.length) current.set('groups', activeFilters.groups.join('|'))
+    else current.delete('groups')
     window.history.replaceState(null, '', `?${current.toString()}`)
   }, [debouncedQuery, activeFilters])
 
@@ -516,13 +606,12 @@ function BoardPageInner() {
   // Auto-save tray
   // -------------------------------------------------------------------------
 
-  async function saveTray(
-    items: TrayItem[],
-    edits: Record<string, Record<string, string>>
-  ) {
+  async function saveTray(items: TrayItem[], edits: Record<string, Record<string, string>>) {
     if (!projectId) return
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return
     await fetch(`/api/projects/${projectId}`, {
       method: 'PATCH',
@@ -534,10 +623,7 @@ function BoardPageInner() {
     })
   }
 
-  function scheduleSave(
-    items: TrayItem[],
-    edits: Record<string, Record<string, string>>
-  ) {
+  function scheduleSave(items: TrayItem[], edits: Record<string, Record<string, string>>) {
     trayItemsRef.current = items
     textEditsRef.current = edits
     if (saveTimer.current) clearTimeout(saveTimer.current)
@@ -552,7 +638,9 @@ function BoardPageInner() {
 
   async function saveLayout(layout: PersonalLayout) {
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return
     await fetch('/api/board/layout', {
       method: 'PUT',
@@ -616,9 +704,7 @@ function BoardPageInner() {
   function renamePersonalGroup(groupId: string, name: string) {
     updateLayout((prev) => ({
       ...prev,
-      personalGroups: prev.personalGroups.map((g) =>
-        g.id === groupId ? { ...g, name } : g
-      ),
+      personalGroups: prev.personalGroups.map((g) => (g.id === groupId ? { ...g, name } : g)),
     }))
   }
 
@@ -702,7 +788,9 @@ function BoardPageInner() {
     setResetting(true)
     try {
       const supabase = createBrowserSupabaseClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       if (!session) return
       await fetch('/api/board/layout', {
         method: 'DELETE',
@@ -792,17 +880,28 @@ function BoardPageInner() {
 
     try {
       const supabase = createBrowserSupabaseClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       if (!session) {
-        setExportState({ open: true, error: t('export_dialog.not_authenticated', 'Not authenticated. Please refresh and try again.'), step: 1, format: type })
+        setExportState({
+          open: true,
+          error: t(
+            'export_dialog.not_authenticated',
+            'Not authenticated. Please refresh and try again.'
+          ),
+          step: 1,
+          format: type,
+        })
         return
       }
 
       setExportState({ open: true, error: null, step: 2, format: type })
 
-      const apiUrl = type === 'pdf'
-        ? `/api/projects/${projectId}/export/pdf`
-        : `/api/projects/${projectId}/export`
+      const apiUrl =
+        type === 'pdf'
+          ? `/api/projects/${projectId}/export/pdf`
+          : `/api/projects/${projectId}/export`
 
       const res = await fetch(apiUrl, {
         method: 'POST',
@@ -813,7 +912,9 @@ function BoardPageInner() {
         const data = await res.json().catch(() => ({}))
         setExportState({
           open: true,
-          error: (data as { error?: string }).error ?? t('export_dialog.export_failed_message', 'Export failed. Please try again.'),
+          error:
+            (data as { error?: string }).error ??
+            t('export_dialog.export_failed_message', 'Export failed. Please try again.'),
           step: 2,
           format: type,
         })
@@ -827,8 +928,9 @@ function BoardPageInner() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = res.headers.get('content-disposition')
-        ?.match(/filename="([^"]+)"/)?.[1] ?? `presentation.${type}`
+      a.download =
+        res.headers.get('content-disposition')?.match(/filename="([^"]+)"/)?.[1] ??
+        `presentation.${type}`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -836,7 +938,12 @@ function BoardPageInner() {
 
       setExportState(null)
     } catch {
-      setExportState({ open: true, error: t('export_dialog.export_failed_message', 'Export failed. Please try again.'), step: 2, format: type })
+      setExportState({
+        open: true,
+        error: t('export_dialog.export_failed_message', 'Export failed. Please try again.'),
+        step: 2,
+        format: type,
+      })
     }
   }
 
@@ -856,7 +963,11 @@ function BoardPageInner() {
     lastExportTypeRef.current = 'pdf'
     const issues = checkFillStatus(trayItems, slideMap, textEdits)
     if (issues.length > 0) {
-      setFillWarning({ issues, proceed: () => doExport('pdf'), proceedLabel: t('board.export_pdf') })
+      setFillWarning({
+        issues,
+        proceed: () => doExport('pdf'),
+        proceedLabel: t('board.export_pdf'),
+      })
     } else {
       doExport('pdf')
     }
@@ -866,7 +977,11 @@ function BoardPageInner() {
     if (!projectId) return
     const issues = checkFillStatus(trayItems, slideMap, textEdits)
     if (issues.length > 0) {
-      setFillWarning({ issues, proceed: () => setPresentationMode(true), proceedLabel: t('board.present') })
+      setFillWarning({
+        issues,
+        proceed: () => setPresentationMode(true),
+        proceedLabel: t('board.present'),
+      })
     } else {
       setPresentationMode(true)
     }
@@ -879,7 +994,9 @@ function BoardPageInner() {
   async function fetchShares() {
     if (!projectId) return
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return
     const res = await fetch(`/api/projects/${projectId}/shares`, {
       headers: { Authorization: `Bearer ${session.access_token}` },
@@ -895,14 +1012,22 @@ function BoardPageInner() {
     setSharePanelOpen(true)
   }
 
-  async function handleAddShare(targetUserId: string, permission: 'view' | 'edit'): Promise<string | null> {
+  async function handleAddShare(
+    targetUserId: string,
+    permission: 'view' | 'edit'
+  ): Promise<string | null> {
     if (!projectId) return 'No project selected'
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return 'Not authenticated'
     const res = await fetch(`/api/projects/${projectId}/shares`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
       body: JSON.stringify({ user_id: targetUserId, permission }),
     })
     if (!res.ok) {
@@ -916,11 +1041,16 @@ function BoardPageInner() {
   async function handleUpdatePermission(shareId: string, permission: 'view' | 'edit') {
     if (!projectId) return
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return
     await fetch(`/api/projects/${projectId}/shares/${shareId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
       body: JSON.stringify({ permission }),
     })
     await fetchShares()
@@ -929,7 +1059,9 @@ function BoardPageInner() {
   async function handleRemoveShare(shareId: string) {
     if (!projectId) return
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return
     await fetch(`/api/projects/${projectId}/shares/${shareId}`, {
       method: 'DELETE',
@@ -940,7 +1072,9 @@ function BoardPageInner() {
 
   async function handleSearchUsers(query: string): Promise<SearchUser[]> {
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return []
     const res = await fetch(`/api/team/search?q=${encodeURIComponent(query)}`, {
       headers: { Authorization: `Bearer ${session.access_token}` },
@@ -959,7 +1093,9 @@ function BoardPageInner() {
   const fetchCommentCounts = useCallback(async () => {
     if (!projectId) return
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return
     const res = await fetch(`/api/projects/${projectId}/comments/counts`, {
       headers: { Authorization: `Bearer ${session.access_token}` },
@@ -997,7 +1133,9 @@ function BoardPageInner() {
   const fetchNotesExist = useCallback(async () => {
     if (!projectId) return
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return
     const res = await fetch(`/api/projects/${projectId}/notes/has`, {
       headers: { Authorization: `Bearer ${session.access_token}` },
@@ -1031,7 +1169,9 @@ function BoardPageInner() {
   const fetchPersonalSlides = useCallback(async () => {
     if (!projectId) return
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return
     const res = await fetch(`/api/projects/${projectId}/personal-slides`, {
       headers: { Authorization: `Bearer ${session.access_token}` },
@@ -1071,7 +1211,9 @@ function BoardPageInner() {
 
     // Delete via API (removes storage + DB record)
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (session) {
       await fetch(`/api/projects/${projectId}/personal-slides/${item.personal_slide_id}`, {
         method: 'DELETE',
@@ -1099,7 +1241,9 @@ function BoardPageInner() {
   async function handleConfirmRestore(versionId: string) {
     if (!projectId) return
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return
 
     const res = await fetch(`/api/projects/${projectId}/versions/${versionId}/restore`, {
@@ -1132,7 +1276,12 @@ function BoardPageInner() {
     const assignedIds = new Set(memberships.map((m) => m.slide_id))
 
     // Build admin sections (without positions yet)
-    const adminSections: (Omit<BoardSection, 'x' | 'y'> & { x?: number; y?: number; dbX: number | null; dbY: number | null })[] = groups.map((group) => {
+    const adminSections: (Omit<BoardSection, 'x' | 'y'> & {
+      x?: number
+      y?: number
+      dbX: number | null
+      dbY: number | null
+    })[] = groups.map((group) => {
       const memberSlideIds = memberships
         .filter((m) => m.group_id === group.id)
         .sort((a, b) => a.position - b.position)
@@ -1147,7 +1296,13 @@ function BoardPageInner() {
     if (!personalLayout) {
       const withUngrouped = [...adminSections]
       if (ungrouped.length > 0 || groups.length === 0) {
-        withUngrouped.push({ id: '__ungrouped__', name: 'Ungrouped', slides: ungrouped, dbX: null, dbY: null })
+        withUngrouped.push({
+          id: '__ungrouped__',
+          name: 'Ungrouped',
+          slides: ungrouped,
+          dbX: null,
+          dbY: null,
+        })
       }
       return assignPositions(withUngrouped)
     }
@@ -1211,9 +1366,7 @@ function BoardPageInner() {
     }
 
     // Add ungrouped
-    const allPlacedIds = new Set(
-      allSections.flatMap((s) => s.slides.map((sl) => sl.id))
-    )
+    const allPlacedIds = new Set(allSections.flatMap((s) => s.slides.map((sl) => sl.id)))
     const remainingUngrouped = ungrouped.filter((s) => !allPlacedIds.has(s.id))
     const orphanedOverrides = Object.entries(overrides)
       .filter(([, o]) => !sectionMap.has(o.groupId))
@@ -1222,7 +1375,13 @@ function BoardPageInner() {
 
     const allUngrouped = [...remainingUngrouped, ...orphanedOverrides]
     if (allUngrouped.length > 0 || (groups.length === 0 && personalSections.length === 0)) {
-      allSections.push({ id: '__ungrouped__', name: 'Ungrouped', slides: allUngrouped, dbX: null, dbY: null })
+      allSections.push({
+        id: '__ungrouped__',
+        name: 'Ungrouped',
+        slides: allUngrouped,
+        dbX: null,
+        dbY: null,
+      })
     }
 
     // Apply personal position overrides
@@ -1292,7 +1451,10 @@ function BoardPageInner() {
   const slideMap = useMemo(() => new Map(slides.map((s) => [s.id, s])), [slides])
 
   // Personal slides lookup map for tray (PROJ-32)
-  const personalSlidesMap = useMemo(() => new Map(personalSlides.map((s) => [s.id, s])), [personalSlides])
+  const personalSlidesMap = useMemo(
+    () => new Map(personalSlides.map((s) => [s.id, s])),
+    [personalSlides]
+  )
 
   // Slides in tray order for presentation mode
   const presentationSlides: PresentationSlide[] = trayItems.flatMap((item): PresentationSlide[] => {
@@ -1323,7 +1485,7 @@ function BoardPageInner() {
     const { w, h } = calcWorldSize(sections, collapsedGroups)
     const rect = containerRef.current.getBoundingClientRect()
     canvas.fitToScreen(w, h, rect.width, rect.height)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading])
 
   const handleFit = useCallback(() => {
@@ -1332,7 +1494,7 @@ function BoardPageInner() {
     const { w, h } = calcWorldSize(sections, collapsedGroups)
     const rect = containerRef.current.getBoundingClientRect()
     canvas.fitToScreen(w, h, rect.width, rect.height)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slides, groups, memberships, canvas, collapsedGroups])
 
   // Re-fit canvas when entering/exiting board fullscreen
@@ -1340,7 +1502,7 @@ function BoardPageInner() {
     // Small delay to let layout transition complete
     const timer = setTimeout(() => handleFit(), 100)
     return () => clearTimeout(timer)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isBoardFullscreen])
 
   // Keyboard shortcut: F to toggle board fullscreen (only when no input focused)
@@ -1349,7 +1511,8 @@ function BoardPageInner() {
       if (e.key === 'f' || e.key === 'F') {
         if (presentationMode) return
         const tag = (e.target as HTMLElement).tagName
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable) return
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable)
+          return
         e.preventDefault()
         toggleBoardFullscreen()
       }
@@ -1366,7 +1529,11 @@ function BoardPageInner() {
   const sections = useMemo(() => buildSections(), [slides, groups, memberships, personalLayout])
 
   // --- Search + filter ---
-  const isFiltering = debouncedQuery.length > 0 || activeFilters.groups.length > 0 || activeFilters.tags.length > 0 || activeFilters.statuses.length > 0
+  const isFiltering =
+    debouncedQuery.length > 0 ||
+    activeFilters.groups.length > 0 ||
+    activeFilters.tags.length > 0 ||
+    activeFilters.statuses.length > 0
 
   const filteredSections = useMemo(() => {
     if (!isFiltering) return sections
@@ -1378,10 +1545,19 @@ function BoardPageInner() {
       const filteredSlides = section.slides.filter((slide) => {
         if (debouncedQuery) {
           const q = debouncedQuery.toLowerCase()
-          if (!slide.title.toLowerCase().includes(q) && !(slide.tags ?? []).some((t) => t.toLowerCase().includes(q))) return false
+          if (
+            !slide.title.toLowerCase().includes(q) &&
+            !(slide.tags ?? []).some((t) => t.toLowerCase().includes(q))
+          )
+            return false
         }
-        if (activeFilters.tags.length > 0 && !(slide.tags ?? []).some((t) => activeFilters.tags.includes(t))) return false
-        if (activeFilters.statuses.length > 0 && !activeFilters.statuses.includes(slide.status)) return false
+        if (
+          activeFilters.tags.length > 0 &&
+          !(slide.tags ?? []).some((t) => activeFilters.tags.includes(t))
+        )
+          return false
+        if (activeFilters.statuses.length > 0 && !activeFilters.statuses.includes(slide.status))
+          return false
         return true
       })
       return { ...section, slides: filteredSlides }
@@ -1389,16 +1565,20 @@ function BoardPageInner() {
   }, [sections, isFiltering, debouncedQuery, activeFilters])
 
   const displaySections = useMemo(
-    () => isFiltering ? filteredSections.filter((s) => s.slides.length > 0) : sections,
+    () => (isFiltering ? filteredSections.filter((s) => s.slides.length > 0) : sections),
     [isFiltering, filteredSections, sections]
   )
   const totalCount = slides.length
   const resultCount = filteredSections.reduce((acc, s) => acc + s.slides.length, 0)
-  const filterCount = activeFilters.groups.length + activeFilters.tags.length + activeFilters.statuses.length
+  const filterCount =
+    activeFilters.groups.length + activeFilters.tags.length + activeFilters.statuses.length
   const allTags = Array.from(new Set(slides.flatMap((s) => s.tags ?? []))).sort()
   const allGroupNames = sections.map((s) => s.name)
 
-  const { w: worldW, h: worldH } = calcWorldSize(isFiltering ? displaySections : sections, collapsedGroups)
+  const { w: worldW, h: worldH } = calcWorldSize(
+    isFiltering ? displaySections : sections,
+    collapsedGroups
+  )
 
   // Track container size for virtualization (resize-aware)
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 })
@@ -1407,7 +1587,9 @@ function BoardPageInner() {
     if (!el) return
     const ro = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect
-      setContainerSize((prev) => prev.w === width && prev.h === height ? prev : { w: width, h: height })
+      setContainerSize((prev) =>
+        prev.w === width && prev.h === height ? prev : { w: width, h: height }
+      )
     })
     ro.observe(el)
     return () => ro.disconnect()
@@ -1426,56 +1608,61 @@ function BoardPageInner() {
   // Group dragging
   // -------------------------------------------------------------------------
 
-  const handleDragEnd = useCallback(async (drag: DragState) => {
-    if (drag.target.type !== 'group') return
+  const handleDragEnd = useCallback(
+    async (drag: DragState) => {
+      if (drag.target.type !== 'group') return
 
-    const groupId = drag.target.id
-    const section = displaySections.find((s) => s.id === groupId)
-    if (!section) return
+      const groupId = drag.target.id
+      const section = displaySections.find((s) => s.id === groupId)
+      if (!section) return
 
-    const newX = section.x + drag.deltaX
-    const newY = section.y + drag.deltaY
+      const newX = section.x + drag.deltaX
+      const newY = section.y + drag.deltaY
 
-    // Check if this is a personal group or admin group
-    const isPersonalGroup = section.isPersonal
-    const isAdminGroup = groups.some((g) => g.id === groupId)
+      // Check if this is a personal group or admin group
+      const isPersonalGroup = section.isPersonal
+      const isAdminGroup = groups.some((g) => g.id === groupId)
 
-    if (isAdminGroup && isAdmin) {
-      // Admin dragging an admin group: persist to DB
-      const supabase = createBrowserSupabaseClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
-      fetch(`/api/groups/${groupId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ x: newX, y: newY }),
-      }).catch(() => {})
+      if (isAdminGroup && isAdmin) {
+        // Admin dragging an admin group: persist to DB
+        const supabase = createBrowserSupabaseClient()
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+        if (!session) return
+        fetch(`/api/groups/${groupId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ x: newX, y: newY }),
+        }).catch(() => {})
 
-      // Update local state
-      dispatchBoard({ type: 'UPDATE_GROUP', groupId, update: { x: newX, y: newY } })
-    } else if (isPersonalGroup) {
-      // Personal group: persist to personal layout
-      updateLayout((prev) => ({
-        ...prev,
-        personalGroups: prev.personalGroups.map((pg) =>
-          pg.id === groupId ? { ...pg, x: newX, y: newY } : pg
-        ),
-      }))
-    } else {
-      // Non-admin user dragging an admin group: store position override in personal layout
-      updateLayout((prev) => ({
-        ...prev,
-        groupPositions: {
-          ...(prev.groupPositions ?? {}),
-          [groupId]: { x: newX, y: newY },
-        },
-      }))
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displaySections, groups, isAdmin])
+        // Update local state
+        dispatchBoard({ type: 'UPDATE_GROUP', groupId, update: { x: newX, y: newY } })
+      } else if (isPersonalGroup) {
+        // Personal group: persist to personal layout
+        updateLayout((prev) => ({
+          ...prev,
+          personalGroups: prev.personalGroups.map((pg) =>
+            pg.id === groupId ? { ...pg, x: newX, y: newY } : pg
+          ),
+        }))
+      } else {
+        // Non-admin user dragging an admin group: store position override in personal layout
+        updateLayout((prev) => ({
+          ...prev,
+          groupPositions: {
+            ...(prev.groupPositions ?? {}),
+            [groupId]: { x: newX, y: newY },
+          },
+        }))
+      }
+       
+    },
+    [displaySections, groups, isAdmin]
+  )
 
   const canvasDrag = useCanvasDrag({
     zoom: canvas.zoom,
@@ -1487,7 +1674,8 @@ function BoardPageInner() {
   // Virtualization: only render groups visible in the viewport (+ buffer)
   const VIRTUALIZATION_BUFFER = 400 // pixels in world coordinates
   const groupWidth = COLS * CARD_WIDTH + (COLS - 1) * GAP
-  const draggedGroupId = canvasDrag.activeDrag?.target.type === 'group' ? canvasDrag.activeDrag.target.id : null
+  const draggedGroupId =
+    canvasDrag.activeDrag?.target.type === 'group' ? canvasDrag.activeDrag.target.id : null
   const visibleSections = useMemo(() => {
     if (containerSize.w === 0 || displaySections.length <= 5) return displaySections
     const viewLeft = -canvas.panX / canvas.zoom - VIRTUALIZATION_BUFFER
@@ -1506,9 +1694,22 @@ function BoardPageInner() {
       const sBottom = section.y + sectionHeight
 
       // AABB intersection test
-      return sRight >= viewLeft && section.x <= viewRight && sBottom >= viewTop && section.y <= viewBottom
+      return (
+        sRight >= viewLeft &&
+        section.x <= viewRight &&
+        sBottom >= viewTop &&
+        section.y <= viewBottom
+      )
     })
-  }, [displaySections, canvas.panX, canvas.panY, canvas.zoom, collapsedGroups, containerSize, draggedGroupId])
+  }, [
+    displaySections,
+    canvas.panX,
+    canvas.panY,
+    canvas.zoom,
+    collapsedGroups,
+    containerSize,
+    draggedGroupId,
+  ])
 
   return (
     <>
@@ -1530,414 +1731,491 @@ function BoardPageInner() {
       )}
 
       {/* Full-bleed canvas + tray (desktop only — not mounted on mobile) */}
-      {!isMobile && <div className={`hidden md:flex flex-1 min-h-0 ${isBoardFullscreen ? '' : '-m-6'}`}>
-        {/* Canvas area */}
-        <div
-          ref={containerRef}
-          className={`relative flex-1 min-h-0 overflow-hidden cursor-grab active:cursor-grabbing ${isBoardFullscreen ? 'rounded-lg border' : ''}`}
-          style={{
-            background: 'radial-gradient(circle, #d0d0d0 1px, transparent 1px)',
-            backgroundSize: '24px 24px',
-            backgroundColor: '#f0f0f0',
-          }}
-          onPointerDown={(e) => {
-            // If a drag is active, don't start panning
-            if (canvasDrag.isDragging) return
-            canvas.onPointerDown(e)
-          }}
-          onPointerMove={(e) => {
-            if (canvasDrag.isDragging && containerRef.current) {
-              canvasDrag.updateDrag(e, containerRef.current.getBoundingClientRect())
-              return
-            }
-            canvas.onPointerMove(e)
-          }}
-          onPointerUp={() => {
-            if (canvasDrag.isDragging) {
-              canvasDrag.endDrag()
-              return
-            }
-            canvas.onPointerUp()
-          }}
-          onPointerLeave={() => {
-            if (canvasDrag.isDragging) {
-              canvasDrag.endDrag()
-              return
-            }
-            canvas.onPointerUp()
-          }}
-          onDragOver={(e) => {
-            if (projectId && canEdit && e.dataTransfer.types.includes('Files')) {
-              e.preventDefault()
-              setFileDragOver(true)
-            }
-          }}
-          onDragLeave={(e) => {
-            if (e.currentTarget.contains(e.relatedTarget as Node)) return
-            setFileDragOver(false)
-          }}
-          onDrop={(e) => {
-            setFileDragOver(false)
-            if (!projectId || !canEdit) return
-            const file = e.dataTransfer.files[0]
-            if (file?.name.endsWith('.pptx')) {
-              e.preventDefault()
-              setUploadDialogOpen(true)
-            }
-          }}
-        >
-          {/* Canvas world */}
+      {!isMobile && (
+        <div className={`hidden md:flex flex-1 min-h-0 ${isBoardFullscreen ? '' : '-m-6'}`}>
+          {/* Canvas area */}
           <div
+            ref={containerRef}
+            className={`relative flex-1 min-h-0 overflow-hidden cursor-grab active:cursor-grabbing ${isBoardFullscreen ? 'rounded-lg border' : ''}`}
             style={{
-              position: 'absolute',
-              left: 0,
-              top: 0,
-              width: worldW,
-              height: worldH,
-              transform: `translate(${canvas.panX}px, ${canvas.panY}px) scale(${canvas.zoom})`,
-              transformOrigin: '0 0',
+              background: 'radial-gradient(circle, #d0d0d0 1px, transparent 1px)',
+              backgroundSize: '24px 24px',
+              backgroundColor: '#f0f0f0',
+            }}
+            onPointerDown={(e) => {
+              // If a drag is active, don't start panning
+              if (canvasDrag.isDragging) return
+              canvas.onPointerDown(e)
+            }}
+            onPointerMove={(e) => {
+              if (canvasDrag.isDragging && containerRef.current) {
+                canvasDrag.updateDrag(e, containerRef.current.getBoundingClientRect())
+                return
+              }
+              canvas.onPointerMove(e)
+            }}
+            onPointerUp={() => {
+              if (canvasDrag.isDragging) {
+                canvasDrag.endDrag()
+                return
+              }
+              canvas.onPointerUp()
+            }}
+            onPointerLeave={() => {
+              if (canvasDrag.isDragging) {
+                canvasDrag.endDrag()
+                return
+              }
+              canvas.onPointerUp()
+            }}
+            onDragOver={(e) => {
+              if (projectId && canEdit && e.dataTransfer.types.includes('Files')) {
+                e.preventDefault()
+                setFileDragOver(true)
+              }
+            }}
+            onDragLeave={(e) => {
+              if (e.currentTarget.contains(e.relatedTarget as Node)) return
+              setFileDragOver(false)
+            }}
+            onDrop={(e) => {
+              setFileDragOver(false)
+              if (!projectId || !canEdit) return
+              const file = e.dataTransfer.files[0]
+              if (file?.name.endsWith('.pptx')) {
+                e.preventDefault()
+                setUploadDialogOpen(true)
+              }
             }}
           >
-            {loading ? (
-              <div style={{ padding: PADDING, display: 'flex', flexDirection: 'column', gap: 40 }}>
-                {Array.from({ length: 2 }).map((_, gi) => (
-                  <div key={gi}>
-                    <Skeleton className="mb-3 h-5 w-40 rounded" />
-                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${COLS}, ${CARD_WIDTH}px)`, gap: GAP }}>
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Skeleton key={i} style={{ width: CARD_WIDTH, height: CARD_HEIGHT }} className="rounded-lg" />
-                      ))}
+            {/* Canvas world */}
+            <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                width: worldW,
+                height: worldH,
+                transform: `translate(${canvas.panX}px, ${canvas.panY}px) scale(${canvas.zoom})`,
+                transformOrigin: '0 0',
+              }}
+            >
+              {loading ? (
+                <div
+                  style={{ padding: PADDING, display: 'flex', flexDirection: 'column', gap: 40 }}
+                >
+                  {Array.from({ length: 2 }).map((_, gi) => (
+                    <div key={gi}>
+                      <Skeleton className="mb-3 h-5 w-40 rounded" />
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: `repeat(${COLS}, ${CARD_WIDTH}px)`,
+                          gap: GAP,
+                        }}
+                      >
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Skeleton
+                            key={i}
+                            style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}
+                            className="rounded-lg"
+                          />
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : slides.length === 0 ? (
-              <div
-                style={{ width: worldW, height: worldH }}
-                className="flex flex-col items-center justify-center gap-4"
-              >
-                <p className="text-sm font-medium text-muted-foreground">{t('board.no_slides_in_library')}</p>
-                {isAdmin && (
-                  <Button variant="outline" size="sm" asChild data-no-pan>
-                    <Link href="/admin/slides">{t('admin.upload_slide')}</Link>
-                  </Button>
-                )}
-              </div>
-            ) : isFiltering && resultCount === 0 ? (
-              <div
-                style={{ width: worldW, height: worldH }}
-                className="flex flex-col items-center justify-center gap-2"
-              >
-                <p className="text-sm font-medium text-muted-foreground">{t('board.no_slides_match')}</p>
-                <p className="text-xs text-muted-foreground">{t('board.try_different_keywords')}</p>
-              </div>
-            ) : (
-              visibleSections.map((section) => {
-                const isDragTarget =
-                  canvasDrag.activeDrag?.target.type === 'group' &&
-                  canvasDrag.activeDrag.target.id === section.id
-                const dragOffset = isDragTarget
-                  ? { dx: canvasDrag.activeDrag!.deltaX, dy: canvasDrag.activeDrag!.deltaY }
-                  : undefined
-
-                return (
-                  <GroupSection
-                    key={section.id}
-                    id={section.id}
-                    name={section.name}
-                    slides={section.slides}
-                    x={section.x}
-                    y={section.y}
-                    zoom={canvas.zoom}
-                    onAddToTray={projectId && canEdit ? addToTray : undefined}
-                    isPersonal={section.isPersonal}
-                    onRename={section.isPersonal ? (name) => renamePersonalGroup(section.id, name) : undefined}
-                    onDelete={section.isPersonal ? () => deletePersonalGroup(section.id) : undefined}
-                    annotations={section.annotations}
-                    onAnnotationClick={(slideId) => {
-                      const current = personalLayout?.slideOverrides[slideId]?.annotation ?? ''
-                      setEditingAnnotation({ slideId, value: current })
-                    }}
-                    moveTargets={moveTargets}
-                    onMoveToGroup={moveSlideToGroup}
-                    onResetPosition={resetSlidePosition}
-                    overriddenSlideIds={overriddenSlideIds}
-                    dragOffset={dragOffset}
-                    onGroupPointerDown={(e) => {
-                      if (!containerRef.current) return
-                      canvasDrag.startDrag(
-                        e,
-                        { type: 'group', id: section.id },
-                        containerRef.current.getBoundingClientRect()
-                      )
-                    }}
-                    isCollapsed={collapsedGroups.has(section.id)}
-                    onToggleCollapse={() => toggleGroupCollapse(section.id)}
-                    onPreview={(slide) => setPreviewSlideId(slide.id)}
-                    onDoubleClick={(slide) => {
-                      if (!containerRef.current) return
-                      const idx = section.slides.findIndex((s) => s.id === slide.id)
-                      if (idx < 0) return
-                      const col = idx % AUTO_COLS
-                      const row = Math.floor(idx / AUTO_COLS)
-                      const slideX = section.x + col * (CARD_WIDTH + AUTO_GAP)
-                      const slideY = section.y + AUTO_SECTION_HEADER + row * (CARD_HEIGHT + AUTO_GAP)
-                      const rect = containerRef.current.getBoundingClientRect()
-                      canvas.zoomToRect(slideX, slideY, CARD_WIDTH, THUMB_HEIGHT, rect.width, rect.height)
-                    }}
-                  />
-                )
-              })
-            )}
-          </div>
-
-          {/* Breadcrumb */}
-          {!loading && projectId && !isBoardFullscreen && (
-            <div data-no-pan className="absolute top-4 left-4 z-10 rounded-md bg-background/80 px-2.5 py-1.5 backdrop-blur-sm">
-              <Breadcrumb>
-                <BreadcrumbList>
-                  <BreadcrumbItem>
-                    <BreadcrumbLink asChild><Link href="/projects">{t('nav.projects', 'Projects')}</Link></BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem>
-                    <BreadcrumbPage className="max-w-[200px] truncate">{project?.name || t('board.project', 'Project')}</BreadcrumbPage>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
-            </div>
-          )}
-          {!loading && slides.length > 0 && (
-            <div data-no-pan className={`absolute left-4 z-10 ${projectId && !isBoardFullscreen ? 'top-14' : 'top-4'}`}>
-              <SearchFilterBar
-                searchQuery={searchInput}
-                onSearchChange={setSearchInput}
-                filterCount={filterCount}
-                filterOpen={filterOpen}
-                onToggleFilter={() => setFilterOpen((o) => !o)}
-                resultCount={resultCount}
-                totalCount={totalCount}
-                onClearAll={() => {
-                  setSearchInput('')
-                  setDebouncedQuery('')
-                  setActiveFilters({ groups: [], tags: [], statuses: [] })
-                  setFilterOpen(false)
-                }}
-              />
-              {filterOpen && (
-                <div className="mt-2">
-                  <FilterPanel
-                    groups={allGroupNames}
-                    tags={allTags}
-                    filters={activeFilters}
-                    onFiltersChange={setActiveFilters}
-                    onClearFilters={() => setActiveFilters({ groups: [], tags: [], statuses: [] })}
-                  />
+                  ))}
                 </div>
+              ) : slides.length === 0 ? (
+                <div
+                  style={{ width: worldW, height: worldH }}
+                  className="flex flex-col items-center justify-center gap-4"
+                >
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {t('board.no_slides_in_library')}
+                  </p>
+                  {isAdmin && (
+                    <Button variant="outline" size="sm" asChild data-no-pan>
+                      <Link href="/admin/slides">{t('admin.upload_presentations')}</Link>
+                    </Button>
+                  )}
+                </div>
+              ) : isFiltering && resultCount === 0 ? (
+                <div
+                  style={{ width: worldW, height: worldH }}
+                  className="flex flex-col items-center justify-center gap-2"
+                >
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {t('board.no_slides_match')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('board.try_different_keywords')}
+                  </p>
+                </div>
+              ) : (
+                visibleSections.map((section) => {
+                  const isDragTarget =
+                    canvasDrag.activeDrag?.target.type === 'group' &&
+                    canvasDrag.activeDrag.target.id === section.id
+                  const dragOffset = isDragTarget
+                    ? { dx: canvasDrag.activeDrag!.deltaX, dy: canvasDrag.activeDrag!.deltaY }
+                    : undefined
+
+                  return (
+                    <GroupSection
+                      key={section.id}
+                      id={section.id}
+                      name={section.name}
+                      slides={section.slides}
+                      x={section.x}
+                      y={section.y}
+                      zoom={canvas.zoom}
+                      onAddToTray={projectId && canEdit ? addToTray : undefined}
+                      isPersonal={section.isPersonal}
+                      onRename={
+                        section.isPersonal
+                          ? (name) => renamePersonalGroup(section.id, name)
+                          : undefined
+                      }
+                      onDelete={
+                        section.isPersonal ? () => deletePersonalGroup(section.id) : undefined
+                      }
+                      annotations={section.annotations}
+                      onAnnotationClick={(slideId) => {
+                        const current = personalLayout?.slideOverrides[slideId]?.annotation ?? ''
+                        setEditingAnnotation({ slideId, value: current })
+                      }}
+                      moveTargets={moveTargets}
+                      onMoveToGroup={moveSlideToGroup}
+                      onResetPosition={resetSlidePosition}
+                      overriddenSlideIds={overriddenSlideIds}
+                      dragOffset={dragOffset}
+                      onGroupPointerDown={(e) => {
+                        if (!containerRef.current) return
+                        canvasDrag.startDrag(
+                          e,
+                          { type: 'group', id: section.id },
+                          containerRef.current.getBoundingClientRect()
+                        )
+                      }}
+                      isCollapsed={collapsedGroups.has(section.id)}
+                      onToggleCollapse={() => toggleGroupCollapse(section.id)}
+                      onPreview={(slide) => setPreviewSlideId(slide.id)}
+                      onDoubleClick={(slide) => {
+                        if (!containerRef.current) return
+                        const idx = section.slides.findIndex((s) => s.id === slide.id)
+                        if (idx < 0) return
+                        const col = idx % AUTO_COLS
+                        const row = Math.floor(idx / AUTO_COLS)
+                        const slideX = section.x + col * (CARD_WIDTH + AUTO_GAP)
+                        const slideY =
+                          section.y + AUTO_SECTION_HEADER + row * (CARD_HEIGHT + AUTO_GAP)
+                        const rect = containerRef.current.getBoundingClientRect()
+                        canvas.zoomToRect(
+                          slideX,
+                          slideY,
+                          CARD_WIDTH,
+                          THUMB_HEIGHT,
+                          rect.width,
+                          rect.height
+                        )
+                      }}
+                    />
+                  )
+                })
               )}
             </div>
-          )}
 
-          {/* Top-right toolbar: personal layout + share */}
-          <TooltipProvider delayDuration={300}>
-            <div data-no-pan className="absolute top-4 right-4 z-10 flex items-center gap-1">
-              {/* Board fullscreen toggle */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8 bg-background/80 backdrop-blur-sm"
-                    onClick={toggleBoardFullscreen}
-                  >
-                    {isBoardFullscreen
-                      ? <Minimize2 className="h-3.5 w-3.5" />
-                      : <Maximize2 className="h-3.5 w-3.5" />
-                    }
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {isBoardFullscreen
-                    ? t('board.exit_fullscreen', 'Exit fullscreen (F)')
-                    : t('board.enter_fullscreen', 'Fullscreen (F)')
-                  }
-                </TooltipContent>
-              </Tooltip>
-              {/* Collapse/Expand all groups */}
-              {!loading && sections.length > 1 && (
+            {/* Breadcrumb */}
+            {!loading && projectId && !isBoardFullscreen && (
+              <div
+                data-no-pan
+                className="absolute top-4 left-4 z-10 rounded-md bg-background/80 px-2.5 py-1.5 backdrop-blur-sm"
+              >
+                <Breadcrumb>
+                  <BreadcrumbList>
+                    <BreadcrumbItem>
+                      <BreadcrumbLink asChild>
+                        <Link href="/projects">{t('nav.projects', 'Projects')}</Link>
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbPage className="max-w-[200px] truncate">
+                        {project?.name || t('board.project', 'Project')}
+                      </BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </BreadcrumbList>
+                </Breadcrumb>
+              </div>
+            )}
+            {!loading && slides.length > 0 && (
+              <div
+                data-no-pan
+                className={`absolute left-4 z-10 ${projectId && !isBoardFullscreen ? 'top-14' : 'top-4'}`}
+              >
+                <SearchFilterBar
+                  searchQuery={searchInput}
+                  onSearchChange={setSearchInput}
+                  filterCount={filterCount}
+                  filterOpen={filterOpen}
+                  onToggleFilter={() => setFilterOpen((o) => !o)}
+                  resultCount={resultCount}
+                  totalCount={totalCount}
+                  onClearAll={() => {
+                    setSearchInput('')
+                    setDebouncedQuery('')
+                    setActiveFilters({ groups: [], tags: [], statuses: [] })
+                    setFilterOpen(false)
+                  }}
+                />
+                {filterOpen && (
+                  <div className="mt-2">
+                    <FilterPanel
+                      groups={allGroupNames}
+                      tags={allTags}
+                      filters={activeFilters}
+                      onFiltersChange={setActiveFilters}
+                      onClearFilters={() =>
+                        setActiveFilters({ groups: [], tags: [], statuses: [] })
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Top-right toolbar: personal layout + share */}
+            <TooltipProvider delayDuration={300}>
+              <div data-no-pan className="absolute top-4 right-4 z-10 flex items-center gap-1">
+                {/* Board fullscreen toggle */}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       variant="outline"
                       size="icon"
                       className="h-8 w-8 bg-background/80 backdrop-blur-sm"
-                      onClick={collapsedGroups.size > 0 ? expandAll : collapseAll}
+                      onClick={toggleBoardFullscreen}
                     >
-                      {collapsedGroups.size > 0
-                        ? <ChevronsUpDown className="h-3.5 w-3.5" />
-                        : <ChevronsDownUp className="h-3.5 w-3.5" />
-                      }
+                      {isBoardFullscreen ? (
+                        <Minimize2 className="h-3.5 w-3.5" />
+                      ) : (
+                        <Maximize2 className="h-3.5 w-3.5" />
+                      )}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    {collapsedGroups.size > 0 ? t('board.expand_all', 'Expand all') : t('board.collapse_all', 'Collapse all')}
+                    {isBoardFullscreen
+                      ? t('board.exit_fullscreen', 'Exit fullscreen (F)')
+                      : t('board.enter_fullscreen', 'Fullscreen (F)')}
                   </TooltipContent>
                 </Tooltip>
-              )}
-              {/* Personal layout controls */}
-              {hasPersonalLayout && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
+                {/* Collapse/Expand all groups */}
+                {!loading && sections.length > 1 && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+                        onClick={collapsedGroups.size > 0 ? expandAll : collapseAll}
+                      >
+                        {collapsedGroups.size > 0 ? (
+                          <ChevronsUpDown className="h-3.5 w-3.5" />
+                        ) : (
+                          <ChevronsDownUp className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {collapsedGroups.size > 0
+                        ? t('board.expand_all', 'Expand all')
+                        : t('board.collapse_all', 'Collapse all')}
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+                {/* Personal layout controls */}
+                {hasPersonalLayout && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+                        onClick={() => setResetDialogOpen(true)}
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('board.reset_layout')}</TooltipContent>
+                  </Tooltip>
+                )}
+                {!addingGroup ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+                        onClick={() => setAddingGroup(true)}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('board.add_group')}</TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <div className="flex items-center gap-1 bg-background/80 backdrop-blur-sm rounded-md border px-1">
+                    <Input
+                      className="h-7 w-36 text-xs border-0 shadow-none focus-visible:ring-0"
+                      placeholder={t('board.group_name_placeholder')}
+                      value={newGroupName}
+                      onChange={(e) => setNewGroupName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') addPersonalGroup()
+                        if (e.key === 'Escape') {
+                          setAddingGroup(false)
+                          setNewGroupName('')
+                        }
+                      }}
+                      autoFocus
+                    />
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="icon"
-                      className="h-8 w-8 bg-background/80 backdrop-blur-sm"
-                      onClick={() => setResetDialogOpen(true)}
-                    >
-                      <RotateCcw className="h-3.5 w-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{t('board.reset_layout')}</TooltipContent>
-                </Tooltip>
-              )}
-              {!addingGroup ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8 bg-background/80 backdrop-blur-sm"
-                      onClick={() => setAddingGroup(true)}
+                      className="h-6 w-6"
+                      onClick={addPersonalGroup}
                     >
                       <Plus className="h-3.5 w-3.5" />
                     </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{t('board.add_group')}</TooltipContent>
-                </Tooltip>
-              ) : (
-                <div className="flex items-center gap-1 bg-background/80 backdrop-blur-sm rounded-md border px-1">
-                  <Input
-                    className="h-7 w-36 text-xs border-0 shadow-none focus-visible:ring-0"
-                    placeholder={t('board.group_name_placeholder')}
-                    value={newGroupName}
-                    onChange={(e) => setNewGroupName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') addPersonalGroup(); if (e.key === 'Escape') { setAddingGroup(false); setNewGroupName('') } }}
-                    autoFocus
-                  />
-                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={addPersonalGroup}>
-                    <Plus className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setAddingGroup(false); setNewGroupName('') }}>
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              )}
-              {/* Version history button (PROJ-38) */}
-              {projectId && canEdit && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="icon"
-                      className="h-8 w-8 bg-background/80 backdrop-blur-sm"
-                      onClick={() => setVersionHistoryOpen(true)}
-                      aria-label={t('board.open_version_history')}
+                      className="h-6 w-6"
+                      onClick={() => {
+                        setAddingGroup(false)
+                        setNewGroupName('')
+                      }}
                     >
-                      <Clock className="h-3.5 w-3.5" />
+                      <X className="h-3.5 w-3.5" />
                     </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{t('version_history.title')}</TooltipContent>
-                </Tooltip>
-              )}
-              {/* Share controls */}
-              {projectId && !canEdit && (
-                <Badge variant="outline" className="gap-1.5 bg-background/80 backdrop-blur-sm text-muted-foreground">
-                  <Eye className="h-3 w-3" />
-                  {t('board.view_only', 'View only')}
-                </Badge>
-              )}
-              {projectId && canEdit && (
-                <>
+                  </div>
+                )}
+                {/* Version history button (PROJ-38) */}
+                {projectId && canEdit && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
                         variant="outline"
                         size="icon"
                         className="h-8 w-8 bg-background/80 backdrop-blur-sm"
-                        onClick={() => setCrmDialogOpen(true)}
+                        onClick={() => setVersionHistoryOpen(true)}
+                        aria-label={t('board.open_version_history')}
                       >
-                        <Briefcase className="h-3.5 w-3.5" />
+                        <Clock className="h-3.5 w-3.5" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>{t('crm.button')}</TooltipContent>
+                    <TooltipContent>{t('version_history.title')}</TooltipContent>
                   </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-8 w-8 bg-background/80 backdrop-blur-sm"
-                        onClick={handleOpenSharePanel}
-                      >
-                        <Share2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('board.share')}</TooltipContent>
-                  </Tooltip>
-                </>
-              )}
-            </div>
-          </TooltipProvider>
-
-          {/* File drag-and-drop overlay */}
-          {fileDragOver && (
-            <div className="absolute inset-0 z-20 flex items-center justify-center bg-primary/10 border-2 border-dashed border-primary rounded-lg pointer-events-none">
-              <div className="flex flex-col items-center gap-2 bg-background/90 rounded-lg px-6 py-4 shadow-lg">
-                <Upload className="h-8 w-8 text-primary" />
-                <p className="text-sm font-medium text-primary">{t('slides.drop_pptx_here', 'Drop .pptx file to upload')}</p>
+                )}
+                {/* Share controls */}
+                {projectId && !canEdit && (
+                  <Badge
+                    variant="outline"
+                    className="gap-1.5 bg-background/80 backdrop-blur-sm text-muted-foreground"
+                  >
+                    <Eye className="h-3 w-3" />
+                    {t('board.view_only', 'View only')}
+                  </Badge>
+                )}
+                {projectId && canEdit && (
+                  <>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+                          onClick={() => setCrmDialogOpen(true)}
+                        >
+                          <Briefcase className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('crm.button')}</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+                          onClick={handleOpenSharePanel}
+                        >
+                          <Share2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('board.share')}</TooltipContent>
+                    </Tooltip>
+                  </>
+                )}
               </div>
+            </TooltipProvider>
+
+            {/* File drag-and-drop overlay */}
+            {fileDragOver && (
+              <div className="absolute inset-0 z-20 flex items-center justify-center bg-primary/10 border-2 border-dashed border-primary rounded-lg pointer-events-none">
+                <div className="flex flex-col items-center gap-2 bg-background/90 rounded-lg px-6 py-4 shadow-lg">
+                  <Upload className="h-8 w-8 text-primary" />
+                  <p className="text-sm font-medium text-primary">
+                    {t('slides.drop_pptx_here', 'Drop .pptx file to upload')}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Zoom controls */}
+            <div data-no-pan className="absolute bottom-4 right-4 z-10">
+              <ZoomControls
+                zoom={canvas.zoom}
+                onZoomIn={canvas.zoomIn}
+                onZoomOut={canvas.zoomOut}
+                onFit={handleFit}
+              />
             </div>
-          )}
-
-          {/* Zoom controls */}
-          <div data-no-pan className="absolute bottom-4 right-4 z-10">
-            <ZoomControls
-              zoom={canvas.zoom}
-              onZoomIn={canvas.zoomIn}
-              onZoomOut={canvas.zoomOut}
-              onFit={handleFit}
-            />
           </div>
-        </div>
 
-        {/* Tray panel */}
-        <TrayPanel
-          projectId={projectId}
-          projectName={project?.name ?? ''}
-          projectUpdatedAt={project?.updated_at}
-          trayItems={trayItems}
-          slideMap={slideMap}
-          personalSlidesMap={personalSlidesMap}
-          textEdits={textEdits}
-          commentCounts={commentCounts}
-          notesExist={notesExist}
-          loading={trayLoading}
-          collapsed={trayCollapsed}
-          deprecatedError={deprecatedError}
-          onCollapse={() => setTrayCollapsed((c) => !c)}
-          onReorder={canEdit ? reorderTray : undefined}
-          onRemove={canEdit ? removeFromTray : undefined}
-          onEditFields={projectId && canEdit ? (instanceId) => setEditingInstance(instanceId) : undefined}
-          onComment={projectId ? handleOpenCommentPanel : undefined}
-          onNote={projectId ? handleOpenNotePanel : undefined}
-          onExport={projectId && canEdit ? handleExport : undefined}
-          onPdfExport={projectId && canEdit ? handlePdfExport : undefined}
-          onPresent={projectId ? handlePresent : undefined}
-          onUploadPersonalSlide={projectId && canEdit ? () => setUploadDialogOpen(true) : undefined}
-          onSaveVersion={projectId && canEdit ? () => setSaveVersionOpen(true) : undefined}
-          previewUrls={previewUrls}
-        />
-      </div>}
+          {/* Tray panel */}
+          <TrayPanel
+            projectId={projectId}
+            projectName={project?.name ?? ''}
+            projectUpdatedAt={project?.updated_at}
+            trayItems={trayItems}
+            slideMap={slideMap}
+            personalSlidesMap={personalSlidesMap}
+            textEdits={textEdits}
+            commentCounts={commentCounts}
+            notesExist={notesExist}
+            loading={trayLoading}
+            collapsed={trayCollapsed}
+            deprecatedError={deprecatedError}
+            onCollapse={() => setTrayCollapsed((c) => !c)}
+            onReorder={canEdit ? reorderTray : undefined}
+            onRemove={canEdit ? removeFromTray : undefined}
+            onEditFields={
+              projectId && canEdit ? (instanceId) => setEditingInstance(instanceId) : undefined
+            }
+            onComment={projectId ? handleOpenCommentPanel : undefined}
+            onNote={projectId ? handleOpenNotePanel : undefined}
+            onExport={projectId && canEdit ? handleExport : undefined}
+            onPdfExport={projectId && canEdit ? handlePdfExport : undefined}
+            onPresent={projectId ? handlePresent : undefined}
+            onUploadPersonalSlide={
+              projectId && canEdit ? () => setUploadDialogOpen(true) : undefined
+            }
+            onSaveVersion={projectId && canEdit ? () => setSaveVersionOpen(true) : undefined}
+            previewUrls={previewUrls}
+          />
+        </div>
+      )}
 
       {/* Edit fields dialog */}
       {editingInstance && editingSlide && (
@@ -1989,10 +2267,7 @@ function BoardPageInner() {
 
       {/* Presentation mode — full-screen overlay */}
       {presentationMode && (
-        <PresentationMode
-          slides={presentationSlides}
-          onExit={() => setPresentationMode(false)}
-        />
+        <PresentationMode slides={presentationSlides} onExit={() => setPresentationMode(false)} />
       )}
 
       {/* CRM details dialog (PROJ-28) */}
@@ -2005,7 +2280,7 @@ function BoardPageInner() {
           initialCompanyName={project?.crm_company_name ?? ''}
           initialDealId={project?.crm_deal_id ?? ''}
           onSaved={(fields) => {
-            setProject((prev) => prev ? { ...prev, ...fields } : prev)
+            setProject((prev) => (prev ? { ...prev, ...fields } : prev))
           }}
         />
       )}
@@ -2030,7 +2305,10 @@ function BoardPageInner() {
       {commentSlideId && (
         <CommentPanel
           open={commentPanelOpen}
-          onClose={() => { setCommentPanelOpen(false); setCommentSlideId(null) }}
+          onClose={() => {
+            setCommentPanelOpen(false)
+            setCommentSlideId(null)
+          }}
           projectId={projectId!}
           slideId={commentSlideId}
           slideTitle={slideMap.get(commentSlideId)?.title ?? 'Slide'}
@@ -2047,7 +2325,10 @@ function BoardPageInner() {
         <NotePanel
           key={noteSlideId}
           open={notePanelOpen}
-          onClose={() => { setNotePanelOpen(false); setNoteSlideId(null) }}
+          onClose={() => {
+            setNotePanelOpen(false)
+            setNoteSlideId(null)
+          }}
           projectId={projectId!}
           slideId={noteSlideId}
           slideTitle={slideMap.get(noteSlideId)?.title ?? 'Slide'}
@@ -2075,7 +2356,10 @@ function BoardPageInner() {
 
       {/* Annotation editing overlay (PROJ-20) */}
       {editingAnnotation && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setEditingAnnotation(null)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+          onClick={() => setEditingAnnotation(null)}
+        >
           <div
             data-no-pan
             className="bg-background rounded-lg border shadow-lg p-4 w-80"
@@ -2087,20 +2371,32 @@ function BoardPageInner() {
               placeholder={t('board.annotation_placeholder')}
               maxLength={100}
               value={editingAnnotation.value}
-              onChange={(e) => setEditingAnnotation({ ...editingAnnotation, value: e.target.value })}
-              onKeyDown={(e) => { if (e.key === 'Enter') setAnnotation(editingAnnotation.slideId, editingAnnotation.value) }}
+              onChange={(e) =>
+                setEditingAnnotation({ ...editingAnnotation, value: e.target.value })
+              }
+              onKeyDown={(e) => {
+                if (e.key === 'Enter')
+                  setAnnotation(editingAnnotation.slideId, editingAnnotation.value)
+              }}
               autoFocus
             />
             <div className="flex justify-end gap-2">
               {editingAnnotation.value && (
-                <Button variant="outline" size="sm" onClick={() => setAnnotation(editingAnnotation.slideId, '')}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAnnotation(editingAnnotation.slideId, '')}
+                >
                   {t('common.remove')}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={() => setEditingAnnotation(null)}>
                 {t('common.cancel')}
               </Button>
-              <Button size="sm" onClick={() => setAnnotation(editingAnnotation.slideId, editingAnnotation.value)}>
+              <Button
+                size="sm"
+                onClick={() => setAnnotation(editingAnnotation.slideId, editingAnnotation.value)}
+              >
                 {t('common.save')}
               </Button>
             </div>

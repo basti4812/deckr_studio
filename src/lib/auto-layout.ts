@@ -48,7 +48,11 @@ export function calcWorldSize(
 ): { w: number; h: number } {
   const totalH = groupSlideCountsOrSections.reduce((acc, s, i) => {
     const count = typeof s.slides === 'number' ? s.slides : (s.slides as { length: number }).length
-    return acc + calcGroupHeight(count) + (i < groupSlideCountsOrSections.length - 1 ? BETWEEN_GROUPS : 0)
+    return (
+      acc +
+      calcGroupHeight(count) +
+      (i < groupSlideCountsOrSections.length - 1 ? BETWEEN_GROUPS : 0)
+    )
   }, 0)
   const w = Math.max(COLS * CARD_WIDTH + (COLS - 1) * GAP + PADDING * 2, 1500)
   const h = Math.max(totalH + PADDING * 2, 1200)
@@ -131,4 +135,13 @@ export function hitTestGroups(
   return null
 }
 
-export { COLS, CARD_WIDTH, CARD_HEIGHT, GAP, PADDING, SECTION_HEADER, BETWEEN_GROUPS, COLLAPSED_HEIGHT }
+export {
+  COLS,
+  CARD_WIDTH,
+  CARD_HEIGHT,
+  GAP,
+  PADDING,
+  SECTION_HEADER,
+  BETWEEN_GROUPS,
+  COLLAPSED_HEIGHT,
+}

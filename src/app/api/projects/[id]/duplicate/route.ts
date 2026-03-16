@@ -83,12 +83,17 @@ export async function POST(request: NextRequest, { params }: { params: Params })
   if (insertError || !duplicate) {
     return NextResponse.json(
       { error: insertError?.message ?? 'Failed to duplicate project' },
-      { status: 500 },
+      { status: 500 }
     )
   }
 
   // Copy personal slides (PROJ-32) — create new records for the duplicate project
-  interface TrayItem { id: string; slide_id: string; is_personal?: boolean; personal_slide_id?: string }
+  interface TrayItem {
+    id: string
+    slide_id: string
+    is_personal?: boolean
+    personal_slide_id?: string
+  }
   const slideOrder: TrayItem[] = Array.isArray(original.slide_order) ? original.slide_order : []
   const personalItems = slideOrder.filter((t: TrayItem) => t.is_personal && t.personal_slide_id)
 
@@ -124,7 +129,11 @@ export async function POST(request: NextRequest, { params }: { params: Params })
       // Update the duplicate's slide_order to reference the new personal slide IDs
       const updatedSlideOrder = slideOrder.map((item: TrayItem) => {
         if (item.is_personal && item.personal_slide_id && idMap.has(item.personal_slide_id)) {
-          return { ...item, id: crypto.randomUUID(), personal_slide_id: idMap.get(item.personal_slide_id)! }
+          return {
+            ...item,
+            id: crypto.randomUUID(),
+            personal_slide_id: idMap.get(item.personal_slide_id)!,
+          }
         }
         return { ...item, id: crypto.randomUUID() }
       })

@@ -31,10 +31,10 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
           <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
             <Link href="/" className="flex items-center gap-2">
               <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold select-none">
-                D
+                O
               </div>
               <span className="text-sm font-semibold tracking-tight text-white">
-                deckr Studio
+                onslide Studio
               </span>
             </Link>
 
@@ -61,7 +61,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
               <button
                 className="hover:text-gray-300 transition-colors"
                 onClick={() => {
-                  localStorage.removeItem('deckr_cookie_consent')
+                  localStorage.removeItem('onslide_cookie_consent')
                   window.location.reload()
                 }}
               >

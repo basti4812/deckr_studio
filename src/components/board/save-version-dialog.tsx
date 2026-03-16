@@ -31,12 +31,7 @@ interface SaveVersionDialogProps {
 // Component
 // ---------------------------------------------------------------------------
 
-export function SaveVersionDialog({
-  open,
-  onClose,
-  projectId,
-  onSaved,
-}: SaveVersionDialogProps) {
+export function SaveVersionDialog({ open, onClose, projectId, onSaved }: SaveVersionDialogProps) {
   const { t } = useTranslation()
   const [label, setLabel] = useState('')
   const [saving, setSaving] = useState(false)
@@ -67,9 +62,7 @@ export function SaveVersionDialog({
 
       if (!res.ok) {
         const d = await res.json().catch(() => ({}))
-        setError(
-          (d as { error?: string }).error ?? t('save_version_dialog.failed_to_save')
-        )
+        setError((d as { error?: string }).error ?? t('save_version_dialog.failed_to_save'))
         return
       }
 
@@ -100,9 +93,7 @@ export function SaveVersionDialog({
             <Save className="h-4 w-4" />
             {t('save_version_dialog.title')}
           </DialogTitle>
-          <DialogDescription>
-            {t('save_version_dialog.description')}
-          </DialogDescription>
+          <DialogDescription>{t('save_version_dialog.description')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 py-2">
@@ -132,11 +123,7 @@ export function SaveVersionDialog({
         </div>
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => handleOpenChange(false)}
-            disabled={saving}
-          >
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={saving}>
             {t('common.cancel')}
           </Button>
           <Button onClick={handleSave} disabled={saving}>

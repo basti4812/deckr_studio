@@ -71,11 +71,11 @@ export function RestoreConfirmDialog({
           </AlertDialogTitle>
           <AlertDialogDescription className="space-y-2">
             <span className="block">
-              {t('restore_dialog.description', { name: version ? version.label || formatDate(version.created_at) : '' })}
+              {t('restore_dialog.description', {
+                name: version ? version.label || formatDate(version.created_at) : '',
+              })}
             </span>
-            <span className="block">
-              {t('restore_dialog.personal_slides_preserved')}
-            </span>
+            <span className="block">{t('restore_dialog.personal_slides_preserved')}</span>
             <span className="block font-medium text-foreground">
               {t('restore_dialog.cannot_be_undone')}
             </span>

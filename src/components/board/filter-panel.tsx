@@ -26,9 +26,16 @@ function toggle(arr: string[], value: string): string[] {
   return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value]
 }
 
-export function FilterPanel({ groups, tags, filters, onFiltersChange, onClearFilters }: FilterPanelProps) {
+export function FilterPanel({
+  groups,
+  tags,
+  filters,
+  onFiltersChange,
+  onClearFilters,
+}: FilterPanelProps) {
   const { t } = useTranslation()
-  const hasFilters = filters.groups.length > 0 || filters.tags.length > 0 || filters.statuses.length > 0
+  const hasFilters =
+    filters.groups.length > 0 || filters.tags.length > 0 || filters.statuses.length > 0
 
   const STATUS_OPTIONS = STATUS_OPTION_VALUES.map((value) => ({
     value,
@@ -40,7 +47,9 @@ export function FilterPanel({ groups, tags, filters, onFiltersChange, onClearFil
       {/* Groups */}
       {groups.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t('board.groups')}</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            {t('board.groups')}
+          </p>
           <div className="space-y-1.5 max-h-40 overflow-y-auto">
             {groups.map((group) => (
               <div key={group} className="flex items-center gap-2">
@@ -51,7 +60,10 @@ export function FilterPanel({ groups, tags, filters, onFiltersChange, onClearFil
                     onFiltersChange({ ...filters, groups: toggle(filters.groups, group) })
                   }
                 />
-                <Label htmlFor={`group-${group}`} className="text-sm font-normal cursor-pointer truncate">
+                <Label
+                  htmlFor={`group-${group}`}
+                  className="text-sm font-normal cursor-pointer truncate"
+                >
                   {group}
                 </Label>
               </div>
@@ -64,7 +76,9 @@ export function FilterPanel({ groups, tags, filters, onFiltersChange, onClearFil
       {/* Tags */}
       {tags.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t('board.tags')}</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            {t('board.tags')}
+          </p>
           <div className="space-y-1.5 max-h-40 overflow-y-auto">
             {tags.map((tag) => (
               <div key={tag} className="flex items-center gap-2">
@@ -75,7 +89,10 @@ export function FilterPanel({ groups, tags, filters, onFiltersChange, onClearFil
                     onFiltersChange({ ...filters, tags: toggle(filters.tags, tag) })
                   }
                 />
-                <Label htmlFor={`tag-${tag}`} className="text-sm font-normal cursor-pointer truncate">
+                <Label
+                  htmlFor={`tag-${tag}`}
+                  className="text-sm font-normal cursor-pointer truncate"
+                >
                   {tag}
                 </Label>
               </div>
@@ -87,7 +104,9 @@ export function FilterPanel({ groups, tags, filters, onFiltersChange, onClearFil
 
       {/* Status */}
       <div className="space-y-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t('board.status')}</p>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          {t('board.status')}
+        </p>
         <div className="space-y-1.5">
           {STATUS_OPTIONS.map(({ value, label }) => (
             <div key={value} className="flex items-center gap-2">
@@ -110,7 +129,12 @@ export function FilterPanel({ groups, tags, filters, onFiltersChange, onClearFil
       {hasFilters && (
         <>
           <Separator />
-          <Button variant="ghost" size="sm" onClick={onClearFilters} className="w-full text-muted-foreground">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClearFilters}
+            className="w-full text-muted-foreground"
+          >
             {t('board.clear_all_filters')}
           </Button>
         </>

@@ -33,7 +33,7 @@ import type { Slide } from '@/components/slides/slide-card'
 import type { PersonalSlideRecord } from '@/components/board/upload-personal-slide-dialog'
 
 export interface TrayItem {
-  id: string       // instance UUID (allows same slide twice)
+  id: string // instance UUID (allows same slide twice)
   slide_id: string
   is_personal?: boolean
   personal_slide_id?: string
@@ -131,12 +131,16 @@ export function TrayPanel({
         <div className="flex items-center gap-2">
           <div className="flex-1 min-w-0">
             {projectId ? (
-              <p className="truncate text-sm font-semibold leading-tight">{projectName || t('tray.project')}</p>
+              <p className="truncate text-sm font-semibold leading-tight">
+                {projectName || t('tray.project')}
+              </p>
             ) : (
               <p className="text-sm font-semibold">{t('tray.title')}</p>
             )}
             {projectId && (
-              <p className="text-xs text-muted-foreground">{t('tray.slide_count', { count: trayItems.length })}</p>
+              <p className="text-xs text-muted-foreground">
+                {t('tray.slide_count', { count: trayItems.length })}
+              </p>
             )}
           </div>
           <Button
@@ -183,7 +187,9 @@ export function TrayPanel({
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    {trayItems.length === 0 ? t('tray.add_slides_to_save') : t('tray.save_named_version')}
+                    {trayItems.length === 0
+                      ? t('tray.add_slides_to_save')
+                      : t('tray.save_named_version')}
                   </TooltipContent>
                 </Tooltip>
               )}
@@ -229,7 +235,9 @@ export function TrayPanel({
                       <DropdownMenuItem onClick={onExport}>
                         <div>
                           <div>{t('tray.export_pptx')}</div>
-                          <div className="text-xs text-muted-foreground">{t('tray.export_pptx_desc')}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {t('tray.export_pptx_desc')}
+                          </div>
                         </div>
                       </DropdownMenuItem>
                     )}
@@ -237,7 +245,9 @@ export function TrayPanel({
                       <DropdownMenuItem onClick={onPdfExport}>
                         <div>
                           <div>{t('tray.export_pdf')}</div>
-                          <div className="text-xs text-muted-foreground">{t('tray.export_pdf_desc')}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {t('tray.export_pdf_desc')}
+                          </div>
                         </div>
                       </DropdownMenuItem>
                     )}
@@ -262,9 +272,7 @@ export function TrayPanel({
           /* No project open */
           <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
             <FolderOpen className="h-8 w-8 text-muted-foreground/40" />
-            <p className="text-xs text-muted-foreground px-4">
-              {t('tray.open_project_hint')}
-            </p>
+            <p className="text-xs text-muted-foreground px-4">{t('tray.open_project_hint')}</p>
             <Button variant="outline" size="sm" asChild>
               <Link href="/projects">{t('tray.open_project')}</Link>
             </Button>
@@ -276,11 +284,13 @@ export function TrayPanel({
             ))}
           </div>
         ) : trayItems.length === 0 ? (
-          <p className="py-8 text-center text-xs text-muted-foreground">
-            {t('tray.no_slides')}
-          </p>
+          <p className="py-8 text-center text-xs text-muted-foreground">{t('tray.no_slides')}</p>
         ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
             <SortableContext
               items={trayItems.map((t) => t.id)}
               strategy={verticalListSortingStrategy}
@@ -318,7 +328,9 @@ export function TrayPanel({
                       hasNote={notesExist?.[item.slide_id] ?? false}
                       onRemove={onRemove}
                       onEditFields={onEditFields ? () => onEditFields(item.id) : undefined}
-                      onComment={onComment ? () => onComment(item.id, item.slide_id, index) : undefined}
+                      onComment={
+                        onComment ? () => onComment(item.id, item.slide_id, index) : undefined
+                      }
                       onNote={onNote ? () => onNote(item.id, item.slide_id) : undefined}
                     />
                   )

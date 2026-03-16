@@ -20,14 +20,10 @@ export function SlidesStep({ onNext, onBack, onSkip }: SlidesStepProps) {
         <p className="text-sm font-medium text-muted-foreground">
           {t('setup.slides_upload_coming')}
         </p>
-        <p className="mt-1 text-xs text-muted-foreground/70">
-          {t('setup.slides_upload_later')}
-        </p>
+        <p className="mt-1 text-xs text-muted-foreground/70">{t('setup.slides_upload_later')}</p>
       </div>
 
-      <p className="text-sm text-muted-foreground">
-        {t('setup.slides_intro')}
-      </p>
+      <p className="text-sm text-muted-foreground">{t('setup.slides_intro')}</p>
 
       <div className="flex justify-between">
         <div className="flex gap-2">

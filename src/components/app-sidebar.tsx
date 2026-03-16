@@ -124,12 +124,10 @@ export function AppSidebar() {
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-1">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold">
-            D
+            O
           </div>
           {!isCollapsed && (
-            <span className="font-semibold text-sm text-foreground tracking-tight">
-              deckr
-            </span>
+            <span className="font-semibold text-sm text-foreground tracking-tight">onslide.io</span>
           )}
         </div>
 
@@ -175,15 +173,10 @@ export function AppSidebar() {
               const isActive =
                 item.href === '/'
                   ? pathname === '/'
-                  : pathname === item.href ||
-                    pathname.startsWith(item.href + '/')
+                  : pathname === item.href || pathname.startsWith(item.href + '/')
               return (
                 <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive}
-                    tooltip={label}
-                  >
+                  <SidebarMenuButton asChild isActive={isActive} tooltip={label}>
                     <Link href={item.href}>
                       <Icon className="h-4 w-4" />
                       <span>{label}</span>
@@ -227,17 +220,13 @@ export function AppSidebar() {
                   tooltip={displayName ?? 'Account'}
                 >
                   <Avatar className="h-6 w-6 shrink-0 rounded-md">
-                    {avatarUrl && (
-                      <AvatarImage src={avatarUrl} alt={displayName ?? ''} />
-                    )}
+                    {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName ?? ''} />}
                     <AvatarFallback className="rounded-md text-xs bg-primary text-primary-foreground">
                       {getInitials(displayName)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">
-                      {displayName ?? 'User'}
-                    </span>
+                    <span className="truncate font-medium">{displayName ?? 'User'}</span>
                     <span className="truncate text-xs text-muted-foreground capitalize">
                       {role ?? 'employee'}
                     </span>

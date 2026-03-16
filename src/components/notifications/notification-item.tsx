@@ -1,14 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import {
-  AlertTriangle,
-  CreditCard,
-  RefreshCw,
-  Share2,
-  UserPlus,
-  Clock,
-} from 'lucide-react'
+import { AlertTriangle, CreditCard, RefreshCw, Share2, UserPlus, Clock } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -96,9 +89,7 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
           {relativeTime(notification.created_at)}
         </p>
       </div>
-      {!notification.is_read && (
-        <div className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" />
-      )}
+      {!notification.is_read && <div className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" />}
     </button>
   )
 }

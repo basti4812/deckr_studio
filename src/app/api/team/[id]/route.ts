@@ -25,20 +25,12 @@ export async function DELETE(
   }
 
   // Rate limit: 10 removals per 15 minutes
-  const limited = await checkRateLimit(
-    adminUser.id,
-    'team:remove',
-    10,
-    15 * 60 * 1000
-  )
+  const limited = await checkRateLimit(adminUser.id, 'team:remove', 10, 15 * 60 * 1000)
   if (limited) return limited
 
   // Cannot remove yourself
   if (targetUserId === adminUser.id) {
-    return NextResponse.json(
-      { error: 'You cannot remove yourself from the team' },
-      { status: 422 }
-    )
+    return NextResponse.json({ error: 'You cannot remove yourself from the team' }, { status: 422 })
   }
 
   const supabase = createServiceClient()
@@ -55,17 +47,11 @@ export async function DELETE(
   }
 
   if (targetUser.tenant_id !== adminProfile.tenant_id) {
-    return NextResponse.json(
-      { error: 'Cannot modify users outside your tenant' },
-      { status: 403 }
-    )
+    return NextResponse.json({ error: 'Cannot modify users outside your tenant' }, { status: 403 })
   }
 
   if (!targetUser.is_active) {
-    return NextResponse.json(
-      { error: 'User is already removed' },
-      { status: 404 }
-    )
+    return NextResponse.json({ error: 'User is already removed' }, { status: 404 })
   }
 
   // Last admin guard: if the target is an admin, check there's at least one other
@@ -86,20 +72,14 @@ export async function DELETE(
   }
 
   // 1. Atomically deactivate user and transfer their projects
-  const { error: removeError } = await supabase.rpc(
-    'remove_user_and_transfer_projects',
-    {
-      p_target_user_id: targetUserId,
-      p_admin_user_id: adminUser.id,
-      p_tenant_id: adminProfile.tenant_id,
-    }
-  )
+  const { error: removeError } = await supabase.rpc('remove_user_and_transfer_projects', {
+    p_target_user_id: targetUserId,
+    p_admin_user_id: adminUser.id,
+    p_tenant_id: adminProfile.tenant_id,
+  })
 
   if (removeError) {
-    return NextResponse.json(
-      { error: 'Failed to remove user' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to remove user' }, { status: 500 })
   }
 
   // 2. Ban the user in Supabase Auth to invalidate all sessions

@@ -32,7 +32,9 @@ export function NotificationPanel({ userId }: NotificationPanelProps) {
 
   const fetchNotifications = useCallback(async (cursor?: string | null) => {
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return
 
     setLoading(true)
@@ -77,7 +79,9 @@ export function NotificationPanel({ userId }: NotificationPanelProps) {
 
     // Fetch initial unread count
     async function getUnreadCount() {
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       if (!session) return
       const res = await fetch('/api/notifications?limit=1', {
         headers: { Authorization: `Bearer ${session.access_token}` },
@@ -106,7 +110,7 @@ export function NotificationPanel({ userId }: NotificationPanelProps) {
           if (hasFetched.current) {
             setNotifications((prev) => [payload.new as Notification, ...prev])
           }
-        },
+        }
       )
       .subscribe()
 
@@ -121,12 +125,14 @@ export function NotificationPanel({ userId }: NotificationPanelProps) {
 
   async function markRead(notificationId: string) {
     setNotifications((prev) =>
-      prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n)),
+      prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n))
     )
     setUnreadCount((c) => Math.max(0, c - 1))
 
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return
 
     await fetch(`/api/notifications/${notificationId}`, {
@@ -140,7 +146,9 @@ export function NotificationPanel({ userId }: NotificationPanelProps) {
     setUnreadCount(0)
 
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return
 
     await fetch('/api/notifications/read-all', {
@@ -167,22 +175,12 @@ export function NotificationPanel({ userId }: NotificationPanelProps) {
             )}
           </SidebarMenuButton>
         </PopoverTrigger>
-        <PopoverContent
-          side="right"
-          align="end"
-          sideOffset={8}
-          className="w-80 p-0"
-        >
+        <PopoverContent side="right" align="end" sideOffset={8} className="w-80 p-0">
           {/* Header */}
           <div className="flex items-center justify-between border-b px-3 py-2">
             <span className="text-sm font-semibold">Notifications</span>
             {unreadCount > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 gap-1 text-xs"
-                onClick={markAllRead}
-              >
+              <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={markAllRead}>
                 <CheckCheck className="h-3.5 w-3.5" />
                 Mark all read
               </Button>
@@ -199,11 +197,7 @@ export function NotificationPanel({ userId }: NotificationPanelProps) {
             ) : (
               <div className="divide-y">
                 {notifications.map((n) => (
-                  <NotificationItem
-                    key={n.id}
-                    notification={n}
-                    onMarkRead={markRead}
-                  />
+                  <NotificationItem key={n.id} notification={n} onMarkRead={markRead} />
                 ))}
               </div>
             )}

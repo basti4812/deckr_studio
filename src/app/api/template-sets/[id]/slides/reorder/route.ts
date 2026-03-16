@@ -9,18 +9,18 @@ import { createServiceClient } from '@/lib/supabase'
 // ---------------------------------------------------------------------------
 
 const ReorderSchema = z.object({
-  memberships: z.array(
-    z.object({
-      slideId: z.string().uuid(),
-      position: z.number().int().min(0),
-    })
-  ).min(1).max(200),
+  memberships: z
+    .array(
+      z.object({
+        slideId: z.string().uuid(),
+        position: z.number().int().min(0),
+      })
+    )
+    .min(1)
+    .max(200),
 })
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin(request)
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
@@ -30,13 +30,18 @@ export async function POST(
   const { id } = await params
 
   let raw: unknown
-  try { raw = await request.json() } catch {
+  try {
+    raw = await request.json()
+  } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
   const parsed = ReorderSchema.safeParse(raw)
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid payload: ' + parsed.error.issues[0].message }, { status: 400 })
+    return NextResponse.json(
+      { error: 'Invalid payload: ' + parsed.error.issues[0].message },
+      { status: 400 }
+    )
   }
 
   const supabase = createServiceClient()

@@ -1,13 +1,16 @@
 # PROJ-12: Legal Pages & Cookie Consent
 
 ## Status: Deployed
+
 **Created:** 2026-02-25
 **Last Updated:** 2026-03-03
 
 ## Dependencies
+
 - Requires: PROJ-5 (Landing Page) — pages linked from footer
 
 ## User Stories
+
 - As a visitor, I want to read the Impressum so that I know who operates the website (required by German law)
 - As a visitor, I want to read the Privacy Policy so that I understand how my data is handled
 - As a visitor, I want to read the Terms of Service so that I understand the contractual terms
@@ -17,6 +20,7 @@
 - As an operator, I want placeholder markers [COMPANY NAME], [ADDRESS], etc. clearly visible so that I know exactly what to replace before going live
 
 ## Acceptance Criteria
+
 - [ ] All legal pages are accessible from the landing page footer and from within the app footer (not behind a login)
 - [ ] All legal pages are available in both German (/de/...) and English (/en/...) with a language toggle
 - [ ] **Impressum** at `/impressum`: company name, address, managing director, commercial register, VAT ID, contact email — all as [PLACEHOLDER] markers
@@ -30,23 +34,27 @@
 - [ ] All placeholder markers use the format: [COMPANY NAME], [ADDRESS], [VAT ID], [EMAIL], [DATE]
 
 ## Edge Cases
+
 - What if a user clears their browser storage? → Cookie consent banner reappears on next visit
 - What if the app is accessed without accepting cookies? → Only strictly necessary cookies are set; app functions normally
 - What if the DPA PDF is not yet generated? → Show a downloadable template .docx file with placeholders instead
 - What if a user switches language on a legal page? → Same page reloads in the other language, preserving scroll position (best effort)
 
 ## Technical Requirements
+
 - Legal pages are statically rendered (no dynamic data required)
 - Cookie consent state stored in localStorage key: `cookie_consent`
 - Analytics and marketing cookies are only loaded after explicit consent
 - Impressum must be reachable within two clicks from any page (legal requirement)
 
 ---
+
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
 
 ### What exists already
+
 - `CookieConsent` component at `src/components/cookie-consent.tsx` — basic Accept/Decline, already mounted in root layout
 - Landing page footer already links to `/impressum`, `/privacy`, `/terms`
 - Translation keys `landing.impressum`, `landing.privacy`, `landing.terms` exist
@@ -82,7 +90,8 @@ public/legal/
 
 ### Data Model
 
-**Cookie consent** stored in `localStorage` under key `deckr_cookie_consent`:
+**Cookie consent** stored in `localStorage` under key `onslide_cookie_consent`:
+
 - `version: "1"`, `necessary: true` (always), `functional`, `analytics`, `marketing` (booleans)
 - Banner reappears if key is absent (cleared storage). No server-side storage.
 
@@ -91,16 +100,17 @@ Placeholder markers (`[COMPANY NAME]`, `[ADDRESS]`, `[VAT ID]`, `[EMAIL]`, `[DAT
 
 ### Tech Decisions
 
-| Decision | Why |
-|----------|-----|
-| `(legal)` route group | Shared LandingNav + footer layout without touching `(app)` or `(auth)` groups |
-| Static pages, no backend | Legal content is identical for all users; no dynamic data needed |
-| i18n JSON for content | Consistent with how all other text is handled; German/English via existing `useTranslation()` |
-| Upgrade existing CookieConsent | Already mounted in root layout; extending avoids duplicate mounting |
-| localStorage for consent | Device-specific per spec; no cross-device sync needed |
-| Static `.docx` in `/public/legal/` | DPA as downloadable template; no PDF generation required at launch |
+| Decision                           | Why                                                                                           |
+| ---------------------------------- | --------------------------------------------------------------------------------------------- |
+| `(legal)` route group              | Shared LandingNav + footer layout without touching `(app)` or `(auth)` groups                 |
+| Static pages, no backend           | Legal content is identical for all users; no dynamic data needed                              |
+| i18n JSON for content              | Consistent with how all other text is handled; German/English via existing `useTranslation()` |
+| Upgrade existing CookieConsent     | Already mounted in root layout; extending avoids duplicate mounting                           |
+| localStorage for consent           | Device-specific per spec; no cross-device sync needed                                         |
+| Static `.docx` in `/public/legal/` | DPA as downloadable template; no PDF generation required at launch                            |
 
 ### Dependencies
+
 No new packages required — uses existing Next.js, shadcn/ui (Dialog, Switch, Separator), react-i18next.
 
 ## QA Test Results
@@ -112,38 +122,39 @@ No new packages required — uses existing Next.js, shadcn/ui (Dialog, Switch, S
 
 ### Acceptance Criteria Results
 
-| # | Criterion | Result | Notes |
-|---|-----------|--------|-------|
-| 1 | All legal pages accessible from landing footer and within app (not behind login) | PASS | Landing page footer links to /impressum, /privacy, /terms, /cookies, /dpa. Legal layout footer has all 6 links. All under `(legal)` route group — no auth required. |
-| 2 | All pages in both German and English with language toggle | PASS | LanguageToggle rendered in legal layout. 101 `legal.*` keys in both `en.json` and `de.json` with full parity. |
-| 3 | Impressum at /impressum with [PLACEHOLDER] markers | PASS | 7 sections: company info, represented by, commercial register, VAT ID, contact, responsible for content, EU dispute resolution. All with `[PLACEHOLDER]` markers. |
-| 4 | Privacy Policy at /privacy — GDPR compliant sections | PASS | 11 sections: intro, controller, DPO, data collected, legal basis, retention, rights, third parties, cookies, changes, complaints. References GDPR articles. |
-| 5 | Terms of Service at /terms — full coverage | PASS | 10 sections: scope, subscription, cancellation, obligations, prohibited uses, liability, IP rights, data processing, governing law (German), changes. |
-| 6 | Cookie Policy at /cookies — all 4 categories | PASS | Necessary, functional, analytics, marketing categories with descriptions, examples, duration, legal basis. Plus intro, usage, management, changes sections. |
-| 7 | DPA at /dpa — scope, TOMs, subprocessors, download | PASS | 4 content sections + download card with `.docx` template link. |
-| 8 | Cancellation at /cancellation — B2B notice + form | PASS | B2B notice citing §§ 312g, 355 BGB. Cancellation instructions. Form template with placeholder fields. |
-| 9 | Cookie consent banner: Accept All, Reject All, Configure | PASS | Three buttons. Configure opens Dialog with 4 category toggles (Necessary always-on). Optional categories not pre-checked. |
-| 10 | Cookie consent can be withdrawn via footer link | PASS | "Cookie Settings" button in both landing and legal footers clears localStorage and reloads page. |
-| 11 | Placeholder markers use format [COMPANY NAME] etc. | PASS | All markers use `[UPPERCASE TEXT]` format highlighted in yellow via `<mark>` tags in LegalSection component. |
+| #   | Criterion                                                                        | Result | Notes                                                                                                                                                               |
+| --- | -------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | All legal pages accessible from landing footer and within app (not behind login) | PASS   | Landing page footer links to /impressum, /privacy, /terms, /cookies, /dpa. Legal layout footer has all 6 links. All under `(legal)` route group — no auth required. |
+| 2   | All pages in both German and English with language toggle                        | PASS   | LanguageToggle rendered in legal layout. 101 `legal.*` keys in both `en.json` and `de.json` with full parity.                                                       |
+| 3   | Impressum at /impressum with [PLACEHOLDER] markers                               | PASS   | 7 sections: company info, represented by, commercial register, VAT ID, contact, responsible for content, EU dispute resolution. All with `[PLACEHOLDER]` markers.   |
+| 4   | Privacy Policy at /privacy — GDPR compliant sections                             | PASS   | 11 sections: intro, controller, DPO, data collected, legal basis, retention, rights, third parties, cookies, changes, complaints. References GDPR articles.         |
+| 5   | Terms of Service at /terms — full coverage                                       | PASS   | 10 sections: scope, subscription, cancellation, obligations, prohibited uses, liability, IP rights, data processing, governing law (German), changes.               |
+| 6   | Cookie Policy at /cookies — all 4 categories                                     | PASS   | Necessary, functional, analytics, marketing categories with descriptions, examples, duration, legal basis. Plus intro, usage, management, changes sections.         |
+| 7   | DPA at /dpa — scope, TOMs, subprocessors, download                               | PASS   | 4 content sections + download card with `.docx` template link.                                                                                                      |
+| 8   | Cancellation at /cancellation — B2B notice + form                                | PASS   | B2B notice citing §§ 312g, 355 BGB. Cancellation instructions. Form template with placeholder fields.                                                               |
+| 9   | Cookie consent banner: Accept All, Reject All, Configure                         | PASS   | Three buttons. Configure opens Dialog with 4 category toggles (Necessary always-on). Optional categories not pre-checked.                                           |
+| 10  | Cookie consent can be withdrawn via footer link                                  | PASS   | "Cookie Settings" button in both landing and legal footers clears localStorage and reloads page.                                                                    |
+| 11  | Placeholder markers use format [COMPANY NAME] etc.                               | PASS   | All markers use `[UPPERCASE TEXT]` format highlighted in yellow via `<mark>` tags in LegalSection component.                                                        |
 
 ### Bugs Found & Fixed
 
-| Bug | Severity | Description | Status |
-|-----|----------|-------------|--------|
-| BUG-1 | Medium | CookieConsent rendered outside I18nProvider in root layout | **FIXED** — moved inside I18nProvider |
-| BUG-2 | Medium | de.json contained unescaped German curly quotes (`„"`) causing JSON parse error | **FIXED** — replaced with escaped ASCII quotes |
-| BUG-3 | Info | Spec says `cookie_consent` key, code uses `deckr_cookie_consent` | **Accepted** — code and tech design agree, spec wording is informational |
+| Bug   | Severity | Description                                                                     | Status                                                                   |
+| ----- | -------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| BUG-1 | Medium   | CookieConsent rendered outside I18nProvider in root layout                      | **FIXED** — moved inside I18nProvider                                    |
+| BUG-2 | Medium   | de.json contained unescaped German curly quotes (`„"`) causing JSON parse error | **FIXED** — replaced with escaped ASCII quotes                           |
+| BUG-3 | Info     | Spec says `cookie_consent` key, code uses `onslide_cookie_consent`              | **Accepted** — code and tech design agree, spec wording is informational |
 
 ### Security Audit
 
-| Vector | Risk | Finding |
-|--------|------|---------|
-| XSS via localStorage injection | None | `JSON.parse` wrapped in try/catch, only boolean fields read. No HTML rendering from localStorage. |
-| XSS via legal content | None | LegalSection uses React JSX auto-escaping. `[PLACEHOLDER]` markers rendered via `<mark>` elements, not dangerouslySetInnerHTML. |
-| Prototype pollution | None | Parsed cookie preferences only access known boolean fields. |
-| i18n interpolation injection | None | All translation keys are static strings. No user-controlled data in `t()`. |
+| Vector                         | Risk | Finding                                                                                                                         |
+| ------------------------------ | ---- | ------------------------------------------------------------------------------------------------------------------------------- |
+| XSS via localStorage injection | None | `JSON.parse` wrapped in try/catch, only boolean fields read. No HTML rendering from localStorage.                               |
+| XSS via legal content          | None | LegalSection uses React JSX auto-escaping. `[PLACEHOLDER]` markers rendered via `<mark>` elements, not dangerouslySetInnerHTML. |
+| Prototype pollution            | None | Parsed cookie preferences only access known boolean fields.                                                                     |
+| i18n interpolation injection   | None | All translation keys are static strings. No user-controlled data in `t()`.                                                      |
 
 **Overall: PASS — no vulnerabilities found.**
 
 ## Deployment
+
 _To be added by /deploy_

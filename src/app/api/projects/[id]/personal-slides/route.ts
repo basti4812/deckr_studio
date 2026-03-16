@@ -14,7 +14,7 @@ const MAX_PERSONAL_SLIDES_PER_PROJECT = 20
 
 async function getProjectPermission(
   projectId: string,
-  userId: string,
+  userId: string
 ): Promise<'owner' | 'view' | 'edit' | null> {
   const supabase = createServiceClient()
   const { data: project } = await supabase
@@ -56,7 +56,9 @@ export async function GET(request: NextRequest, { params }: { params: Params }) 
   const supabase = createServiceClient()
   const { data, error } = await supabase
     .from('project_personal_slides')
-    .select('id, project_id, user_id, title, filename, pptx_storage_path, file_size_bytes, uploaded_at')
+    .select(
+      'id, project_id, user_id, title, filename, pptx_storage_path, file_size_bytes, uploaded_at'
+    )
     .eq('project_id', projectId)
     .order('uploaded_at', { ascending: true })
     .limit(100)
@@ -75,7 +77,11 @@ const CreateSchema = z.object({
   title: z.string().min(1).max(200),
   filename: z.string().min(1).max(255),
   pptx_storage_path: z.string().min(1),
-  file_size_bytes: z.number().int().min(1).max(50 * 1024 * 1024), // 50 MB
+  file_size_bytes: z
+    .number()
+    .int()
+    .min(1)
+    .max(50 * 1024 * 1024), // 50 MB
 })
 
 export async function POST(request: NextRequest, { params }: { params: Params }) {
@@ -95,7 +101,9 @@ export async function POST(request: NextRequest, { params }: { params: Params })
   if (permission === 'view') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   let rawBody: unknown
-  try { rawBody = await request.json() } catch {
+  try {
+    rawBody = await request.json()
+  } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
@@ -103,7 +111,7 @@ export async function POST(request: NextRequest, { params }: { params: Params })
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message ?? 'Invalid input' },
-      { status: 400 },
+      { status: 400 }
     )
   }
 
@@ -127,7 +135,7 @@ export async function POST(request: NextRequest, { params }: { params: Params })
   if ((count ?? 0) >= MAX_PERSONAL_SLIDES_PER_PROJECT) {
     return NextResponse.json(
       { error: `Maximum ${MAX_PERSONAL_SLIDES_PER_PROJECT} personal slides per project` },
-      { status: 400 },
+      { status: 400 }
     )
   }
 

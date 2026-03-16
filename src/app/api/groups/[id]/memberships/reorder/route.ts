@@ -12,7 +12,11 @@ export async function POST(request: NextRequest, { params }: { params: Params })
 
   const { id: groupId } = await params
   let body: { memberships?: { slideId: string; position: number }[] } = {}
-  try { body = await request.json() } catch { /* ok */ }
+  try {
+    body = await request.json()
+  } catch {
+    /* ok */
+  }
 
   if (!Array.isArray(body.memberships)) {
     return NextResponse.json({ error: 'memberships array required' }, { status: 400 })

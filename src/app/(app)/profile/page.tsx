@@ -23,11 +23,18 @@ import { supabase } from '@/lib/supabase'
 
 function getInitials(name: string | null): string {
   if (!name) return '?'
-  return name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
 }
 
 async function getToken(): Promise<string | null> {
-  const { data: { session } } = await supabase.auth.getSession()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
   return session?.access_token ?? null
 }
 
@@ -39,12 +46,15 @@ type NotificationPreferences = Partial<Record<string, boolean>>
 
 export default function ProfilePage() {
   const { displayName, avatarUrl, preferredLanguage, refresh } = useCurrentUser()
-  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences | null>(null)
+  const [notificationPreferences, setNotificationPreferences] =
+    useState<NotificationPreferences | null>(null)
 
   // Load notification preferences on mount
   useEffect(() => {
     async function loadPrefs() {
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       if (!session) return
       const res = await fetch('/api/profile', {
         headers: { Authorization: `Bearer ${session.access_token}` },
@@ -92,12 +102,20 @@ function DisplayNameCard({
   const [name, setName] = useState(displayName ?? '')
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => { setName(displayName ?? '') }, [displayName])
+  useEffect(() => {
+    setName(displayName ?? '')
+  }, [displayName])
 
   async function handleSave() {
     const trimmed = name.trim()
-    if (!trimmed) { toast.error('Display name cannot be empty'); return }
-    if (trimmed.length > 80) { toast.error('Display name is too long (max 80 characters)'); return }
+    if (!trimmed) {
+      toast.error('Display name cannot be empty')
+      return
+    }
+    if (trimmed.length > 80) {
+      toast.error('Display name is too long (max 80 characters)')
+      return
+    }
 
     setLoading(true)
     try {
@@ -162,7 +180,9 @@ function AvatarCard({
   const [removing, setRemoving] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(avatarUrl)
 
-  useEffect(() => { setPreviewUrl(avatarUrl) }, [avatarUrl])
+  useEffect(() => {
+    setPreviewUrl(avatarUrl)
+  }, [avatarUrl])
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -223,9 +243,7 @@ function AvatarCard({
     <Card>
       <CardHeader>
         <CardTitle>Profile Picture</CardTitle>
-        <CardDescription>
-          JPEG, PNG, or WebP — max 5 MB.
-        </CardDescription>
+        <CardDescription>JPEG, PNG, or WebP — max 5 MB.</CardDescription>
       </CardHeader>
       <CardContent className="flex items-center gap-6">
         <Avatar className="h-20 w-20 text-lg">
@@ -285,7 +303,9 @@ function LanguageCard({
   const [lang, setLang] = useState(preferredLanguage ?? 'de')
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => { setLang(preferredLanguage ?? 'de') }, [preferredLanguage])
+  useEffect(() => {
+    setLang(preferredLanguage ?? 'de')
+  }, [preferredLanguage])
 
   async function handleSave() {
     setLoading(true)
@@ -365,7 +385,7 @@ const NOTIFICATION_TYPES = [
   {
     key: 'slide_updated',
     label: 'Slide updated in project',
-    description: "When a slide in one of your projects is updated by an admin",
+    description: 'When a slide in one of your projects is updated by an admin',
     mandatory: false,
   },
   {
@@ -400,7 +420,9 @@ function EmailNotificationsCard({
   async function handleToggle(key: string, value: boolean) {
     setSaving(key)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       if (!session) return
 
       const res = await fetch('/api/profile/notification-preferences', {
@@ -441,7 +463,10 @@ function EmailNotificationsCard({
       <CardContent className="space-y-1">
         <TooltipProvider>
           {NOTIFICATION_TYPES.map(({ key, label, description, mandatory }) => (
-            <div key={key} className="flex items-center justify-between py-3 border-b last:border-0">
+            <div
+              key={key}
+              className="flex items-center justify-between py-3 border-b last:border-0"
+            >
               <div className="flex-1 mr-4">
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-medium">{label}</span>
@@ -501,7 +526,11 @@ function PasswordCard() {
       const res = await fetch('/api/profile/password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ currentPassword: current, newPassword: next, confirmPassword: confirm }),
+        body: JSON.stringify({
+          currentPassword: current,
+          newPassword: next,
+          confirmPassword: confirm,
+        }),
       })
       const d = await res.json()
       if (!res.ok) {
@@ -516,7 +545,9 @@ function PasswordCard() {
         }
         return
       }
-      setCurrent(''); setNext(''); setConfirm('')
+      setCurrent('')
+      setNext('')
+      setConfirm('')
       setErrors({})
       toast.success('Password changed successfully')
     } finally {

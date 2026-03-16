@@ -79,8 +79,14 @@ export function UploadPersonalSlideDialog({
   }
 
   async function handleUpload() {
-    if (!file) { setError(t('slides.select_file_error')); return }
-    if (!title.trim()) { setError(t('slides.enter_title_error')); return }
+    if (!file) {
+      setError(t('slides.select_file_error'))
+      return
+    }
+    if (!title.trim()) {
+      setError(t('slides.enter_title_error'))
+      return
+    }
 
     setUploading(true)
     setError(null)
@@ -88,7 +94,9 @@ export function UploadPersonalSlideDialog({
 
     try {
       const supabase = createBrowserSupabaseClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       if (!session) throw new Error(t('common.not_authenticated'))
 
       const userId = session.user.id
@@ -147,9 +155,7 @@ export function UploadPersonalSlideDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t('slides.upload_personal_slide')}</DialogTitle>
-          <DialogDescription>
-            {t('slides.upload_description')}
-          </DialogDescription>
+          <DialogDescription>{t('slides.upload_description')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
@@ -165,9 +171,7 @@ export function UploadPersonalSlideDialog({
                 <p className="text-sm font-medium">{file.name}</p>
               ) : (
                 <>
-                  <p className="text-sm text-muted-foreground">
-                    {t('slides.click_to_select')}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{t('slides.click_to_select')}</p>
                   <p className="text-xs text-muted-foreground">{t('slides.max_file_size')}</p>
                 </>
               )}
@@ -194,9 +198,7 @@ export function UploadPersonalSlideDialog({
           </div>
 
           {/* Progress */}
-          {uploading && (
-            <Progress value={progress} className="h-2" />
-          )}
+          {uploading && <Progress value={progress} className="h-2" />}
 
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>

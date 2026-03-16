@@ -61,7 +61,10 @@ export function BrandColorStep({ initialColor, onNext, onBack, onSkip }: BrandCo
             <button
               key={color.value}
               type="button"
-              onClick={() => { setSelected(color.value); setCustomHex('') }}
+              onClick={() => {
+                setSelected(color.value)
+                setCustomHex('')
+              }}
               className="relative flex h-12 items-center justify-center rounded-lg transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               style={{ backgroundColor: color.value }}
               aria-label={color.label}

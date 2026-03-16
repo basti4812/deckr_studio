@@ -9,7 +9,11 @@ export async function POST(request: NextRequest) {
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   let body: { groups?: { id: string; position: number }[] } = {}
-  try { body = await request.json() } catch { /* ok */ }
+  try {
+    body = await request.json()
+  } catch {
+    /* ok */
+  }
 
   if (!Array.isArray(body.groups) || body.groups.length === 0) {
     return NextResponse.json({ error: 'groups array required' }, { status: 400 })

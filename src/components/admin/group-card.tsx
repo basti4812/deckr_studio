@@ -27,15 +27,22 @@ interface GroupCardProps {
   onManageSlides: (group: SlideGroup) => void
 }
 
-export function GroupCard({ group, slideCount, onRename, onDelete, onManageSlides }: GroupCardProps) {
+export function GroupCard({
+  group,
+  slideCount,
+  onRename,
+  onDelete,
+  onManageSlides,
+}: GroupCardProps) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(group.name)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: group.id })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: group.id,
+  })
 
   useEffect(() => {
     if (editing) inputRef.current?.focus()
@@ -43,7 +50,11 @@ export function GroupCard({ group, slideCount, onRename, onDelete, onManageSlide
 
   async function commitRename() {
     const trimmed = name.trim()
-    if (!trimmed || trimmed === group.name) { setEditing(false); setName(group.name); return }
+    if (!trimmed || trimmed === group.name) {
+      setEditing(false)
+      setName(group.name)
+      return
+    }
     await onRename(group.id, trimmed)
     setEditing(false)
   }
@@ -87,7 +98,10 @@ export function GroupCard({ group, slideCount, onRename, onDelete, onManageSlide
             onBlur={commitRename}
             onKeyDown={(e) => {
               if (e.key === 'Enter') commitRename()
-              if (e.key === 'Escape') { setEditing(false); setName(group.name) }
+              if (e.key === 'Escape') {
+                setEditing(false)
+                setName(group.name)
+              }
             }}
             className="h-7 flex-1 text-sm"
           />
@@ -112,7 +126,9 @@ export function GroupCard({ group, slideCount, onRename, onDelete, onManageSlide
           variant="ghost"
           size="icon"
           className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
-          onClick={() => { setEditing(true) }}
+          onClick={() => {
+            setEditing(true)
+          }}
           title="Rename"
         >
           <Pencil className="h-3.5 w-3.5" />
@@ -134,8 +150,8 @@ export function GroupCard({ group, slideCount, onRename, onDelete, onManageSlide
           <AlertDialogHeader>
             <AlertDialogTitle>Delete group?</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>{group.name}</strong> will be deleted. Its {slideCount} slide{slideCount !== 1 ? 's' : ''} will
-              move to Ungrouped. This cannot be undone.
+              <strong>{group.name}</strong> will be deleted. Its {slideCount} slide
+              {slideCount !== 1 ? 's' : ''} will move to Ungrouped. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

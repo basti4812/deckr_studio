@@ -21,12 +21,7 @@ interface SlidePreviewDialogProps {
   textEdits?: Record<string, string>
 }
 
-export function SlidePreviewDialog({
-  open,
-  onClose,
-  slide,
-  textEdits,
-}: SlidePreviewDialogProps) {
+export function SlidePreviewDialog({ open, onClose, slide, textEdits }: SlidePreviewDialogProps) {
   const { t } = useTranslation()
 
   if (!slide) return null
@@ -34,7 +29,12 @@ export function SlidePreviewDialog({
   const hasEdits = textEdits && Object.values(textEdits).some((v) => v.trim() !== '')
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose()
+      }}
+    >
       <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="truncate pr-6">{slide.title}</DialogTitle>
@@ -61,14 +61,22 @@ export function SlidePreviewDialog({
           {/* Metadata badges */}
           <div className="flex items-center gap-2 flex-wrap">
             {slide.status === 'mandatory' && (
-              <Badge variant="default" className="text-xs">{t('board.mandatory')}</Badge>
+              <Badge variant="default" className="text-xs">
+                {t('board.mandatory')}
+              </Badge>
             )}
             {slide.status === 'deprecated' && (
-              <Badge variant="destructive" className="text-xs">{t('board.deprecated')}</Badge>
+              <Badge variant="destructive" className="text-xs">
+                {t('board.deprecated')}
+              </Badge>
             )}
-            {slide.tags && slide.tags.length > 0 && slide.tags.map((tag) => (
-              <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
-            ))}
+            {slide.tags &&
+              slide.tags.length > 0 &&
+              slide.tags.map((tag) => (
+                <Badge key={tag} variant="secondary" className="text-xs">
+                  {tag}
+                </Badge>
+              ))}
           </div>
 
           {/* Text fields section */}
@@ -80,7 +88,10 @@ export function SlidePreviewDialog({
                   {slide.editable_fields.map((field) => {
                     const value = textEdits?.[field.id]?.trim()
                     return (
-                      <div key={field.id} className="flex items-start gap-3 rounded-md border p-2.5">
+                      <div
+                        key={field.id}
+                        className="flex items-start gap-3 rounded-md border p-2.5"
+                      >
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
                             <span className="text-xs font-medium">{field.label}</span>
@@ -90,7 +101,9 @@ export function SlidePreviewDialog({
                               </Badge>
                             )}
                           </div>
-                          <p className={`mt-0.5 text-sm ${value ? 'text-foreground' : 'text-muted-foreground italic'}`}>
+                          <p
+                            className={`mt-0.5 text-sm ${value ? 'text-foreground' : 'text-muted-foreground italic'}`}
+                          >
                             {value || t('slide_preview.field_empty')}
                           </p>
                         </div>

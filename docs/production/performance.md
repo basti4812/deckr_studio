@@ -11,18 +11,22 @@
 ## Common Performance Issues
 
 ### Unoptimized Images
+
 ```tsx
 // Bad - unoptimized, no lazy loading
-<img src="/large-image.jpg" />
+;<img src="/large-image.jpg" />
 
 // Good - Next.js Image component
 import Image from 'next/image'
-<Image src="/large-image.jpg" width={800} height={600} alt="Description" />
+;<Image src="/large-image.jpg" width={800} height={600} alt="Description" />
 ```
+
 Next.js Image automatically: resizes, lazy-loads, serves WebP format.
 
 ### Large JavaScript Bundle
+
 Use dynamic imports for heavy components that aren't needed on initial load:
+
 ```tsx
 import dynamic from 'next/dynamic'
 
@@ -32,16 +36,20 @@ const HeavyChart = dynamic(() => import('./HeavyChart'), {
 ```
 
 ### Missing Loading States
+
 Always show feedback during data fetching:
+
 ```tsx
 // Use shadcn Skeleton component
-import { Skeleton } from "@/components/ui/skeleton"
+import { Skeleton } from '@/components/ui/skeleton'
 
 if (isLoading) return <Skeleton className="h-12 w-full" />
 ```
 
 ### No Caching Strategy
+
 Cache slow database queries with `unstable_cache`:
+
 ```typescript
 import { unstable_cache } from 'next/cache'
 
@@ -56,6 +64,7 @@ export const getStats = unstable_cache(
 ```
 
 ## Quick Wins Checklist
+
 - [ ] All images use `next/image` component
 - [ ] Heavy components use dynamic imports
 - [ ] Loading states show skeleton/spinner
@@ -63,5 +72,6 @@ export const getStats = unstable_cache(
 - [ ] No unnecessary client-side JavaScript (`"use client"` only when needed)
 
 ## Automated Monitoring
+
 - **Vercel Analytics** - Automatic on Pro plan, shows Core Web Vitals
 - **Vercel Speed Insights** - Real user performance data

@@ -88,7 +88,8 @@ export function CommentItem({
           {expanded &&
             replies.map((reply) => {
               const replyDeleted = !!reply.deleted_at
-              const replyCanDelete = !replyDeleted && (reply.author_id === currentUserId || canModerate)
+              const replyCanDelete =
+                !replyDeleted && (reply.author_id === currentUserId || canModerate)
               return (
                 <CommentBubble
                   key={reply.id}

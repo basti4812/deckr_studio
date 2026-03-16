@@ -18,10 +18,7 @@ const UpdateRoleSchema = z.object({
 // Admin only. Cannot demote the last admin in the tenant.
 // ---------------------------------------------------------------------------
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   // 1. Require admin caller
   const auth = await requireAdmin(request)
   if ('error' in auth) {
@@ -66,10 +63,7 @@ export async function PATCH(
   }
 
   if (targetUser.tenant_id !== callerProfile.tenant_id) {
-    return NextResponse.json(
-      { error: 'Cannot modify users outside your tenant' },
-      { status: 403 }
-    )
+    return NextResponse.json({ error: 'Cannot modify users outside your tenant' }, { status: 403 })
   }
 
   // 5. No-op if role is already correct
@@ -90,10 +84,7 @@ export async function PATCH(
       .eq('is_active', true)
 
     if (countError) {
-      return NextResponse.json(
-        { error: 'Failed to verify admin count' },
-        { status: 500 }
-      )
+      return NextResponse.json({ error: 'Failed to verify admin count' }, { status: 500 })
     }
 
     if ((count ?? 0) <= 1) {
@@ -111,29 +102,20 @@ export async function PATCH(
     .eq('id', targetUserId)
 
   if (updateError) {
-    return NextResponse.json(
-      { error: 'Failed to update role' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to update role' }, { status: 500 })
   }
 
   // 8. Sync role to Supabase Auth app_metadata so JWT reflects the new role
-  const { error: metaError } = await supabaseAdmin.auth.admin.updateUserById(
-    targetUserId,
-    {
-      app_metadata: {
-        tenant_id: targetUser.tenant_id,
-        role: newRole,
-      },
-    }
-  )
+  const { error: metaError } = await supabaseAdmin.auth.admin.updateUserById(targetUserId, {
+    app_metadata: {
+      tenant_id: targetUser.tenant_id,
+      role: newRole,
+    },
+  })
 
   if (metaError) {
     // Non-fatal: DB is source of truth; JWT will sync on next token refresh
-    console.error(
-      `Failed to sync app_metadata for user ${targetUserId}:`,
-      metaError.message
-    )
+    console.error(`Failed to sync app_metadata for user ${targetUserId}:`, metaError.message)
   }
 
   logActivity({

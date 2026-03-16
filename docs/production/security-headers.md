@@ -42,14 +42,15 @@ export default nextConfig
 
 ## What Each Header Does
 
-| Header | Protection |
-|--------|-----------|
-| X-Frame-Options: DENY | Prevents your site from being embedded in iframes (clickjacking) |
-| X-Content-Type-Options: nosniff | Prevents browsers from guessing content types (MIME sniffing) |
-| Referrer-Policy | Controls how much URL info is sent to other sites |
-| Strict-Transport-Security | Forces HTTPS connections |
+| Header                          | Protection                                                       |
+| ------------------------------- | ---------------------------------------------------------------- |
+| X-Frame-Options: DENY           | Prevents your site from being embedded in iframes (clickjacking) |
+| X-Content-Type-Options: nosniff | Prevents browsers from guessing content types (MIME sniffing)    |
+| Referrer-Policy                 | Controls how much URL info is sent to other sites                |
+| Strict-Transport-Security       | Forces HTTPS connections                                         |
 
 ## Verify After Deployment
+
 1. Open Chrome DevTools
 2. Go to Network tab
 3. Click on any request to your site
@@ -57,8 +58,11 @@ export default nextConfig
 5. Verify all 4 headers are present
 
 ## Advanced (Optional)
+
 **Content-Security-Policy (CSP)** - The most powerful header, but can break your app if misconfigured. Only add after thorough testing:
+
 ```
 Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'
 ```
+
 Start with report-only mode first: `Content-Security-Policy-Report-Only`

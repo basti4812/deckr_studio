@@ -5,13 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import { useState } from 'react'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { CompanyStep } from '@/components/setup-steps/company-step'
 import { BrandColorStep } from '@/components/setup-steps/brand-color-step'
 import { SlidesStep } from '@/components/setup-steps/slides-step'
@@ -49,7 +43,9 @@ async function patchTenant(token: string, body: Record<string, unknown>) {
 
 async function getToken(): Promise<string> {
   const supabase = createBrowserSupabaseClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
   if (!session) throw new Error('Not authenticated')
   return session.access_token
 }
@@ -68,17 +64,15 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
               i < current
                 ? 'bg-primary text-primary-foreground'
                 : i === current
-                ? 'bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2'
-                : 'bg-muted text-muted-foreground'
+                  ? 'bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2'
+                  : 'bg-muted text-muted-foreground'
             }`}
           >
             {i + 1}
           </div>
           {i < total - 1 && (
             <div
-              className={`h-px w-8 transition-colors ${
-                i < current ? 'bg-primary' : 'bg-muted'
-              }`}
+              className={`h-px w-8 transition-colors ${i < current ? 'bg-primary' : 'bg-muted'}`}
             />
           )}
         </div>
@@ -163,12 +157,7 @@ export function SetupWizard() {
           />
         )}
 
-        {step === 3 && (
-          <InviteStep
-            onComplete={complete}
-            onBack={() => goToStep(2)}
-          />
-        )}
+        {step === 3 && <InviteStep onComplete={complete} onBack={() => goToStep(2)} />}
       </CardContent>
     </Card>
   )

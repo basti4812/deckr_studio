@@ -17,11 +17,21 @@ function nextId(prefix: string) {
 // ---------------------------------------------------------------------------
 
 function companyNameField(): EditableField {
-  return { id: nextId('field'), label: 'Company Name', placeholder: 'e.g. Acme Corp', required: true }
+  return {
+    id: nextId('field'),
+    label: 'Company Name',
+    placeholder: 'e.g. Acme Corp',
+    required: true,
+  }
 }
 
 function contactNameField(): EditableField {
-  return { id: nextId('field'), label: 'Contact Name', placeholder: 'e.g. Jane Smith', required: true }
+  return {
+    id: nextId('field'),
+    label: 'Contact Name',
+    placeholder: 'e.g. Jane Smith',
+    required: true,
+  }
 }
 
 function dateField(): EditableField {
@@ -42,7 +52,7 @@ function makeSlide(
   title: string,
   status: Slide['status'],
   tags: string[],
-  editableFields: EditableField[] = [],
+  editableFields: EditableField[] = []
 ): Slide {
   const id = nextId('slide')
   return {
@@ -65,14 +75,19 @@ function makeSlide(
 // --- Group 1: Company Intro ---
 
 const slideWelcome = makeSlide('Welcome & Agenda', 'mandatory', ['intro', 'agenda'])
-const slideAboutUs = makeSlide('About Acme Corp', 'standard', ['intro', 'company'], [
-  companyNameField(),
-  dateField(),
-])
+const slideAboutUs = makeSlide(
+  'About Acme Corp',
+  'standard',
+  ['intro', 'company'],
+  [companyNameField(), dateField()]
+)
 const slideOurMission = makeSlide('Our Mission', 'standard', ['intro', 'values'])
-const slideTeamOverview = makeSlide('Team Overview', 'standard', ['intro', 'team'], [
-  customTextField('Team Size', 'e.g. 50+ employees', false),
-])
+const slideTeamOverview = makeSlide(
+  'Team Overview',
+  'standard',
+  ['intro', 'team'],
+  [customTextField('Team Size', 'e.g. 50+ employees', false)]
+)
 const slideOffices = makeSlide('Global Offices', 'standard', ['intro', 'locations'])
 const slideTimeline = makeSlide('Company Timeline', 'standard', ['intro', 'history'])
 const slidePartners = makeSlide('Our Partners', 'standard', ['intro', 'partners'])
@@ -81,20 +96,30 @@ const slidePartners = makeSlide('Our Partners', 'standard', ['intro', 'partners'
 
 const slideProductOverview = makeSlide('Product Overview', 'standard', ['product', 'overview'])
 const slideFeatureHighlight = makeSlide('Key Features', 'standard', ['product', 'features'])
-const slidePricingTable = makeSlide('Pricing Plans', 'standard', ['product', 'pricing'], [
-  customTextField('Discount Code', 'e.g. WELCOME10', false),
-])
+const slidePricingTable = makeSlide(
+  'Pricing Plans',
+  'standard',
+  ['product', 'pricing'],
+  [customTextField('Discount Code', 'e.g. WELCOME10', false)]
+)
 const slideComparison = makeSlide('Competitive Comparison', 'standard', ['product', 'comparison'])
-const slideROI = makeSlide('ROI Calculator', 'standard', ['product', 'roi'], [
-  companyNameField(),
-  customTextField('Current Cost', 'e.g. $50,000/year', true),
-])
+const slideROI = makeSlide(
+  'ROI Calculator',
+  'standard',
+  ['product', 'roi'],
+  [companyNameField(), customTextField('Current Cost', 'e.g. $50,000/year', true)]
+)
 const slideCaseStudy = makeSlide('Case Study: TechStart', 'standard', ['product', 'case-study'])
-const slideTestimonials = makeSlide('Customer Testimonials', 'standard', ['product', 'social-proof'])
-const slideNextSteps = makeSlide('Next Steps', 'mandatory', ['closing', 'cta'], [
-  contactNameField(),
-  dateField(),
+const slideTestimonials = makeSlide('Customer Testimonials', 'standard', [
+  'product',
+  'social-proof',
 ])
+const slideNextSteps = makeSlide(
+  'Next Steps',
+  'mandatory',
+  ['closing', 'cta'],
+  [contactNameField(), dateField()]
+)
 
 // ---------------------------------------------------------------------------
 // Demo Slide Groups
@@ -112,13 +137,30 @@ export const DEMO_GROUPS: DemoGroup[] = [
     id: 'group-intro',
     name: 'Company Intro',
     position: 0,
-    slides: [slideWelcome, slideAboutUs, slideOurMission, slideTeamOverview, slideOffices, slideTimeline, slidePartners],
+    slides: [
+      slideWelcome,
+      slideAboutUs,
+      slideOurMission,
+      slideTeamOverview,
+      slideOffices,
+      slideTimeline,
+      slidePartners,
+    ],
   },
   {
     id: 'group-products',
     name: 'Products & Pricing',
     position: 1,
-    slides: [slideProductOverview, slideFeatureHighlight, slidePricingTable, slideComparison, slideROI, slideCaseStudy, slideTestimonials, slideNextSteps],
+    slides: [
+      slideProductOverview,
+      slideFeatureHighlight,
+      slidePricingTable,
+      slideComparison,
+      slideROI,
+      slideCaseStudy,
+      slideTestimonials,
+      slideNextSteps,
+    ],
   },
 ]
 
@@ -139,7 +181,7 @@ export const DEMO_GROUP_NAMES: string[] = DEMO_GROUPS.map((g) => g.name)
 // ---------------------------------------------------------------------------
 
 export interface DemoTrayItem {
-  id: string       // instance UUID
+  id: string // instance UUID
   slide_id: string
 }
 

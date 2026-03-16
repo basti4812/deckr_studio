@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const profile = await getUserProfile(user.id)
-  if (!profile || !profile.is_active) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!profile || !profile.is_active)
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const supabase = createServiceClient()
 
@@ -83,11 +84,16 @@ export async function POST(request: NextRequest) {
   if (limited) return limited
 
   let body: { name?: string; description?: string; category?: string } = {}
-  try { body = await request.json() } catch { /* ok */ }
+  try {
+    body = await request.json()
+  } catch {
+    /* ok */
+  }
 
   const name = body.name?.trim()
   if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
-  if (name.length > 100) return NextResponse.json({ error: 'Name max 100 characters' }, { status: 400 })
+  if (name.length > 100)
+    return NextResponse.json({ error: 'Name max 100 characters' }, { status: 400 })
 
   const description = body.description?.trim() || null
   if (description && description.length > 500) {

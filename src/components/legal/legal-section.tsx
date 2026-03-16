@@ -29,9 +29,12 @@ export function LegalSection({ heading, body }: LegalSectionProps) {
         parts.push(text.slice(lastIndex, match.index))
       }
       parts.push(
-        <mark key={`${idx}-${match.index}`} className="rounded bg-yellow-200 px-0.5 text-yellow-900">
+        <mark
+          key={`${idx}-${match.index}`}
+          className="rounded bg-yellow-200 px-0.5 text-yellow-900"
+        >
           {match[0]}
-        </mark>,
+        </mark>
       )
       lastIndex = match.index + match[0].length
     }

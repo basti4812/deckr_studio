@@ -147,13 +147,16 @@ export function SharePanel({
   }
 
   return (
-    <Sheet open={open} onOpenChange={(v) => { if (!v) onClose() }}>
+    <Sheet
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) onClose()
+      }}
+    >
       <SheetContent side="right" className="flex flex-col sm:max-w-md">
         <SheetHeader>
           <SheetTitle>Share &ldquo;{projectName}&rdquo;</SheetTitle>
-          <SheetDescription>
-            Manage access and external share links.
-          </SheetDescription>
+          <SheetDescription>Manage access and external share links.</SheetDescription>
         </SheetHeader>
 
         <Tabs defaultValue="people" className="mt-4 flex-1 flex flex-col overflow-hidden">
@@ -163,152 +166,142 @@ export function SharePanel({
           </TabsList>
 
           <TabsContent value="people" className="flex-1 flex flex-col overflow-hidden">
+            {/* ----- Add people section ----- */}
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name or email…"
+                    value={searchQuery}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <Select
+                  value={addPermission}
+                  onValueChange={(v) => setAddPermission(v as 'view' | 'edit')}
+                >
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="view">Can view</SelectItem>
+                    <SelectItem value="edit">Can edit</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-        {/* ----- Add people section ----- */}
-        <div className="mt-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name or email…"
-                value={searchQuery}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <Select
-              value={addPermission}
-              onValueChange={(v) => setAddPermission(v as 'view' | 'edit')}
-            >
-              <SelectTrigger className="w-[120px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="view">Can view</SelectItem>
-                <SelectItem value="edit">Can edit</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Search results dropdown */}
-          {searchQuery.trim().length >= 2 && (
-            <div className="rounded-md border bg-popover shadow-sm max-h-48 overflow-y-auto">
-              {searching ? (
-                <p className="px-3 py-2 text-sm text-muted-foreground">Searching…</p>
-              ) : filteredResults.length === 0 ? (
-                <p className="px-3 py-2 text-sm text-muted-foreground">
-                  {searchResults.length > 0 && filteredResults.length === 0
-                    ? 'All matching users already have access.'
-                    : 'No users found.'}
-                </p>
-              ) : (
-                filteredResults.map((user) => (
-                  <div
-                    key={user.id}
-                    className="flex items-center gap-3 px-3 py-2 hover:bg-accent cursor-pointer"
-                    onClick={() => handleAdd(user)}
-                  >
-                    <Avatar className="h-7 w-7">
-                      <AvatarFallback className="text-xs">
-                        {getInitials(user.display_name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{user.display_name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={adding === user.id}
-                    >
-                      <UserPlus className="mr-1.5 h-3.5 w-3.5" />
-                      {adding === user.id ? 'Adding…' : 'Add'}
-                    </Button>
-                  </div>
-                ))
+              {/* Search results dropdown */}
+              {searchQuery.trim().length >= 2 && (
+                <div className="rounded-md border bg-popover shadow-sm max-h-48 overflow-y-auto">
+                  {searching ? (
+                    <p className="px-3 py-2 text-sm text-muted-foreground">Searching…</p>
+                  ) : filteredResults.length === 0 ? (
+                    <p className="px-3 py-2 text-sm text-muted-foreground">
+                      {searchResults.length > 0 && filteredResults.length === 0
+                        ? 'All matching users already have access.'
+                        : 'No users found.'}
+                    </p>
+                  ) : (
+                    filteredResults.map((user) => (
+                      <div
+                        key={user.id}
+                        className="flex items-center gap-3 px-3 py-2 hover:bg-accent cursor-pointer"
+                        onClick={() => handleAdd(user)}
+                      >
+                        <Avatar className="h-7 w-7">
+                          <AvatarFallback className="text-xs">
+                            {getInitials(user.display_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{user.display_name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                        </div>
+                        <Button variant="ghost" size="sm" disabled={adding === user.id}>
+                          <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+                          {adding === user.id ? 'Adding…' : 'Add'}
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </div>
 
-        {error && (
-          <p className="mt-2 rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-xs text-destructive">
-            {error}
-          </p>
-        )}
+            {error && (
+              <p className="mt-2 rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-xs text-destructive">
+                {error}
+              </p>
+            )}
 
-        <Separator className="my-4" />
+            <Separator className="my-4" />
 
-        {/* ----- People with access ----- */}
-        <div className="flex-1 overflow-y-auto space-y-1">
-          <p className="text-sm font-medium text-muted-foreground mb-2">
-            People with access
-          </p>
+            {/* ----- People with access ----- */}
+            <div className="flex-1 overflow-y-auto space-y-1">
+              <p className="text-sm font-medium text-muted-foreground mb-2">People with access</p>
 
-          {/* Owner row */}
-          <div className="flex items-center gap-3 rounded-md px-2 py-2">
-            <Avatar className="h-8 w-8">
-              <AvatarFallback className="text-xs">
-                {getInitials(ownerName)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{ownerName}</p>
-            </div>
-            <Badge variant="secondary" className="gap-1">
-              <Crown className="h-3 w-3" />
-              Owner
-            </Badge>
-          </div>
-
-          {/* Shared users */}
-          {shares.map((share) => (
-            <div
-              key={share.id}
-              className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-accent/50"
-            >
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="text-xs">
-                  {getInitials(share.display_name)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{share.display_name}</p>
-                <p className="text-xs text-muted-foreground truncate">{share.email}</p>
+              {/* Owner row */}
+              <div className="flex items-center gap-3 rounded-md px-2 py-2">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="text-xs">{getInitials(ownerName)}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{ownerName}</p>
+                </div>
+                <Badge variant="secondary" className="gap-1">
+                  <Crown className="h-3 w-3" />
+                  Owner
+                </Badge>
               </div>
-              <Select
-                value={share.permission}
-                onValueChange={(v) => onUpdatePermission(share.id, v as 'view' | 'edit')}
-              >
-                <SelectTrigger className="w-[110px] h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="view">Can view</SelectItem>
-                  <SelectItem value="edit">Can edit</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                onClick={() => handleRemove(share.id)}
-                disabled={removing === share.id}
-                title="Remove access"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+
+              {/* Shared users */}
+              {shares.map((share) => (
+                <div
+                  key={share.id}
+                  className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-accent/50"
+                >
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className="text-xs">
+                      {getInitials(share.display_name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{share.display_name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{share.email}</p>
+                  </div>
+                  <Select
+                    value={share.permission}
+                    onValueChange={(v) => onUpdatePermission(share.id, v as 'view' | 'edit')}
+                  >
+                    <SelectTrigger className="w-[110px] h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="view">Can view</SelectItem>
+                      <SelectItem value="edit">Can edit</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    onClick={() => handleRemove(share.id)}
+                    disabled={removing === share.id}
+                    title="Remove access"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+
+              {shares.length === 0 && (
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                  This project isn&apos;t shared with anyone yet.
+                </p>
+              )}
             </div>
-          ))}
-
-          {shares.length === 0 && (
-            <p className="py-6 text-center text-sm text-muted-foreground">
-              This project isn&apos;t shared with anyone yet.
-            </p>
-          )}
-        </div>
-
           </TabsContent>
 
           <TabsContent value="links" className="flex-1 overflow-y-auto">

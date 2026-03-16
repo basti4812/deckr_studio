@@ -20,7 +20,7 @@ import { Separator } from '@/components/ui/separator'
 // Cookie consent state
 // ---------------------------------------------------------------------------
 
-export const COOKIE_KEY = 'deckr_cookie_consent'
+export const COOKIE_KEY = 'onslide_cookie_consent'
 
 export interface CookiePreferences {
   version: string
@@ -139,9 +139,7 @@ export function CookieConsent() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{t('cookies.settings_title')}</DialogTitle>
-            <DialogDescription>
-              {t('cookies.settings_description')}
-            </DialogDescription>
+            <DialogDescription>{t('cookies.settings_description')}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
@@ -152,7 +150,9 @@ export function CookieConsent() {
                 <p className="text-xs text-muted-foreground">{t('cookies.necessary_desc')}</p>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-[10px]">{t('cookies.always_on')}</Badge>
+                <Badge variant="secondary" className="text-[10px]">
+                  {t('cookies.always_on')}
+                </Badge>
                 <Switch checked disabled />
               </div>
             </div>

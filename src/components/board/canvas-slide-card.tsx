@@ -2,7 +2,17 @@
 
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AlertTriangle, ArrowRightLeft, Eye, LayoutTemplate, Lock, MessageSquare, Pencil, Plus, RotateCcw } from 'lucide-react'
+import {
+  AlertTriangle,
+  ArrowRightLeft,
+  Eye,
+  LayoutTemplate,
+  Lock,
+  MessageSquare,
+  Pencil,
+  Plus,
+  RotateCcw,
+} from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import {
   ContextMenu,
@@ -98,7 +108,14 @@ export const CanvasSlideCard = memo(function CanvasSlideCard({
         style={{ width: CARD_WIDTH }}
         className="select-none rounded-lg border bg-background shadow-sm overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/40 transition-shadow group/card"
         onClick={handleClick}
-        onDoubleClick={onDoubleClick ? (e) => { e.stopPropagation(); onDoubleClick(slide) } : undefined}
+        onDoubleClick={
+          onDoubleClick
+            ? (e) => {
+                e.stopPropagation()
+                onDoubleClick(slide)
+              }
+            : undefined
+        }
       >
         {/* Thumbnail */}
         <div
@@ -116,9 +133,7 @@ export const CanvasSlideCard = memo(function CanvasSlideCard({
           ) : (
             <LayoutTemplate className="h-8 w-8 text-muted-foreground/40" />
           )}
-          {slide.status === 'deprecated' && (
-            <div className="absolute inset-0 bg-destructive/10" />
-          )}
+          {slide.status === 'deprecated' && <div className="absolute inset-0 bg-destructive/10" />}
           {onAddToTray && (
             <div className="absolute inset-0 flex items-center justify-center bg-primary/0 group-hover/card:bg-primary/10 transition-colors">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground opacity-0 group-hover/card:opacity-100 transition-opacity shadow-md">
@@ -130,7 +145,10 @@ export const CanvasSlideCard = memo(function CanvasSlideCard({
             <button
               data-no-pan
               className="absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-md bg-black/50 text-white opacity-0 group-hover/card:opacity-100 transition-opacity hover:bg-black/70"
-              onClick={(e) => { e.stopPropagation(); onPreview(slide) }}
+              onClick={(e) => {
+                e.stopPropagation()
+                onPreview(slide)
+              }}
               title={t('slide_preview.title')}
             >
               <Eye className="h-3.5 w-3.5" />
@@ -166,7 +184,10 @@ export const CanvasSlideCard = memo(function CanvasSlideCard({
             data-no-pan
             className="mb-0.5 truncate text-[10px] font-medium text-primary/80 cursor-pointer hover:text-primary pointer-events-auto"
             title={annotation}
-            onClick={(e) => { e.stopPropagation(); onAnnotationClick?.(slide.id) }}
+            onClick={(e) => {
+              e.stopPropagation()
+              onAnnotationClick?.(slide.id)
+            }}
           >
             {annotation}
           </div>
@@ -185,9 +206,7 @@ export const CanvasSlideCard = memo(function CanvasSlideCard({
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger asChild>
-        {cardContent}
-      </ContextMenuTrigger>
+      <ContextMenuTrigger asChild>{cardContent}</ContextMenuTrigger>
       <ContextMenuContent>
         {onAnnotationClick && (
           <ContextMenuItem onClick={() => onAnnotationClick(slide.id)}>
@@ -207,7 +226,10 @@ export const CanvasSlideCard = memo(function CanvasSlideCard({
                 {moveTargets
                   .filter((t) => t.id !== currentGroupId)
                   .map((target) => (
-                    <ContextMenuItem key={target.id} onClick={() => onMoveToGroup(slide.id, target.id)}>
+                    <ContextMenuItem
+                      key={target.id}
+                      onClick={() => onMoveToGroup(slide.id, target.id)}
+                    >
                       {target.name}
                     </ContextMenuItem>
                   ))}

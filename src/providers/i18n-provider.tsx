@@ -21,7 +21,7 @@ function getI18nInstance() {
         backend: {
           loadPath: '/locales/{{lng}}.json',
         },
-        fallbackLng: 'en',
+        fallbackLng: 'de',
         supportedLngs: ['en', 'de'],
         interpolation: {
           escapeValue: false, // React already escapes
@@ -49,14 +49,13 @@ export function I18nProvider({ children, defaultLang }: I18nProviderProps) {
 
   useEffect(() => {
     // Detect language: browser locale -> defaultLang prop -> 'en'
-    const browserLang =
-      typeof window !== 'undefined' ? navigator.language.split('-')[0] : undefined
+    const browserLang = typeof window !== 'undefined' ? navigator.language.split('-')[0] : undefined
     const supportedLngs = ['en', 'de']
 
     const detected =
       (browserLang && supportedLngs.includes(browserLang) ? browserLang : undefined) ??
       (defaultLang && supportedLngs.includes(defaultLang) ? defaultLang : undefined) ??
-      'en'
+      'de'
 
     if (instance.language !== detected) {
       instance.changeLanguage(detected)

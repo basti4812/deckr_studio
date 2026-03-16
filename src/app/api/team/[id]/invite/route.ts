@@ -7,10 +7,7 @@ import { checkRateLimit } from '@/lib/rate-limit'
 // POST /api/team/[id]/invite/resend — Resend a pending invitation email
 // ---------------------------------------------------------------------------
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin(request)
   if ('error' in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status })
@@ -24,12 +21,7 @@ export async function POST(
   }
 
   // Rate limit: 5 resends per 15 minutes
-  const limited = await checkRateLimit(
-    adminUser.id,
-    'team:invite-resend',
-    5,
-    15 * 60 * 1000
-  )
+  const limited = await checkRateLimit(adminUser.id, 'team:invite-resend', 5, 15 * 60 * 1000)
   if (limited) return limited
 
   const supabase = createServiceClient()
@@ -46,10 +38,7 @@ export async function POST(
   }
 
   if (targetUser.tenant_id !== adminProfile.tenant_id) {
-    return NextResponse.json(
-      { error: 'Cannot modify users outside your tenant' },
-      { status: 403 }
-    )
+    return NextResponse.json({ error: 'Cannot modify users outside your tenant' }, { status: 403 })
   }
 
   // Verify user is pending (email not confirmed)
@@ -71,13 +60,15 @@ export async function POST(
   await supabase.from('users').delete().eq('id', targetUserId)
 
   // Re-invite with a fresh token
-  const { data: inviteData, error: inviteError } =
-    await supabase.auth.admin.inviteUserByEmail(email, {
+  const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
+    email,
+    {
       data: {
         tenant_id: adminProfile.tenant_id,
         role: 'employee',
       },
-    })
+    }
+  )
 
   if (inviteError || !inviteData?.user?.id) {
     // Restore: recreate the old auth user + DB row so the invitation isn't lost
@@ -169,10 +160,7 @@ export async function DELETE(
   }
 
   if (targetUser.tenant_id !== adminProfile.tenant_id) {
-    return NextResponse.json(
-      { error: 'Cannot modify users outside your tenant' },
-      { status: 403 }
-    )
+    return NextResponse.json({ error: 'Cannot modify users outside your tenant' }, { status: 403 })
   }
 
   // Verify user is pending (email not confirmed)
@@ -185,22 +173,14 @@ export async function DELETE(
   }
 
   // Delete the user record from our table
-  const { error: deleteUserError } = await supabase
-    .from('users')
-    .delete()
-    .eq('id', targetUserId)
+  const { error: deleteUserError } = await supabase.from('users').delete().eq('id', targetUserId)
 
   if (deleteUserError) {
-    return NextResponse.json(
-      { error: 'Failed to cancel invitation' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to cancel invitation' }, { status: 500 })
   }
 
   // Delete the Supabase Auth user (invalidates the invite link)
-  const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(
-    targetUserId
-  )
+  const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(targetUserId)
 
   if (deleteAuthError) {
     console.error('Failed to delete auth user:', deleteAuthError.message)

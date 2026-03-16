@@ -34,7 +34,7 @@ import type { Slide } from '@/components/slides/slide-card'
 import type { TemplateSet } from './template-set-card'
 
 interface SlideInSet {
-  id: string          // membership id
+  id: string // membership id
   slide_id: string
   position: number
   slide: Slide
@@ -52,8 +52,9 @@ interface Props {
 // ---------------------------------------------------------------------------
 
 function SortableSlideRow({ slide, onRemove }: { slide: Slide; onRemove: () => void }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: slide.id })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: slide.id,
+  })
 
   return (
     <div
@@ -65,7 +66,11 @@ function SortableSlideRow({ slide, onRemove }: { slide: Slide; onRemove: () => v
       }}
       className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5"
     >
-      <button {...attributes} {...listeners} className="cursor-grab touch-none text-muted-foreground hover:text-foreground">
+      <button
+        {...attributes}
+        {...listeners}
+        className="cursor-grab touch-none text-muted-foreground hover:text-foreground"
+      >
         <GripVertical className="h-4 w-4" />
       </button>
       <div className="flex h-8 w-14 shrink-0 items-center justify-center rounded bg-muted">
@@ -78,11 +83,19 @@ function SortableSlideRow({ slide, onRemove }: { slide: Slide; onRemove: () => v
       </div>
       <span className="flex-1 truncate text-sm">{slide.title}</span>
       {slide.status === 'deprecated' && (
-        <Badge variant="secondary" className="shrink-0 text-[10px] text-orange-600 dark:text-orange-400">
+        <Badge
+          variant="secondary"
+          className="shrink-0 text-[10px] text-orange-600 dark:text-orange-400"
+        >
           Deprecated
         </Badge>
       )}
-      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive" onClick={onRemove}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
+        onClick={onRemove}
+      >
         <X className="h-3 w-3" />
       </Button>
     </div>
@@ -105,14 +118,19 @@ export function ManageTemplateSlidesDialog({ templateSet, allSlides, onClose, on
 
   // Load current slides in set when dialog opens
   useEffect(() => {
-    if (!templateSet) { setOrdered([]); return }
+    if (!templateSet) {
+      setOrdered([])
+      return
+    }
 
     async function loadSlides() {
       if (!templateSet) return
       setLoading(true)
       try {
         const supabase = createBrowserSupabaseClient()
-        const { data: { session } } = await supabase.auth.getSession()
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
         if (!session) return
 
         const res = await fetch(`/api/template-sets/${templateSet.id}/slides`, {
@@ -158,7 +176,9 @@ export function ManageTemplateSlidesDialog({ templateSet, allSlides, onClose, on
     setSaving(true)
     try {
       const supabase = createBrowserSupabaseClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       if (!session) throw new Error('Not authenticated')
       const token = session.access_token
 
@@ -241,10 +261,21 @@ export function ManageTemplateSlidesDialog({ templateSet, allSlides, onClose, on
                     No slides yet. Add some from the right.
                   </p>
                 )}
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                  <SortableContext items={ordered.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={ordered.map((s) => s.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
                     {ordered.map((slide) => (
-                      <SortableSlideRow key={slide.id} slide={slide} onRemove={() => removeSlide(slide.id)} />
+                      <SortableSlideRow
+                        key={slide.id}
+                        slide={slide}
+                        onRemove={() => removeSlide(slide.id)}
+                      />
                     ))}
                   </SortableContext>
                 </DndContext>
@@ -266,22 +297,37 @@ export function ManageTemplateSlidesDialog({ templateSet, allSlides, onClose, on
                   </p>
                 )}
                 {available.map((slide) => (
-                  <div key={slide.id} className="flex items-center gap-2 rounded-md border px-2 py-1.5 hover:bg-muted/50">
+                  <div
+                    key={slide.id}
+                    className="flex items-center gap-2 rounded-md border px-2 py-1.5 hover:bg-muted/50"
+                  >
                     <div className="flex h-8 w-14 shrink-0 items-center justify-center rounded bg-muted">
                       {slide.thumbnail_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={slide.thumbnail_url} alt="" className="h-full w-full rounded object-cover" />
+                        <img
+                          src={slide.thumbnail_url}
+                          alt=""
+                          className="h-full w-full rounded object-cover"
+                        />
                       ) : (
                         <LayoutTemplate className="h-4 w-4 text-muted-foreground/50" />
                       )}
                     </div>
                     <span className="flex-1 truncate text-sm">{slide.title}</span>
                     {slide.status === 'deprecated' && (
-                      <Badge variant="secondary" className="shrink-0 text-[10px] text-orange-600 dark:text-orange-400">
+                      <Badge
+                        variant="secondary"
+                        className="shrink-0 text-[10px] text-orange-600 dark:text-orange-400"
+                      >
                         Deprecated
                       </Badge>
                     )}
-                    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => addSlide(slide)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 shrink-0"
+                      onClick={() => addSlide(slide)}
+                    >
                       <Plus className="h-3 w-3" />
                     </Button>
                   </div>
@@ -292,7 +338,9 @@ export function ManageTemplateSlidesDialog({ templateSet, allSlides, onClose, on
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
           <Button onClick={handleSave} disabled={saving || loading}>
             {saving ? 'Saving…' : 'Save changes'}
           </Button>

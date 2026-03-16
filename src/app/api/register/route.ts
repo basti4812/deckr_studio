@@ -39,8 +39,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const { email, password, tenantName, displayName, preferredLanguage } =
-    parsed.data
+  const { email, password, tenantName, displayName, preferredLanguage } = parsed.data
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
 
@@ -55,12 +54,11 @@ export async function POST(request: NextRequest) {
   const skipEmailConfirmation = process.env.SKIP_EMAIL_CONFIRMATION === 'true'
 
   // 1. Create auth user
-  const { data: authData, error: authError } =
-    await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: skipEmailConfirmation,
-    })
+  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: skipEmailConfirmation,
+  })
 
   if (authError || !authData.user) {
     const message = authError?.message ?? 'Failed to create user'
@@ -83,10 +81,7 @@ export async function POST(request: NextRequest) {
   if (tenantError || !tenant) {
     // Rollback: delete the auth user we just created
     await supabaseAdmin.auth.admin.deleteUser(userId)
-    return NextResponse.json(
-      { error: 'Failed to create tenant' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to create tenant' }, { status: 500 })
   }
 
   // 3. Create user row in public.users
@@ -103,43 +98,32 @@ export async function POST(request: NextRequest) {
     // Rollback: delete tenant and auth user
     await supabaseAdmin.from('tenants').delete().eq('id', tenant.id)
     await supabaseAdmin.auth.admin.deleteUser(userId)
-    return NextResponse.json(
-      { error: 'Failed to create user profile' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to create user profile' }, { status: 500 })
   }
 
   // 4. Create subscription with 14-day trial
   const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
-  const { error: subError } = await supabaseAdmin
-    .from('subscriptions')
-    .insert({
-      tenant_id: tenant.id,
-      status: 'trialing',
-      trial_ends_at: trialEndsAt,
-    })
+  const { error: subError } = await supabaseAdmin.from('subscriptions').insert({
+    tenant_id: tenant.id,
+    status: 'trialing',
+    trial_ends_at: trialEndsAt,
+  })
 
   if (subError) {
     // Rollback: delete user, tenant, and auth user
     await supabaseAdmin.from('users').delete().eq('id', userId)
     await supabaseAdmin.from('tenants').delete().eq('id', tenant.id)
     await supabaseAdmin.auth.admin.deleteUser(userId)
-    return NextResponse.json(
-      { error: 'Failed to create subscription' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to create subscription' }, { status: 500 })
   }
 
   // 6. Set app_metadata on auth user (tenant_id + role in JWT)
-  const { error: metaError } = await supabaseAdmin.auth.admin.updateUserById(
-    userId,
-    {
-      app_metadata: {
-        tenant_id: tenant.id,
-        role: 'admin',
-      },
-    }
-  )
+  const { error: metaError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+    app_metadata: {
+      tenant_id: tenant.id,
+      role: 'admin',
+    },
+  })
 
   if (metaError) {
     // Non-fatal: the user exists, metadata can be set later
@@ -148,15 +132,14 @@ export async function POST(request: NextRequest) {
 
   // 7. Send email confirmation link (only when not skipping confirmation)
   if (!skipEmailConfirmation) {
-    const { error: linkError } =
-      await supabaseAdmin.auth.admin.generateLink({
-        type: 'signup',
-        email,
-        password,
-        options: {
-          redirectTo: `${siteUrl}/auth/callback`,
-        },
-      })
+    const { error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'signup',
+      email,
+      password,
+      options: {
+        redirectTo: `${siteUrl}/auth/callback`,
+      },
+    })
 
     if (linkError) {
       // Non-fatal: user is created, they can request a resend later

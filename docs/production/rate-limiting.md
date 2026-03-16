@@ -3,6 +3,7 @@
 Prevent abuse, DDoS attacks, and excessive API usage.
 
 ## When to Add Rate Limiting
+
 - **MVP:** Optional (focus on features first)
 - **Production with users:** Recommended on auth endpoints and public APIs
 - **Public-facing APIs:** Required
@@ -10,16 +11,19 @@ Prevent abuse, DDoS attacks, and excessive API usage.
 ## Setup with Upstash Redis
 
 ### 1. Install Dependencies
+
 ```bash
 npm install @upstash/ratelimit @upstash/redis
 ```
 
 ### 2. Create Upstash Account
+
 - Go to [upstash.com](https://upstash.com) (free tier: 10k requests/day)
 - Create a Redis database
 - Copy REST URL and token
 
 ### 3. Add Environment Variables
+
 ```bash
 # .env.local
 UPSTASH_REDIS_REST_URL=https://xxx.upstash.io
@@ -27,6 +31,7 @@ UPSTASH_REDIS_REST_TOKEN=xxx
 ```
 
 ### 4. Create Rate Limiter
+
 ```typescript
 // src/lib/rate-limit.ts
 import { Ratelimit } from '@upstash/ratelimit'
@@ -39,6 +44,7 @@ export const ratelimit = new Ratelimit({
 ```
 
 ### 5. Use in API Routes
+
 ```typescript
 // src/app/api/example/route.ts
 import { ratelimit } from '@/lib/rate-limit'
@@ -66,6 +72,7 @@ export async function POST(request: NextRequest) {
 ```
 
 ### 6. Use in Middleware (Global)
+
 ```typescript
 // middleware.ts
 import { ratelimit } from '@/lib/rate-limit'
@@ -90,12 +97,13 @@ export const config = {
 
 ## Recommended Limits
 
-| Endpoint Type | Limit | Window |
-|--------------|-------|--------|
-| Login/Register | 5 requests | 1 minute |
-| Password Reset | 3 requests | 5 minutes |
-| General API | 30 requests | 10 seconds |
-| File Upload | 5 requests | 1 minute |
+| Endpoint Type  | Limit       | Window     |
+| -------------- | ----------- | ---------- |
+| Login/Register | 5 requests  | 1 minute   |
+| Password Reset | 3 requests  | 5 minutes  |
+| General API    | 30 requests | 10 seconds |
+| File Upload    | 5 requests  | 1 minute   |
 
 ## Alternative
+
 **Vercel Edge Config** - Simpler but less flexible. Built into Vercel, no external service needed.

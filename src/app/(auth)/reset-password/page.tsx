@@ -10,13 +10,7 @@ import { CheckCircle, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Form,
   FormControl,
@@ -100,9 +94,7 @@ function ResetPasswordForm() {
             <CheckCircle className="h-6 w-6 text-primary" />
           </div>
           <CardTitle>{t('auth.password_updated')}</CardTitle>
-          <CardDescription>
-            {t('auth.password_reset_success')}
-          </CardDescription>
+          <CardDescription>{t('auth.password_reset_success')}</CardDescription>
         </CardHeader>
         <CardContent>
           <Button asChild className="w-full">
@@ -118,9 +110,7 @@ function ResetPasswordForm() {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle>{t('auth.invalid_reset_link')}</CardTitle>
-          <CardDescription>
-            {t('auth.reset_link_expired')}
-          </CardDescription>
+          <CardDescription>{t('auth.reset_link_expired')}</CardDescription>
         </CardHeader>
         <CardContent>
           <Button asChild variant="outline" className="w-full">
@@ -135,9 +125,7 @@ function ResetPasswordForm() {
     <Card className="w-full max-w-sm">
       <CardHeader>
         <CardTitle>{t('auth.set_new_password')}</CardTitle>
-        <CardDescription>
-          {t('auth.choose_strong_password')}
-        </CardDescription>
+        <CardDescription>{t('auth.choose_strong_password')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {serverError && (
@@ -174,11 +162,7 @@ function ResetPasswordForm() {
                 <FormItem>
                   <FormLabel>{t('auth.confirm_new_password')}</FormLabel>
                   <FormControl>
-                    <Input
-                      type="password"
-                      autoComplete="new-password"
-                      {...field}
-                    />
+                    <Input type="password" autoComplete="new-password" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -186,9 +170,7 @@ function ResetPasswordForm() {
             />
 
             <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isSubmitting ? t('auth.updating_password') : t('auth.update_password')}
             </Button>
           </form>

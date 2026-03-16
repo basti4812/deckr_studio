@@ -106,7 +106,10 @@ export async function POST(request: NextRequest, { params }: { params: Params })
       }
       const page = pdfDoc.addPage([PAGE_W, PAGE_H])
       page.drawRectangle({
-        x: 0, y: 0, width: PAGE_W, height: PAGE_H,
+        x: 0,
+        y: 0,
+        width: PAGE_W,
+        height: PAGE_H,
         color: rgb(0.95, 0.95, 0.95),
       })
       const fontSize = 36
@@ -148,7 +151,10 @@ export async function POST(request: NextRequest, { params }: { params: Params })
 
     if (!imageEmbedded) {
       page.drawRectangle({
-        x: 0, y: 0, width: PAGE_W, height: PAGE_H,
+        x: 0,
+        y: 0,
+        width: PAGE_W,
+        height: PAGE_H,
         color: rgb(0.95, 0.95, 0.95),
       })
       const fontSize = 36

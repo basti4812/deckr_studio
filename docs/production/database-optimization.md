@@ -24,16 +24,11 @@ The most common performance problem with ORMs and query builders:
 // Bad: N+1 (1 query for users + N queries for tasks)
 const { data: users } = await supabase.from('users').select('*')
 for (const user of users) {
-  const { data: tasks } = await supabase
-    .from('tasks')
-    .select('*')
-    .eq('user_id', user.id)
+  const { data: tasks } = await supabase.from('tasks').select('*').eq('user_id', user.id)
 }
 
 // Good: Single query with join (1 query total)
-const { data } = await supabase
-  .from('users')
-  .select('*, tasks(*)')
+const { data } = await supabase.from('users').select('*, tasks(*)')
 ```
 
 ## 3. Always Limit Results
@@ -48,10 +43,7 @@ const { data } = await supabase.from('tasks').select('*')
 const { data } = await supabase.from('tasks').select('*').limit(50)
 
 // Better: Paginated
-const { data } = await supabase
-  .from('tasks')
-  .select('*')
-  .range(0, 49)  // First 50 rows
+const { data } = await supabase.from('tasks').select('*').range(0, 49) // First 50 rows
 ```
 
 ## 4. Caching Strategy
@@ -66,17 +58,19 @@ export const getCategories = unstable_cache(
     const { data } = await supabase.from('categories').select('*')
     return data
   },
-  ['categories'],          // Cache key
-  { revalidate: 3600 }    // Refresh every hour
+  ['categories'], // Cache key
+  { revalidate: 3600 } // Refresh every hour
 )
 ```
 
 **When to cache:**
+
 - Data that changes less than once per hour
 - Expensive aggregation queries
 - Data shared across all users (not user-specific)
 
 **When NOT to cache:**
+
 - User-specific data that changes frequently
 - Real-time data (use Supabase Realtime instead)
 

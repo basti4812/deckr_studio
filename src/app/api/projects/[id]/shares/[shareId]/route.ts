@@ -23,7 +23,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Params }
 
   const { id, shareId } = await params
   let body: unknown = {}
-  try { body = await request.json() } catch { /* ok */ }
+  try {
+    body = await request.json()
+  } catch {
+    /* ok */
+  }
 
   const parsed = UpdateSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
@@ -79,11 +83,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Params 
   if (!share) return NextResponse.json({ error: 'Share not found' }, { status: 404 })
 
   // Allow if: caller is the project owner OR caller is the shared user (leaving)
-  const { data: project } = await supabase
-    .from('projects')
-    .select('owner_id')
-    .eq('id', id)
-    .single()
+  const { data: project } = await supabase.from('projects').select('owner_id').eq('id', id).single()
 
   const isOwner = project?.owner_id === user.id
   const isSharedUser = share.user_id === user.id
@@ -92,10 +92,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Params 
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { error } = await supabase
-    .from('project_shares')
-    .delete()
-    .eq('id', shareId)
+  const { error } = await supabase.from('project_shares').delete().eq('id', shareId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

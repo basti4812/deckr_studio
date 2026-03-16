@@ -18,12 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 
 // ---------------------------------------------------------------------------
@@ -67,7 +62,9 @@ interface AnalyticsData {
 
 async function getAccessToken(): Promise<string | null> {
   const supabase = createBrowserSupabaseClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
   return session?.access_token ?? null
 }
 
@@ -92,10 +89,14 @@ function formatDateExact(dateStr: string): string {
 
 function statusBadgeVariant(status: string): 'default' | 'secondary' | 'destructive' | 'outline' {
   switch (status) {
-    case 'mandatory': return 'default'
-    case 'active': return 'secondary'
-    case 'deprecated': return 'destructive'
-    default: return 'outline'
+    case 'mandatory':
+      return 'default'
+    case 'active':
+      return 'secondary'
+    case 'deprecated':
+      return 'destructive'
+    default:
+      return 'outline'
   }
 }
 
@@ -197,12 +198,11 @@ function SlidesTable({
       {/* Toolbar */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Switch
-            id="never-used"
-            checked={neverUsedOnly}
-            onCheckedChange={onToggleNeverUsed}
-          />
-          <label htmlFor="never-used" className="cursor-pointer select-none text-sm text-muted-foreground">
+          <Switch id="never-used" checked={neverUsedOnly} onCheckedChange={onToggleNeverUsed} />
+          <label
+            htmlFor="never-used"
+            className="cursor-pointer select-none text-sm text-muted-foreground"
+          >
             {t('admin.analytics_never_used_only')}
           </label>
         </div>
@@ -220,21 +220,39 @@ function SlidesTable({
               <TableHead className="w-12" />
               <TableHead>{t('admin.analytics_slide_name')}</TableHead>
               <TableHead className="w-[110px]">{t('admin.status')}</TableHead>
-              <TableHead className="w-[110px] text-right">{t('admin.analytics_use_count')}</TableHead>
-              <TableHead className="w-[140px] text-right">{t('admin.analytics_last_used')}</TableHead>
-              <TableHead className="w-[130px] text-right">{t('admin.analytics_in_template_sets')}</TableHead>
+              <TableHead className="w-[110px] text-right">
+                {t('admin.analytics_use_count')}
+              </TableHead>
+              <TableHead className="w-[140px] text-right">
+                {t('admin.analytics_last_used')}
+              </TableHead>
+              <TableHead className="w-[130px] text-right">
+                {t('admin.analytics_in_template_sets')}
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell><Skeleton className="h-8 w-12 rounded" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-48" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
-                  <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-8" /></TableCell>
-                  <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-20" /></TableCell>
-                  <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-8" /></TableCell>
+                  <TableCell>
+                    <Skeleton className="h-8 w-12 rounded" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-48" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Skeleton className="ml-auto h-4 w-8" />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Skeleton className="ml-auto h-4 w-20" />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Skeleton className="ml-auto h-4 w-8" />
+                  </TableCell>
                 </TableRow>
               ))
             ) : filtered.length === 0 ? (
@@ -267,13 +285,9 @@ function SlidesTable({
                   </TableCell>
                   <TableCell className="font-medium">{slide.title}</TableCell>
                   <TableCell>
-                    <Badge variant={statusBadgeVariant(slide.status)}>
-                      {slide.status}
-                    </Badge>
+                    <Badge variant={statusBadgeVariant(slide.status)}>{slide.status}</Badge>
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {slide.use_count}
-                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{slide.use_count}</TableCell>
                   <TableCell className="text-right">
                     {slide.last_used_at ? (
                       <Tooltip>
@@ -287,7 +301,9 @@ function SlidesTable({
                         </TooltipContent>
                       </Tooltip>
                     ) : (
-                      <span className="text-sm text-muted-foreground/60">{t('admin.analytics_never')}</span>
+                      <span className="text-sm text-muted-foreground/60">
+                        {t('admin.analytics_never')}
+                      </span>
                     )}
                   </TableCell>
                   <TableCell className="text-right tabular-nums text-muted-foreground">
@@ -307,7 +323,13 @@ function SlidesTable({
 // Template Sets Table
 // ---------------------------------------------------------------------------
 
-function TemplateSetsTable({ templateSets, loading }: { templateSets: TemplateRow[]; loading: boolean }) {
+function TemplateSetsTable({
+  templateSets,
+  loading,
+}: {
+  templateSets: TemplateRow[]
+  loading: boolean
+}) {
   const { t } = useTranslation()
 
   return (
@@ -317,20 +339,36 @@ function TemplateSetsTable({ templateSets, loading }: { templateSets: TemplateRo
           <TableRow>
             <TableHead className="w-12" />
             <TableHead>{t('admin.analytics_template_name')}</TableHead>
-            <TableHead className="w-[110px] text-right">{t('admin.analytics_slide_count')}</TableHead>
-            <TableHead className="w-[140px] text-right">{t('admin.analytics_times_selected')}</TableHead>
-            <TableHead className="w-[150px] text-right">{t('admin.analytics_last_selected')}</TableHead>
+            <TableHead className="w-[110px] text-right">
+              {t('admin.analytics_slide_count')}
+            </TableHead>
+            <TableHead className="w-[140px] text-right">
+              {t('admin.analytics_times_selected')}
+            </TableHead>
+            <TableHead className="w-[150px] text-right">
+              {t('admin.analytics_last_selected')}
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {loading ? (
             Array.from({ length: 4 }).map((_, i) => (
               <TableRow key={i}>
-                <TableCell><Skeleton className="h-8 w-8 rounded-full" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-                <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-8" /></TableCell>
-                <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-8" /></TableCell>
-                <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-20" /></TableCell>
+                <TableCell>
+                  <Skeleton className="h-8 w-8 rounded-full" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-4 w-40" />
+                </TableCell>
+                <TableCell className="text-right">
+                  <Skeleton className="ml-auto h-4 w-8" />
+                </TableCell>
+                <TableCell className="text-right">
+                  <Skeleton className="ml-auto h-4 w-8" />
+                </TableCell>
+                <TableCell className="text-right">
+                  <Skeleton className="ml-auto h-4 w-20" />
+                </TableCell>
               </TableRow>
             ))
           ) : templateSets.length === 0 ? (
@@ -338,7 +376,9 @@ function TemplateSetsTable({ templateSets, loading }: { templateSets: TemplateRo
               <TableCell colSpan={5}>
                 <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
                   <LayoutTemplate className="h-8 w-8 text-muted-foreground/40" />
-                  <p className="text-sm text-muted-foreground">{t('admin.analytics_no_template_sets')}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {t('admin.analytics_no_template_sets')}
+                  </p>
                 </div>
               </TableCell>
             </TableRow>
@@ -348,7 +388,11 @@ function TemplateSetsTable({ templateSets, loading }: { templateSets: TemplateRo
                 <TableCell>
                   <Avatar className="h-8 w-8 rounded">
                     {ts.cover_image_url && (
-                      <AvatarImage src={ts.cover_image_url} alt={ts.name} className="object-cover" />
+                      <AvatarImage
+                        src={ts.cover_image_url}
+                        alt={ts.name}
+                        className="object-cover"
+                      />
                     )}
                     <AvatarFallback className="rounded text-xs">
                       {ts.name.slice(0, 2).toUpperCase()}
@@ -359,9 +403,7 @@ function TemplateSetsTable({ templateSets, loading }: { templateSets: TemplateRo
                 <TableCell className="text-right tabular-nums text-muted-foreground">
                   {ts.slide_count}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {ts.times_selected}
-                </TableCell>
+                <TableCell className="text-right tabular-nums">{ts.times_selected}</TableCell>
                 <TableCell className="text-right">
                   {ts.last_selected_at ? (
                     <Tooltip>
@@ -375,7 +417,9 @@ function TemplateSetsTable({ templateSets, loading }: { templateSets: TemplateRo
                       </TooltipContent>
                     </Tooltip>
                   ) : (
-                    <span className="text-sm text-muted-foreground/60">{t('admin.analytics_never')}</span>
+                    <span className="text-sm text-muted-foreground/60">
+                      {t('admin.analytics_never')}
+                    </span>
                   )}
                 </TableCell>
               </TableRow>
@@ -439,7 +483,9 @@ export default function AnalyticsPage() {
     <TooltipProvider>
       {/* Page Header */}
       <div className="flex flex-col gap-1">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">{t('admin.analytics')}</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">
+          {t('admin.analytics')}
+        </h1>
         <p className="text-sm text-muted-foreground">{t('admin.analytics_description')}</p>
       </div>
 
@@ -480,10 +526,7 @@ export default function AnalyticsPage() {
         </TabsContent>
 
         <TabsContent value="template-sets" className="mt-4">
-          <TemplateSetsTable
-            templateSets={data?.templateSets ?? []}
-            loading={loading}
-          />
+          <TemplateSetsTable templateSets={data?.templateSets ?? []} loading={loading} />
         </TabsContent>
       </Tabs>
     </TooltipProvider>

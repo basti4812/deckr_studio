@@ -34,7 +34,7 @@ interface CreateNotificationParams {
 
 function isEmailOptedIn(
   prefs: Record<string, boolean> | null | undefined,
-  type: NotificationType,
+  type: NotificationType
 ): boolean {
   if (!prefs) return true // default: all on
   if (MANDATORY_EMAIL_TYPES.includes(type as never)) return true // cannot opt out
@@ -49,12 +49,7 @@ async function maybeSendEmail(params: CreateNotificationParams): Promise<void> {
   if (!process.env.RESEND_API_KEY) return
 
   // Email rate limit: max 1 email per type per user per hour
-  const rateLimited = await checkRateLimit(
-    params.userId,
-    `email:${params.type}`,
-    1,
-    60 * 60 * 1000,
-  )
+  const rateLimited = await checkRateLimit(params.userId, `email:${params.type}`, 1, 60 * 60 * 1000)
   if (rateLimited) return // silently skip — in-app notification still created
 
   const supabase = createServiceClient()
@@ -62,11 +57,7 @@ async function maybeSendEmail(params: CreateNotificationParams): Promise<void> {
   // Fetch user email from Auth + notification preferences from users table
   const [{ data: authUser }, { data: userRow }] = await Promise.all([
     supabase.auth.admin.getUserById(params.userId),
-    supabase
-      .from('users')
-      .select('notification_preferences')
-      .eq('id', params.userId)
-      .single(),
+    supabase.from('users').select('notification_preferences').eq('id', params.userId).single(),
   ])
 
   const email = authUser?.user?.email
@@ -82,7 +73,7 @@ async function maybeSendEmail(params: CreateNotificationParams): Promise<void> {
     .eq('id', params.tenantId)
     .single()
 
-  const tenantName = tenant?.name ?? 'deckr'
+  const tenantName = tenant?.name ?? 'onslide Studio'
   const isMandatory = MANDATORY_EMAIL_TYPES.includes(params.type as never)
   const unsubscribeToken = !isMandatory
     ? generateUnsubscribeToken(params.userId, params.type)
@@ -115,9 +106,7 @@ export async function createNotification(params: CreateNotificationParams): Prom
   })
 
   // Co-send email (fire-and-forget — failure must not propagate)
-  maybeSendEmail(params).catch((err) =>
-    console.error('[notifications] Email send error:', err),
-  )
+  maybeSendEmail(params).catch((err) => console.error('[notifications] Email send error:', err))
 }
 
 // ---------------------------------------------------------------------------
@@ -125,7 +114,7 @@ export async function createNotification(params: CreateNotificationParams): Prom
 // ---------------------------------------------------------------------------
 
 export async function createNotifications(
-  notifications: CreateNotificationParams[],
+  notifications: CreateNotificationParams[]
 ): Promise<void> {
   if (notifications.length === 0) return
   const supabase = createServiceClient()
@@ -137,13 +126,11 @@ export async function createNotifications(
       message: n.message,
       resource_type: n.resourceType ?? null,
       resource_id: n.resourceId ?? null,
-    })),
+    }))
   )
 
   // Co-send emails (fire-and-forget for each)
   for (const n of notifications) {
-    maybeSendEmail(n).catch((err) =>
-      console.error('[notifications] Email send error:', err),
-    )
+    maybeSendEmail(n).catch((err) => console.error('[notifications] Email send error:', err))
   }
 }

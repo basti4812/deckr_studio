@@ -59,27 +59,31 @@ export function MobileProjectView({
     if (item.is_personal && item.personal_slide_id) {
       const ps = personalSlidesMap.get(item.personal_slide_id)
       if (!ps) return []
-      return [{
-        trayId: item.id,
-        slideId: ps.id,
-        title: ps.title,
-        thumbnailUrl: null,
-        status: undefined,
-        hasNote: false,
-        isPersonal: true,
-      }]
+      return [
+        {
+          trayId: item.id,
+          slideId: ps.id,
+          title: ps.title,
+          thumbnailUrl: null,
+          status: undefined,
+          hasNote: false,
+          isPersonal: true,
+        },
+      ]
     }
     const slide = slideMap.get(item.slide_id)
     if (!slide) return []
-    return [{
-      trayId: item.id,
-      slideId: slide.id,
-      title: slide.title,
-      thumbnailUrl: slide.thumbnail_url,
-      status: slide.status,
-      hasNote: notesExist[slide.id] ?? false,
-      isPersonal: false,
-    }]
+    return [
+      {
+        trayId: item.id,
+        slideId: slide.id,
+        title: slide.title,
+        thumbnailUrl: slide.thumbnail_url,
+        status: slide.status,
+        hasNote: notesExist[slide.id] ?? false,
+        isPersonal: false,
+      },
+    ]
   })
 
   const selectedRow = rows.find((r) => r.trayId === selectedTrayId) ?? null

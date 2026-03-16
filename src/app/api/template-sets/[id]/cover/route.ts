@@ -10,10 +10,7 @@ import { createServiceClient } from '@/lib/supabase'
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const MAX_SIZE_BYTES = 5 * 1024 * 1024 // 5 MB
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin(request)
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
@@ -39,7 +36,10 @@ export async function POST(
   const file = formData.get('cover') as File | null
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
   if (!ALLOWED_TYPES.includes(file.type)) {
-    return NextResponse.json({ error: 'Only JPEG, PNG, and WebP images are accepted' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'Only JPEG, PNG, and WebP images are accepted' },
+      { status: 400 }
+    )
   }
   if (file.size > MAX_SIZE_BYTES) {
     return NextResponse.json({ error: 'Image must be under 5 MB' }, { status: 400 })
@@ -73,7 +73,10 @@ export async function POST(
     (file.type === 'image/webp' && isWebp)
 
   if (!validSignature) {
-    return NextResponse.json({ error: 'File content does not match the declared image type' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'File content does not match the declared image type' },
+      { status: 400 }
+    )
   }
 
   const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'

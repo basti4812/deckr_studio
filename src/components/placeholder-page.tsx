@@ -8,11 +8,7 @@ interface PlaceholderPageProps {
   projId?: string
 }
 
-export function PlaceholderPage({
-  title,
-  description,
-  projId,
-}: PlaceholderPageProps) {
+export function PlaceholderPage({ title, description, projId }: PlaceholderPageProps) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -31,9 +27,7 @@ export function PlaceholderPage({
         <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
           <Construction className="h-8 w-8 text-muted-foreground/50" />
           <div>
-            <p className="text-sm font-medium text-muted-foreground">
-              This feature is coming soon
-            </p>
+            <p className="text-sm font-medium text-muted-foreground">This feature is coming soon</p>
             <p className="text-xs text-muted-foreground/70 mt-1">
               Implementation will be added in a future sprint
             </p>

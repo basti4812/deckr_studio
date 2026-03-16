@@ -11,7 +11,11 @@ export async function POST(request: NextRequest, { params }: { params: Params })
 
   const { id: groupId } = await params
   let body: { slideId?: string } = {}
-  try { body = await request.json() } catch { /* ok */ }
+  try {
+    body = await request.json()
+  } catch {
+    /* ok */
+  }
 
   if (!body.slideId) return NextResponse.json({ error: 'slideId required' }, { status: 400 })
 

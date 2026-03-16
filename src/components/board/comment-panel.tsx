@@ -32,7 +32,9 @@ interface CommentPanelProps {
 
 async function getAccessToken(): Promise<string | null> {
   const supabase = createBrowserSupabaseClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
   return session?.access_token ?? null
 }
 
@@ -65,10 +67,9 @@ export function CommentPanel({
     try {
       const token = await getAccessToken()
       if (!token) return
-      const res = await fetch(
-        `/api/projects/${projectId}/comments?slide_id=${slideId}`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      )
+      const res = await fetch(`/api/projects/${projectId}/comments?slide_id=${slideId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       if (res.ok) {
         const d = await res.json()
         setComments(d.comments ?? [])
@@ -114,7 +115,7 @@ export function CommentPanel({
             queueMicrotask(() => fetchComments())
             return prev
           })
-        },
+        }
       )
       .subscribe()
 
@@ -178,9 +179,7 @@ export function CommentPanel({
     })
     if (res.ok) {
       setComments((prev) =>
-        prev.map((c) =>
-          c.id === commentId ? { ...c, deleted_at: new Date().toISOString() } : c,
-        ),
+        prev.map((c) => (c.id === commentId ? { ...c, deleted_at: new Date().toISOString() } : c))
       )
       onCommentCountChange?.(slideId, -1)
     } else {
@@ -202,9 +201,7 @@ export function CommentPanel({
     }
   }
 
-  const replyingToComment = replyingTo
-    ? comments.find((c) => c.id === replyingTo)
-    : null
+  const replyingToComment = replyingTo ? comments.find((c) => c.id === replyingTo) : null
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
@@ -230,9 +227,7 @@ export function CommentPanel({
               <MessageSquare className="h-8 w-8 text-muted-foreground/30 mb-2" />
               <p className="text-sm text-muted-foreground">{t('comments.no_comments')}</p>
               {!isArchived && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t('comments.be_first')}
-                </p>
+                <p className="text-xs text-muted-foreground mt-1">{t('comments.be_first')}</p>
               )}
             </div>
           ) : (
@@ -297,9 +292,7 @@ export function CommentPanel({
                   )}
                 </Button>
               </div>
-              <p className="text-[10px] text-muted-foreground">
-                {t('comments.submit_shortcut')}
-              </p>
+              <p className="text-[10px] text-muted-foreground">{t('comments.submit_shortcut')}</p>
             </div>
           </>
         )}

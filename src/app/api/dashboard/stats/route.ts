@@ -72,7 +72,9 @@ export async function GET(request: NextRequest) {
       // Last 5 activity log entries with actor info
       supabase
         .from('activity_logs')
-        .select('id, event_type, resource_type, resource_name, created_at, actor:users!actor_id(display_name, avatar_url)')
+        .select(
+          'id, event_type, resource_type, resource_name, created_at, actor:users!actor_id(display_name, avatar_url)'
+        )
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false })
         .limit(5),
@@ -87,9 +89,6 @@ export async function GET(request: NextRequest) {
       recentActivity: recentActivityResult.data ?? [],
     })
   } catch {
-    return NextResponse.json(
-      { error: 'Failed to fetch dashboard stats' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to fetch dashboard stats' }, { status: 500 })
   }
 }

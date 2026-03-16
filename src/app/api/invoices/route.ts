@@ -15,12 +15,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Rate limit: 30 reads per minute
-  const limited = await checkRateLimit(
-    auth.user.id,
-    'invoices:list',
-    30,
-    60 * 1000
-  )
+  const limited = await checkRateLimit(auth.user.id, 'invoices:list', 30, 60 * 1000)
   if (limited) return limited
 
   const supabase = createServiceClient()
@@ -33,10 +28,7 @@ export async function GET(request: NextRequest) {
     .limit(100)
 
   if (error) {
-    return NextResponse.json(
-      { error: 'Failed to fetch invoices' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to fetch invoices' }, { status: 500 })
   }
 
   return NextResponse.json({ invoices: invoices ?? [] }, { status: 200 })

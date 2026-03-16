@@ -52,7 +52,7 @@ export async function onProjectCreated(project: CrmProject): Promise<void> {
   // CRM_INTEGRATION: call {{provider}} API here
   // Example: POST to HubSpot/Salesforce/Pipedrive to create or link a deal
   console.warn(
-    `[crm-hooks] onProjectCreated: provider "${provider}" configured but no API credentials — skipping`,
+    `[crm-hooks] onProjectCreated: provider "${provider}" configured but no API credentials — skipping`
   )
 }
 
@@ -68,7 +68,7 @@ export async function onProjectExported(project: CrmProject): Promise<void> {
   // CRM_INTEGRATION: call {{provider}} API here
   // Example: POST activity/note to the CRM deal timeline
   console.warn(
-    `[crm-hooks] onProjectExported: provider "${provider}" configured but no API credentials — skipping`,
+    `[crm-hooks] onProjectExported: provider "${provider}" configured but no API credentials — skipping`
   )
 }
 
@@ -77,16 +77,13 @@ export async function onProjectExported(project: CrmProject): Promise<void> {
 // CRM_INTEGRATION: Log a share event on the CRM deal when a link is generated
 // ---------------------------------------------------------------------------
 
-export async function onShareLinkGenerated(
-  project: CrmProject,
-  link: CrmShareLink,
-): Promise<void> {
+export async function onShareLinkGenerated(project: CrmProject, link: CrmShareLink): Promise<void> {
   const provider = await getCrmProvider(project.tenant_id)
   if (!provider) return
 
   // CRM_INTEGRATION: call {{provider}} API here
   // Example: POST activity to CRM deal — "Presentation shared via link"
   console.warn(
-    `[crm-hooks] onShareLinkGenerated: provider "${provider}" configured but no API credentials — skipping (link=${link.id})`,
+    `[crm-hooks] onShareLinkGenerated: provider "${provider}" configured but no API credentials — skipping (link=${link.id})`
   )
 }

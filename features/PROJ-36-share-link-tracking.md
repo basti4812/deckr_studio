@@ -1,18 +1,22 @@
 # PROJ-36: Share Link Tracking
 
 ## Status: Deployed
+
 **Created:** 2026-02-25
 **Last Updated:** 2026-03-03
 
 ## Dependencies
+
 - Requires: PROJ-35 (External Share Links & Branded Viewer) — tracking happens on viewer access
 
 ## User Stories
+
 - As a user who shared a presentation, I want to see how many times my link was opened so that I know if the prospect viewed it
 - As a user, I want to see a timestamped list of when the link was accessed so that I can see exactly when the prospect looked at it
 - As a user, I want this data in the project's share panel so that I can access it without navigating away
 
 ## Acceptance Criteria
+
 - [ ] `share_link_accesses` table: id, share_link_id, accessed_at, ip_hash (anonymized)
 - [ ] Every time the viewer at `/view/{token}` is opened, a new access record is created
 - [ ] Sharing panel shows per share link: total view count, timestamped list of all accesses (date + time)
@@ -22,18 +26,21 @@
 - [ ] IP addresses are hashed before storage (never stored in plain text); used for analytics only, not exposed in the UI
 
 ## Edge Cases
+
 - What if the same viewer opens the link multiple times? → Each page load is a separate access record; no deduplication (one person viewing 5 times = 5 records)
 - What if the share link is expired? → Viewer shows "link expired" page; no access record is created for expired link views
 - What if there are thousands of accesses? → UI shows last 20; DB stores all; no cap
 - What if the user deletes the share link (PROJ-35)? → Access records are cascade-deleted with the link
 
 ## Technical Requirements
+
 - Access record created in the server-side viewer page handler (Next.js server component or API route)
 - IP hashing: SHA-256 of IP address + daily salt (anonymized per GDPR)
 - Tracking does not require any JavaScript on the viewer page — purely server-side
 - Access data loaded on demand when the user opens the share panel (not preloaded)
 
 ---
+
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
@@ -67,12 +74,12 @@ No new pages. No new panels. The tracking data surfaces inside the existing Shar
 
 **New table: `share_link_accesses`**
 
-| Field | Description |
-|-------|-------------|
-| `id` | Unique identifier for this access event |
-| `share_link_id` | Which share link was accessed (FK → share_links, deletes cascade) |
-| `accessed_at` | When the page was opened (server timestamp) |
-| `ip_hash` | SHA-256 of visitor IP + today's date — anonymized, never shown in UI |
+| Field           | Description                                                          |
+| --------------- | -------------------------------------------------------------------- |
+| `id`            | Unique identifier for this access event                              |
+| `share_link_id` | Which share link was accessed (FK → share_links, deletes cascade)    |
+| `accessed_at`   | When the page was opened (server timestamp)                          |
+| `ip_hash`       | SHA-256 of visitor IP + today's date — anonymized, never shown in UI |
 
 **Modified: `share_links.view_count`**
 
@@ -82,12 +89,12 @@ Existing. Currently updated via the `increment_view_count` database function. PR
 
 ### What Changes
 
-| Where | What Changes |
-|-------|--------------|
-| Database | Add `share_link_accesses` table + trigger replacing the RPC |
-| `/view/[token]/page.tsx` | Replace fire-and-forget RPC with an insert into `share_link_accesses` (still fire-and-forget) |
-| **New** API: `GET /api/projects/[id]/share-links/[linkId]/accesses` | Returns the timestamped access list for a specific link (auth required: owner or editor) |
-| `share-links-tab.tsx` | Add expandable "Access History" section to each link card |
+| Where                                                               | What Changes                                                                                  |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Database                                                            | Add `share_link_accesses` table + trigger replacing the RPC                                   |
+| `/view/[token]/page.tsx`                                            | Replace fire-and-forget RPC with an insert into `share_link_accesses` (still fire-and-forget) |
+| **New** API: `GET /api/projects/[id]/share-links/[linkId]/accesses` | Returns the timestamped access list for a specific link (auth required: owner or editor)      |
+| `share-links-tab.tsx`                                               | Add expandable "Access History" section to each link card                                     |
 
 ---
 
@@ -109,12 +116,12 @@ The UI shows the last 20 by default. A "Show all" button re-fetches without a li
 
 ### New Files & Modified Files
 
-| File | Type | Change |
-|------|------|--------|
-| DB migration `proj36_share_link_accesses` | SQL (Supabase MCP) | New table + trigger + RLS |
-| `src/app/api/projects/[id]/share-links/[linkId]/accesses/route.ts` | API (GET, auth) | New — returns access list |
-| `src/app/view/[token]/page.tsx` | Server Component | Replace RPC with access record insert |
-| `src/components/projects/share-links-tab.tsx` | Client Component | Add expandable access history per link |
+| File                                                               | Type               | Change                                 |
+| ------------------------------------------------------------------ | ------------------ | -------------------------------------- |
+| DB migration `proj36_share_link_accesses`                          | SQL (Supabase MCP) | New table + trigger + RLS              |
+| `src/app/api/projects/[id]/share-links/[linkId]/accesses/route.ts` | API (GET, auth)    | New — returns access list              |
+| `src/app/view/[token]/page.tsx`                                    | Server Component   | Replace RPC with access record insert  |
+| `src/components/projects/share-links-tab.tsx`                      | Client Component   | Add expandable access history per link |
 
 ---
 
@@ -129,31 +136,33 @@ All required tools are already available: Supabase for the database, the existin
 
 ### Acceptance Criteria: 7/7 PASS
 
-| AC | Status | Notes |
-|----|--------|-------|
-| AC-1: `share_link_accesses` table | PASS | Table created via Supabase MCP with correct schema, FK CASCADE, indexes, trigger |
-| AC-2: Access record on every viewer load | PASS | Server-side insert in `page.tsx`, fire-and-forget with error logging |
-| AC-3: View count + timestamped list in panel | PASS | Badge + expandable AccessHistory component |
-| AC-4: "Viewed 3 times" on link card | PASS | `viewCountLabel` used consistently on Badge and toggle |
-| AC-5: Last 20 + "Show all" | PASS | Initial load = 20, "Show all" fetches up to 500 |
-| AC-6: Server-side tracking only | PASS | Insert in Server Component, no client-side tracking |
-| AC-7: IP hashed, never exposed | PASS | SHA-256 + daily salt, `ip_hash` never returned in API |
+| AC                                           | Status | Notes                                                                            |
+| -------------------------------------------- | ------ | -------------------------------------------------------------------------------- |
+| AC-1: `share_link_accesses` table            | PASS   | Table created via Supabase MCP with correct schema, FK CASCADE, indexes, trigger |
+| AC-2: Access record on every viewer load     | PASS   | Server-side insert in `page.tsx`, fire-and-forget with error logging             |
+| AC-3: View count + timestamped list in panel | PASS   | Badge + expandable AccessHistory component                                       |
+| AC-4: "Viewed 3 times" on link card          | PASS   | `viewCountLabel` used consistently on Badge and toggle                           |
+| AC-5: Last 20 + "Show all"                   | PASS   | Initial load = 20, "Show all" fetches up to 500                                  |
+| AC-6: Server-side tracking only              | PASS   | Insert in Server Component, no client-side tracking                              |
+| AC-7: IP hashed, never exposed               | PASS   | SHA-256 + daily salt, `ip_hash` never returned in API                            |
 
 ### Bugs Found & Status
 
-| Bug | Severity | Status |
-|-----|----------|--------|
-| BUG-1: Missing local migration file | Medium | FALSE POSITIVE — migrations applied via Supabase MCP (project convention) |
-| BUG-2: Inconsistent view count text | Low | FIXED — Badge now uses `viewCountLabel` |
-| BUG-3: "Show all" fetches only 20 | High | FIXED — `handleShowAll` passes `limit=500` |
-| BUG-4: No tenant isolation on accesses API | Medium | FIXED — added `getUserProfile` + `tenant_id` check |
-| BUG-5: No rate limiting on viewer | Medium | DEFERRED — Server Component limitation, deferred to PROJ-42 |
-| BUG-6: Silent error swallowing | Low | FIXED — added `console.error` in rejection handler |
+| Bug                                        | Severity | Status                                                                    |
+| ------------------------------------------ | -------- | ------------------------------------------------------------------------- |
+| BUG-1: Missing local migration file        | Medium   | FALSE POSITIVE — migrations applied via Supabase MCP (project convention) |
+| BUG-2: Inconsistent view count text        | Low      | FIXED — Badge now uses `viewCountLabel`                                   |
+| BUG-3: "Show all" fetches only 20          | High     | FIXED — `handleShowAll` passes `limit=500`                                |
+| BUG-4: No tenant isolation on accesses API | Medium   | FIXED — added `getUserProfile` + `tenant_id` check                        |
+| BUG-5: No rate limiting on viewer          | Medium   | DEFERRED — Server Component limitation, deferred to PROJ-42               |
+| BUG-6: Silent error swallowing             | Low      | FIXED — added `console.error` in rejection handler                        |
 
 ### Security: PASS
+
 - Auth required on accesses API, tenant isolation added
 - IP hashes never exposed, Zod validation on all inputs
 - Rate limiting on all authenticated endpoints
 
 ## Deployment
+
 _To be added by /deploy_

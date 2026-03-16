@@ -44,7 +44,8 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const profile = await getUserProfile(user.id)
-  if (!profile || !profile.is_active) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!profile || !profile.is_active)
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const supabase = createServiceClient()
   const { data, error } = await supabase
@@ -73,13 +74,16 @@ export async function PUT(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const profile = await getUserProfile(user.id)
-  if (!profile || !profile.is_active) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!profile || !profile.is_active)
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const limited = await checkRateLimit(user.id, 'board:layout', 30, 60 * 1000)
   if (limited) return limited
 
   let raw: unknown
-  try { raw = await request.json() } catch {
+  try {
+    raw = await request.json()
+  } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
@@ -89,17 +93,15 @@ export async function PUT(request: NextRequest) {
   }
 
   const supabase = createServiceClient()
-  const { error } = await supabase
-    .from('user_board_layouts')
-    .upsert(
-      {
-        user_id: user.id,
-        tenant_id: profile.tenant_id,
-        layout_data: parsed.data,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id,tenant_id' },
-    )
+  const { error } = await supabase.from('user_board_layouts').upsert(
+    {
+      user_id: user.id,
+      tenant_id: profile.tenant_id,
+      layout_data: parsed.data,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id,tenant_id' }
+  )
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
@@ -114,7 +116,8 @@ export async function DELETE(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const profile = await getUserProfile(user.id)
-  if (!profile || !profile.is_active) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!profile || !profile.is_active)
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const limited = await checkRateLimit(user.id, 'board:layout', 30, 60 * 1000)
   if (limited) return limited

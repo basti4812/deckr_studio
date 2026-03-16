@@ -3,13 +3,7 @@
 import { useEffect } from 'react'
 import { AlertTriangle, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function AppError({
   error,
@@ -31,7 +25,8 @@ export default function AppError({
           </div>
           <CardTitle className="font-heading">Something went wrong</CardTitle>
           <CardDescription>
-            An unexpected error occurred. Please try again or contact support if the problem persists.
+            An unexpected error occurred. Please try again or contact support if the problem
+            persists.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex justify-center">

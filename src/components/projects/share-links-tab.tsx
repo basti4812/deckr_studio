@@ -15,11 +15,7 @@ import {
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
   Select,
   SelectContent,
@@ -100,13 +96,7 @@ function viewCountLabel(count: number): string {
 // AccessHistory sub-component
 // ---------------------------------------------------------------------------
 
-function AccessHistory({
-  projectId,
-  link,
-}: {
-  projectId: string
-  link: ShareLink
-}) {
+function AccessHistory({ projectId, link }: { projectId: string; link: ShareLink }) {
   const [data, setData] = useState<AccessData>({
     accesses: [],
     total: 0,
@@ -182,11 +172,7 @@ function AccessHistory({
             <Eye className="h-3 w-3" />
             {viewCountLabel(link.view_count)}
           </span>
-          {open ? (
-            <ChevronUp className="h-3 w-3" />
-          ) : (
-            <ChevronDown className="h-3 w-3" />
-          )}
+          {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
         </Button>
       </CollapsibleTrigger>
       <CollapsibleContent>
@@ -222,9 +208,7 @@ function AccessHistory({
                   onClick={handleShowAll}
                   disabled={data.loading}
                 >
-                  {data.loading ? (
-                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                  ) : null}
+                  {data.loading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
                   Show all {data.total} accesses
                 </Button>
               )}
@@ -258,7 +242,9 @@ export function ShareLinksTab({ projectId }: ShareLinksTabProps) {
   // Fetch links
   const fetchLinks = useCallback(async () => {
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) return
 
     const res = await fetch(`/api/projects/${projectId}/share-links`, {
@@ -279,8 +265,13 @@ export function ShareLinksTab({ projectId }: ShareLinksTabProps) {
   async function handleCreate() {
     setCreating(true)
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) { setCreating(false); return }
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (!session) {
+      setCreating(false)
+      return
+    }
 
     const res = await fetch(`/api/projects/${projectId}/share-links`, {
       method: 'POST',
@@ -301,8 +292,13 @@ export function ShareLinksTab({ projectId }: ShareLinksTabProps) {
   async function handleDelete(linkId: string) {
     setDeletingId(linkId)
     const supabase = createBrowserSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) { setDeletingId(null); return }
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (!session) {
+      setDeletingId(null)
+      return
+    }
 
     await fetch(`/api/projects/${projectId}/share-links/${linkId}`, {
       method: 'DELETE',
@@ -361,9 +357,7 @@ export function ShareLinksTab({ projectId }: ShareLinksTabProps) {
 
       {/* Links list */}
       <div className="space-y-1">
-        <p className="text-sm font-medium text-muted-foreground mb-2">
-          Share links
-        </p>
+        <p className="text-sm font-medium text-muted-foreground mb-2">Share links</p>
 
         {links.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
@@ -372,10 +366,7 @@ export function ShareLinksTab({ projectId }: ShareLinksTabProps) {
         ) : (
           <div className="space-y-2">
             {links.map((link) => (
-              <div
-                key={link.id}
-                className="rounded-md border p-3 space-y-2"
-              >
+              <div key={link.id} className="rounded-md border p-3 space-y-2">
                 {/* URL row */}
                 <div className="flex items-center gap-2">
                   <code className="flex-1 truncate text-xs text-muted-foreground">
@@ -403,7 +394,12 @@ export function ShareLinksTab({ projectId }: ShareLinksTabProps) {
                     className="inline-flex"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" title="Open link">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0"
+                      title="Open link"
+                    >
                       <ExternalLink className="h-3.5 w-3.5" />
                     </Button>
                   </a>

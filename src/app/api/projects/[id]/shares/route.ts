@@ -34,7 +34,9 @@ export async function GET(request: NextRequest, { params }: { params: Params }) 
   // Get shares with user info
   const { data: shares, error } = await supabase
     .from('project_shares')
-    .select('id, user_id, permission, created_at, users!project_shares_user_id_fkey(display_name, email)')
+    .select(
+      'id, user_id, permission, created_at, users!project_shares_user_id_fkey(display_name, email)'
+    )
     .eq('project_id', id)
     .order('created_at', { ascending: true })
     .limit(100)
@@ -75,7 +77,11 @@ export async function POST(request: NextRequest, { params }: { params: Params })
 
   const { id } = await params
   let body: unknown = {}
-  try { body = await request.json() } catch { /* ok */ }
+  try {
+    body = await request.json()
+  } catch {
+    /* ok */
+  }
 
   const parsed = AddShareSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: 'Invalid input' }, { status: 400 })

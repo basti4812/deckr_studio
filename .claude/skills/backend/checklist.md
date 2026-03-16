@@ -1,6 +1,7 @@
 # Backend Implementation Checklist
 
 ## Core Checklist
+
 - [ ] Checked existing tables/APIs via git before creating new ones
 - [ ] Database tables created in Supabase
 - [ ] Row Level Security enabled on ALL new tables
@@ -18,6 +19,7 @@
 - [ ] User has reviewed and approved
 
 ## Verification (run before marking complete)
+
 - [ ] `npm run build` passes without errors
 - [ ] All acceptance criteria from feature spec addressed in API
 - [ ] All API endpoints return correct status codes (test with curl or browser)
@@ -25,6 +27,7 @@
 - [ ] Code committed to git
 
 ## Performance Checklist
+
 - [ ] All frequently filtered columns have indexes
 - [ ] No N+1 queries (use Supabase joins instead of loops)
 - [ ] All list queries use `.limit()`

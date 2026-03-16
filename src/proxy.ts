@@ -22,6 +22,7 @@ const PUBLIC_ROUTES = [
   '/dpa',
   '/cancellation',
   '/demo',
+  '/beta-access',
 ]
 
 const PUBLIC_PREFIXES = ['/view/', '/api/']
@@ -34,12 +35,7 @@ const ADMIN_PREFIXES = ['/admin', '/dashboard']
 
 // Routes that are always accessible to authenticated users, even if subscription is blocked.
 // Prevents redirect loops and ensures admins can always fix billing issues.
-const SUBSCRIPTION_EXEMPT_PREFIXES = [
-  '/admin/billing',
-  '/subscription/',
-  '/api/',
-  '/auth/',
-]
+const SUBSCRIPTION_EXEMPT_PREFIXES = ['/admin/billing', '/subscription/', '/api/', '/auth/']
 
 function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_ROUTES.includes(pathname)) return true
@@ -51,9 +47,7 @@ function isAuthRoute(pathname: string): boolean {
 }
 
 function isSubscriptionExempt(pathname: string): boolean {
-  return SUBSCRIPTION_EXEMPT_PREFIXES.some((prefix) =>
-    pathname.startsWith(prefix)
-  )
+  return SUBSCRIPTION_EXEMPT_PREFIXES.some((prefix) => pathname.startsWith(prefix))
 }
 
 function isAdminRoute(pathname: string): boolean {
@@ -65,6 +59,31 @@ function isAdminRoute(pathname: string): boolean {
 // ---------------------------------------------------------------------------
 
 export async function proxy(request: NextRequest) {
+  // ---------------------------------------------------------------------------
+  // Beta access gate — if BETA_ACCESS_PASSWORD is set, require a cookie.
+  // When not set (e.g. local dev), the gate is disabled.
+  // ---------------------------------------------------------------------------
+  const betaPassword = process.env.BETA_ACCESS_PASSWORD
+  if (betaPassword) {
+    const pathname = request.nextUrl.pathname
+    const isBetaExempt =
+      pathname === '/beta-access' ||
+      pathname === '/api/beta-access' ||
+      pathname.startsWith('/_next/') ||
+      pathname.startsWith('/api/webhooks/') ||
+      pathname === '/favicon.ico' ||
+      pathname.includes('.')
+
+    if (!isBetaExempt) {
+      const betaCookie = request.cookies.get('onslide_beta_access')
+      if (betaCookie?.value !== 'granted') {
+        const url = request.nextUrl.clone()
+        url.pathname = '/beta-access'
+        return NextResponse.redirect(url)
+      }
+    }
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -76,9 +95,7 @@ export async function proxy(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          )
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
@@ -96,11 +113,7 @@ export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // Skip static files and next internals
-  if (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/favicon') ||
-    pathname.includes('.')
-  ) {
+  if (pathname.startsWith('/_next') || pathname.startsWith('/favicon') || pathname.includes('.')) {
     return supabaseResponse
   }
 
