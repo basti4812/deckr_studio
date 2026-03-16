@@ -59,16 +59,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   await supabase.auth.admin.deleteUser(targetUserId)
   await supabase.from('users').delete().eq('id', targetUserId)
 
-  // Re-invite with a fresh token
-  const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
+  // Re-invite with a fresh token (generateLink returns the invite URL)
+  const { data: inviteData, error: inviteError } = await supabase.auth.admin.generateLink({
+    type: 'invite',
     email,
-    {
+    options: {
       data: {
         tenant_id: adminProfile.tenant_id,
         role: 'employee',
       },
-    }
-  )
+    },
+  })
 
   if (inviteError || !inviteData?.user?.id) {
     // Restore: recreate the old auth user + DB row so the invitation isn't lost
@@ -110,8 +111,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     app_metadata: { tenant_id: adminProfile.tenant_id, role: 'employee' },
   })
 
+  const inviteLink = inviteData?.properties?.action_link ?? null
+
   return NextResponse.json({
     message: 'Invitation resent successfully',
+    invite_link: inviteLink,
     member: {
       id: newUserId,
       email,

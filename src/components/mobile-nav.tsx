@@ -144,16 +144,6 @@ export function MobileNav() {
     })
   }
 
-  // -------------------------------------------------------------------------
-  // Nav items
-  // -------------------------------------------------------------------------
-
-  const navItems = [
-    { href: '/home', icon: Home, labelKey: 'nav.home' },
-    { href: '/projects', icon: FolderOpen, labelKey: 'nav.projects' },
-    { href: '/profile', icon: User, labelKey: 'nav.profile' },
-  ]
-
   function isActive(href: string) {
     return pathname === href || pathname.startsWith(href + '/')
   }

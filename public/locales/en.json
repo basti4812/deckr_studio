@@ -565,7 +565,7 @@
     "pending": "Pending",
     "active": "Active",
     "invite_team_member": "Invite team member",
-    "invite_description": "Send an email invitation. The user will receive a link to set up their account.",
+    "invite_description": "Create an invitation link to share with your colleague.",
     "email_address": "Email address",
     "colleague_email_placeholder": "colleague@company.com",
     "invitation_sent": "Invitation created",

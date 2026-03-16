@@ -514,7 +514,6 @@ export default function TeamManagementPage() {
         seatLimitReached={isSeatLimitReached}
         onInvited={(newMember) => {
           setMembers((prev) => [newMember, ...prev])
-          setInviteOpen(false)
         }}
       />
 
@@ -798,9 +797,15 @@ function InviteDialog({ open, onClose, seatLimitReached, onInvited }: InviteDial
 
   async function handleCopyLink() {
     if (!inviteLink) return
-    await navigator.clipboard.writeText(inviteLink)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    try {
+      await navigator.clipboard.writeText(inviteLink)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Fallback: select the input text so user can Ctrl+C
+      const input = document.getElementById('invite-link-input') as HTMLInputElement | null
+      input?.select()
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -875,9 +880,11 @@ function InviteDialog({ open, onClose, seatLimitReached, onInvited }: InviteDial
             </p>
             <div className="flex items-center gap-2">
               <Input
+                id="invite-link-input"
                 readOnly
                 value={inviteLink}
                 className="text-xs font-mono"
+                aria-label={t('admin.invite_link_description', { email })}
                 onClick={(e) => (e.target as HTMLInputElement).select()}
               />
               <Button

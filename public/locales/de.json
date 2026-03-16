@@ -565,7 +565,7 @@
     "pending": "Ausstehend",
     "active": "Aktiv",
     "invite_team_member": "Teammitglied einladen",
-    "invite_description": "Senden Sie eine E-Mail-Einladung. Der Benutzer erhält einen Link zum Einrichten seines Kontos.",
+    "invite_description": "Erstellen Sie einen Einladungslink zum Teilen mit Ihrem Kollegen.",
     "email_address": "E-Mail-Adresse",
     "colleague_email_placeholder": "kollege@unternehmen.de",
     "invitation_sent": "Einladung erstellt",
