@@ -16,7 +16,7 @@ function getTransporter(): nodemailer.Transporter | null {
 }
 
 const FROM_EMAIL = process.env.SMTP_USER ?? 'onslide.studio@gmail.com'
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+const APP_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
 
 export type NotificationEmailType =
   | 'project_shared'
