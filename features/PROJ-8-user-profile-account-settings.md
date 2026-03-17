@@ -622,6 +622,325 @@ _To be added by /architecture_
 - **All other fixes are clean:** No type errors, no null safety issues, no missing imports, no runtime risks detected
 - **i18n coverage:** Good overall. The new `slide_preview`, `edit_fields.done`, `edit_fields.auto_saved`, and `presentation.text_edited` keys all exist in both en.json and de.json with proper translations.
 
+---
+
+### Round 4 -- Cross-Feature Audit (Bulk Actions, Dashboard Trends, Cmd+K, Sessions)
+
+**Tested:** 2026-03-17
+**Tester:** QA Engineer (AI)
+**Scope:** 5 recently-fixed features -- bulk action translations, dashboard trend indicators, Cmd+K search palette + header button, active sessions (G7), and cross-cutting security audit of all new API endpoints
+
+---
+
+#### Audit Area 1: Bulk Action Translations (Admin Slides Page)
+
+**Files audited:**
+
+- `/Users/sebastianploeger/AppProjekte/deckr_studio/src/app/(app)/admin/slides/page.tsx`
+- `/Users/sebastianploeger/AppProjekte/deckr_studio/public/locales/en.json`
+- `/Users/sebastianploeger/AppProjekte/deckr_studio/public/locales/de.json`
+
+**Translation Key Verification (admin.\* namespace):**
+
+| t() call in page.tsx         | Key in en.json | Key in de.json | Status   |
+| ---------------------------- | -------------- | -------------- | -------- |
+| `admin.add_tags`             | Line 578       | Line 578       | PASS     |
+| `admin.select_tags`          | Line 579       | Line 579       | PASS     |
+| `admin.new_tag_placeholder`  | Line 580       | Line 580       | PASS     |
+| `admin.apply_tags`           | Line 581       | Line 581       | PASS     |
+| `admin.change_status`        | Line 577       | Line 577       | PASS     |
+| `admin.status_changed_count` | Line 585       | Line 585       | PASS     |
+| `admin.tags_added_count`     | Line 586       | Line 586       | PASS     |
+| `admin.bulk_action_error`    | Line 587       | Line 587       | PASS     |
+| `admin.select_all`           | Line 574       | Line 574       | PASS     |
+| `admin.deselect_all`         | Line 575       | Line 575       | PASS     |
+| `admin.slides_selected`      | Line 576       | Line 576       | PASS     |
+| `admin.delete_selected`      | Line 582       | Line 582       | PASS     |
+| `admin.clear_selection`      | Line 583       | Line 583       | PASS     |
+| `admin.bulk_delete_confirm`  | Line 584       | Line 584       | PASS     |
+| `admin.bulk_delete_message`  | NOT FOUND      | NOT FOUND      | **FAIL** |
+| `admin.cancel`               | Line 524       | Line 524       | PASS     |
+| `admin.delete_slides_button` | Line 572       | Line 572       | PASS     |
+| `admin.deleting`             | Line 573       | Line 573       | PASS     |
+
+**Duplicate keys detected:** Several bulk action keys appear twice in both locale files -- once under the `admin` top-level object (lines 577-587) and again under the `slides` top-level object (lines 841-849). This is not a bug per se (i18next resolves namespace.key), but it creates maintenance confusion. The `admin.*` keys are correct for the page.tsx usage; the `slides.*` duplicates are consumed elsewhere.
+
+---
+
+#### Audit Area 2: Dashboard Trend Indicators
+
+**Files audited:**
+
+- `/Users/sebastianploeger/AppProjekte/deckr_studio/src/app/(app)/dashboard/page.tsx`
+- `/Users/sebastianploeger/AppProjekte/deckr_studio/src/app/api/dashboard/stats/route.ts`
+
+**trendPercent() logic review:**
+
+- `previous === 0 && current === 0` => `{ label: "--", direction: "stable" }` -- PASS (no division by zero)
+- `previous === 0 && current > 0` => `{ label: "+100%", direction: "up" }` -- PASS (avoids division by zero)
+- `current > previous` => positive % -- PASS
+- `current < previous` => negative % -- PASS
+- `current === previous && previous > 0` => `{ label: "--", direction: "stable" }` -- PASS
+
+**Trend display logic review:**
+
+- `card.trend && (...)` renders the trend element. For `direction === 'stable'`, the trend object IS non-null (it returns `{ label: "--", direction: "stable" }`), so the trend DOES display -- PASS (previously hidden when direction was stable)
+- Color classes:
+  - `up` => emerald green -- PASS
+  - `down` => destructive red -- PASS
+  - `stable` => muted foreground -- PASS
+
+**API route query correctness:**
+
+- `thirtyDaysAgo` and `sixtyDaysAgo` computed correctly as ISO strings
+- Exports current window: `>= thirtyDaysAgo` -- correct
+- Exports previous window: `>= sixtyDaysAgo AND < thirtyDaysAgo` -- correct (no overlap)
+- New slides current: `>= thirtyDaysAgo` with `neq('status', 'deprecated')` -- correct
+- New slides previous: `>= sixtyDaysAgo AND < thirtyDaysAgo` with same filter -- correct
+- All queries scoped to `tenantId` -- PASS
+
+**Status:** PASS -- no bugs found in trend logic or queries
+
+---
+
+#### Audit Area 3: Cmd+K Search Palette + Header Button
+
+**Files audited:**
+
+- `/Users/sebastianploeger/AppProjekte/deckr_studio/src/components/app-layout-inner.tsx`
+- `/Users/sebastianploeger/AppProjekte/deckr_studio/src/components/command-palette.tsx`
+- `/Users/sebastianploeger/AppProjekte/deckr_studio/src/app/api/search/route.ts`
+
+**Header button dispatch:**
+
+- Button at line 36 dispatches `new Event('open-command-palette')` on `document` -- PASS
+- Only visible on `md` and up (`hidden md:flex`) -- correct for desktop-first UX
+
+**Event listener in CommandPalette:**
+
+- Listens for both `keydown` (Cmd+K) and `open-command-palette` custom event -- PASS
+- Cleanup: both listeners removed in useEffect return -- PASS (no memory leak)
+- Debounce and abort controller cleaned up on unmount (separate useEffect) -- PASS
+- AbortController cancels in-flight requests on new search -- PASS
+- Query/results reset on close -- PASS
+
+**Search API security:**
+
+- Authentication: `requireActiveUser(request)` -- PASS
+- Rate limiting: `checkRateLimit(auth.user.id, 'search', 30, 60_000)` -- PASS
+- Input sanitization: query trimmed, sliced to 50 chars, ILIKE wildcards escaped (`%`, `_`, `\`) -- PASS (prevents ILIKE injection)
+- Tenant scoping: all queries use `.eq('tenant_id', tenantId)` -- PASS
+- No `.or()` string interpolation: user search split into two separate queries to avoid PostgREST filter injection -- PASS (good security decision)
+
+**Search translation keys:**
+
+- `search.placeholder` -- PASS (en.json line 1283, de.json line 1283)
+- `search.searching` -- PASS (en.json line 1284, de.json line 1284)
+- `search.no_results` -- PASS (en.json line 1285, de.json line 1285)
+- `search.navigation` -- PASS (en.json line 1286, de.json line 1286)
+- `search.projects` -- PASS (en.json line 1287, de.json line 1287)
+- `search.slides` -- PASS (en.json line 1288, de.json line 1288)
+- `search.team` -- PASS (en.json line 1289, de.json line 1289)
+
+**Status:** PASS -- search palette and API are well-implemented
+
+---
+
+#### Audit Area 4: Active Sessions (G7)
+
+**Files audited:**
+
+- `/Users/sebastianploeger/AppProjekte/deckr_studio/src/app/api/profile/sessions/route.ts`
+- `/Users/sebastianploeger/AppProjekte/deckr_studio/src/hooks/use-session-tracker.ts`
+- `/Users/sebastianploeger/AppProjekte/deckr_studio/src/app/(app)/profile/page.tsx`
+- `/Users/sebastianploeger/AppProjekte/deckr_studio/supabase/migrations/*.sql`
+
+**API: GET /api/profile/sessions**
+
+- Auth: `requireActiveUser(request)` -- PASS
+- Rate limit: `checkRateLimit(auth.user.id, 'sessions-list', 20, 60_000)` -- PASS
+- User isolation: `.eq('user_id', auth.user.id)` -- PASS (users can only see their own sessions)
+- Limit: `.limit(20)` -- PASS (prevents unbounded queries)
+- Ordered by `last_active_at DESC` -- sensible default
+
+**API: DELETE /api/profile/sessions**
+
+- Auth: `requireActiveUser(request)` -- PASS
+- Rate limit: `checkRateLimit(auth.user.id, 'sessions-revoke', 5, 60_000)` -- PASS
+- User isolation: `.eq('user_id', auth.user.id)` -- PASS
+- Current session preserved: `neq('id', currentSessionId)` when `x-session-id` header present -- PASS
+- Supabase admin signOut for other sessions: `signOut(auth.user.id, 'others')` -- PASS
+
+**Session Tracker Hook (use-session-tracker.ts):**
+
+- SSR guard: `sessionStorage` access is inside `useEffect` (client-only) -- PASS
+- No `typeof window !== 'undefined'` guard needed since `useEffect` only runs client-side -- PASS
+- Creates new session via `supabase.from('user_sessions').insert(...)` using browser client -- see BUG-16 below
+- Updates existing session via `.update({ last_active_at, device_info }).eq('id', ...).eq('user_id', ...)` -- PASS (double-check with user_id)
+- Cleanup: interval cleared on unmount -- PASS
+
+**Profile page session display:**
+
+- `currentSessionId` read from `sessionStorage` guarded by `typeof window !== 'undefined'` -- PASS
+- `x-session-id` header sent with DELETE request -- PASS
+- Session i18n keys all present in both locales -- PASS
+
+**Status:** FAIL -- see BUG-16 and BUG-17 below
+
+---
+
+#### Audit Area 5: Security Audit -- All New API Endpoints
+
+| Endpoint                        | Auth              | Rate Limit | Zod Validation                    | Tenant Scoped                   | SQL Injection Safe | Status |
+| ------------------------------- | ----------------- | ---------- | --------------------------------- | ------------------------------- | ------------------ | ------ |
+| `GET /api/search`               | requireActiveUser | 30/min     | N/A (query param)                 | .eq('tenant_id')                | ILIKE sanitized    | PASS   |
+| `PATCH /api/slides/bulk-status` | requireAdmin      | 10/min     | BulkStatusSchema (uuid[], enum)   | .eq('tenant_id')                | Parameterized      | PASS   |
+| `POST /api/slides/bulk-tags`    | requireAdmin      | 10/min     | BulkTagsSchema (uuid[], string[]) | .eq('tenant_id')                | Parameterized      | PASS   |
+| `GET /api/dashboard/stats`      | requireAdmin      | 30/min     | N/A                               | .eq('tenant_id') on all queries | Parameterized      | PASS   |
+| `GET /api/profile/sessions`     | requireActiveUser | 20/min     | N/A                               | .eq('user_id')                  | Parameterized      | PASS   |
+| `DELETE /api/profile/sessions`  | requireActiveUser | 5/min      | N/A                               | .eq('user_id')                  | Parameterized      | PASS   |
+
+**Cross-cutting security observations:**
+
+- All endpoints use service client (bypasses RLS) but manually enforce tenant/user scoping -- acceptable pattern
+- ILIKE injection properly mitigated in search endpoint via manual escaping of `%`, `_`, and `\`
+- Bulk endpoints validate UUIDs via Zod `z.string().uuid()` -- prevents injection via malformed IDs
+- Bulk endpoints verify slide ownership against tenant before updating -- prevents cross-tenant modification
+
+---
+
+### Bugs Found in Round 4
+
+#### BUG-16 (NEW, HIGH): No SQL migration for `user_sessions` table
+
+- **Severity:** High
+- **Steps to Reproduce:**
+  1. Search all SQL migration files in `supabase/migrations/` for `user_sessions`
+  2. Grep the entire codebase for `user_sessions` -- only found in `src/hooks/use-session-tracker.ts` and `src/app/api/profile/sessions/route.ts`
+  3. Deploy to a fresh Supabase instance
+  4. Navigate to `/profile` and observe the Active Sessions card
+  5. Expected: Sessions are tracked and displayed
+  6. Actual: The `user_sessions` table does not exist. The session tracker hook will silently fail on insert (browser Supabase client). The sessions API endpoint will return 500 errors.
+- **Root Cause:** The active sessions feature was implemented in application code but no SQL migration was created for the `user_sessions` table. There are no RLS policies, no indexes, and no table definition.
+- **Impact:** Active sessions feature is completely non-functional on any fresh deployment. Since the hook uses the browser Supabase client for inserts, RLS policies are also critical but missing.
+- **Required migration must include:**
+  - `CREATE TABLE user_sessions (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE, tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE, device_info TEXT, ip_address TEXT, last_active_at TIMESTAMPTZ DEFAULT now(), created_at TIMESTAMPTZ DEFAULT now())`
+  - `ALTER TABLE user_sessions ENABLE ROW LEVEL SECURITY`
+  - RLS policy: users can SELECT/INSERT/UPDATE/DELETE only their own sessions (`user_id = auth.uid()`)
+  - Index on `user_id` and `last_active_at`
+- **File:** Missing in `supabase/migrations/`
+- **Priority:** BLOCKER -- must be fixed before deployment
+
+#### BUG-17 (NEW, MEDIUM): Session tracker uses browser client to insert -- RLS will block without policies
+
+- **Severity:** Medium (dependent on BUG-16 fix)
+- **Steps to Reproduce:**
+  1. In `src/hooks/use-session-tracker.ts`, lines 53-61: the hook inserts into `user_sessions` using `createBrowserSupabaseClient()` (the anon-key client)
+  2. Supabase anon-key clients are subject to RLS policies
+  3. If BUG-16 is fixed but the INSERT RLS policy does not allow `auth.uid()` to insert rows, the session creation will silently fail
+  4. Also: the UPDATE at lines 47-49 uses `createBrowserSupabaseClient()` and needs an UPDATE RLS policy
+- **Root Cause:** Unlike API routes that use `createServiceClient()` (service role, bypasses RLS), the session tracker runs in the browser and must go through RLS
+- **Impact:** Without proper RLS INSERT and UPDATE policies on `user_sessions`, the session tracker silently fails -- no sessions are tracked, and the Active Sessions card always shows empty
+- **File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/src/hooks/use-session-tracker.ts`
+- **Priority:** Fix alongside BUG-16
+
+#### BUG-18 (NEW, MEDIUM): Missing translation key `admin.bulk_delete_message`
+
+- **Severity:** Medium
+- **Steps to Reproduce:**
+  1. In `src/app/(app)/admin/slides/page.tsx` line 668-670:
+     ```
+     {t(
+       'admin.bulk_delete_message',
+       'This action cannot be undone. Slides that are used in projects cannot be deleted.'
+     )}
+     ```
+  2. The key `admin.bulk_delete_message` does NOT exist in either `en.json` or `de.json`
+  3. Select multiple slides and click "Delete selected"
+  4. Expected: Localized confirmation message
+  5. Actual: Falls back to the hardcoded English default value `'This action cannot be undone...'` because i18next uses the second argument as fallback
+- **Root Cause:** The translation key was not added to the locale files when the bulk delete confirmation dialog was built
+- **Impact:** German-language users always see English text in the bulk delete confirmation dialog. While i18next's fallback mechanism prevents a raw key from being displayed, the text is never translated.
+- **Files:** Missing key in `public/locales/en.json` and `public/locales/de.json` under the `admin` object
+- **Priority:** Fix before deployment
+
+#### BUG-19 (NEW, LOW): Translation parameter mismatch in `admin.no_filtered_slides`
+
+- **Severity:** Low
+- **Steps to Reproduce:**
+  1. In `src/app/(app)/admin/slides/page.tsx` line 548: `t('admin.no_filtered_slides', { filter })`
+  2. In `en.json` line 567: `"no_filtered_slides": "No {{status}} slides"`
+  3. In `de.json` line 567: `"no_filtered_slides": "Keine {{status}}-Folien"`
+  4. The code passes `{ filter }` but the locale file expects `{{status}}`
+  5. Filter the slide library to a status with no slides (e.g., "deprecated")
+  6. Expected: "No deprecated slides" / "Keine deprecated-Folien"
+  7. Actual: "No slides" / "Keine -Folien" (the `{{status}}` interpolation resolves to empty because the variable name `status` does not match the passed parameter name `filter`)
+- **Root Cause:** Parameter name mismatch between code and locale files
+- **Fix:** Either change the code to `t('admin.no_filtered_slides', { status: filter })` or update the locale files to use `{{filter}}`
+- **File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/src/app/(app)/admin/slides/page.tsx` line 548
+- **Priority:** Low (cosmetic, only affects empty-state message)
+
+#### BUG-20 (NEW, LOW): Dashboard activity feed uses hardcoded English action strings
+
+- **Severity:** Low
+- **Steps to Reproduce:**
+  1. In `src/app/(app)/dashboard/page.tsx` lines 99-121: `eventTypeToAction()` maps event types to hardcoded English strings like `'created a project'`, `'uploaded a slide'`, etc.
+  2. Set language to German
+  3. Navigate to `/dashboard`
+  4. Observe the recent activity feed
+  5. Expected: Activity descriptions in German
+  6. Actual: All activity descriptions display in English (e.g., "created a project" instead of "hat ein Projekt erstellt")
+- **Root Cause:** `eventTypeToAction()` does not use `t()` for translation. The strings are hardcoded in a static map.
+- **Impact:** German-language users see English text in the dashboard activity feed
+- **File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/src/app/(app)/dashboard/page.tsx` lines 99-121
+- **Priority:** Low (the dashboard is admin-only and activity descriptions are supplementary context)
+
+#### BUG-21 (NEW, LOW): Dashboard "Total Slides" card shows trend for NEW slides, not total slides
+
+- **Severity:** Low (UX clarity issue, not a bug in logic)
+- **Steps to Reproduce:**
+  1. The card label says "Active Slides" (`dashboard.total_slides`) and displays `totalSlides` (all non-deprecated slides)
+  2. The trend indicator compares `newSlides` (slides created in last 30 days) vs `previousSlides` (slides created 30-60 days ago)
+  3. This means the trend shows "new slide creation velocity" but is displayed under "Active Slides" total count
+  4. Example: Tenant has 500 active slides. 5 new slides this month, 3 last month. Card shows "500" with "+67%"
+  5. A user might expect the trend to compare this month's total (500) vs last month's total (498), which would be "+0.4%"
+- **Root Cause:** The trend compares newly-created slides across windows, not total slide count across windows
+- **Impact:** Potentially misleading to admins. The +67% suggests rapid growth when the actual library only grew by ~1%
+- **File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/src/app/(app)/dashboard/page.tsx` line 162 and `/Users/sebastianploeger/AppProjekte/deckr_studio/src/app/api/dashboard/stats/route.ts` lines 95-110
+- **Priority:** Low (the numbers are technically correct, just potentially misleading in context)
+
+#### BUG-22 (NEW, LOW): Search API returns user emails to non-admin users
+
+- **Severity:** Low (security observation)
+- **Steps to Reproduce:**
+  1. The `GET /api/search` endpoint returns `{ id, display_name, email }` for user results
+  2. It uses `requireActiveUser` (not `requireAdmin`), so regular employees can access it
+  3. While this is tenant-scoped (employees can only see colleagues within their own tenant), exposing email addresses via search to all employees may violate data minimization principles
+  4. The command palette on the frontend only shows users to admins (`isAdmin && results?.users`), but the API still returns user data to non-admins
+- **Root Cause:** The API returns user data regardless of role. The frontend filters it, but the data is available in the network response.
+- **Impact:** A non-admin user could use browser dev tools or a direct API call to search for colleague email addresses. Within a B2B tenant context this is usually acceptable, but worth noting.
+- **File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/src/app/api/search/route.ts` lines 56-74
+- **Priority:** Low (acceptable for B2B context, but could be improved by checking role server-side)
+
+---
+
+### Round 4 Summary
+
+- **Areas Audited:** 5 (Bulk Translations, Dashboard Trends, Cmd+K Search, Active Sessions, Security)
+- **New Bugs Found:** 7
+  - 0 Critical
+  - 1 High (BUG-16: missing user_sessions migration)
+  - 2 Medium (BUG-17: RLS policies needed for browser client, BUG-18: missing bulk_delete_message translation)
+  - 4 Low (BUG-19: parameter mismatch, BUG-20: hardcoded English in activity feed, BUG-21: misleading trend context, BUG-22: emails exposed to non-admins)
+- **Security Audit:** PASS for all new API endpoints. Authentication, rate limiting, Zod validation, tenant scoping, and SQL injection prevention are all properly implemented across `GET /api/search`, `PATCH /api/slides/bulk-status`, `POST /api/slides/bulk-tags`, `GET /api/dashboard/stats`, `GET /api/profile/sessions`, and `DELETE /api/profile/sessions`.
+- **Blockers:**
+  1. **BUG-16 (High):** Create SQL migration for `user_sessions` table with RLS policies and indexes. Without this, the Active Sessions feature is completely broken on deployment.
+  2. **BUG-17 (Medium):** Ensure RLS INSERT/UPDATE/SELECT/DELETE policies are included in the BUG-16 migration so the browser-side session tracker can function.
+  3. **BUG-18 (Medium):** Add `admin.bulk_delete_message` key to both `en.json` and `de.json`. German users currently see English fallback text.
+- **Recommendation:** Fix BUG-16, BUG-17, and BUG-18 before deployment. BUG-19 through BUG-22 are low priority polish items.
+
+---
+
 ## Deployment
 
 _To be added by /deploy_

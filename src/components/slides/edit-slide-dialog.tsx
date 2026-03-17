@@ -109,8 +109,8 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
       const detected = await parsePptxFields(file, slide.page_index ?? 0)
       const newFields = detected.map((f) => ({
         id: f.id,
-        label: f.label,
-        placeholder: f.placeholder,
+        label: f.label.slice(0, 100),
+        placeholder: f.placeholder.length <= 500 ? f.placeholder : '',
         required: f.required,
       }))
       setFields(newFields)

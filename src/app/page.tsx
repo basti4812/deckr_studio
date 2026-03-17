@@ -547,8 +547,8 @@ export default function LandingPage() {
                 <Separator className="my-6" />
 
                 <ul className="space-y-3">
-                  {tier.features.map((f) => (
-                    <li key={f} className="flex items-center gap-2.5 text-sm text-foreground">
+                  {tier.features.map((f, fi) => (
+                    <li key={fi} className="flex items-center gap-2.5 text-sm text-foreground">
                       <Check className="h-4 w-4 shrink-0 text-primary" />
                       {f}
                     </li>

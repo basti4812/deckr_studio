@@ -792,6 +792,184 @@ All 9 new translation keys verified in BOTH locale files:
 
 The remaining three bugs (BUG-34, BUG-35, BUG-37) are LOW severity and can be addressed in subsequent sprints.
 
+---
+
+### Targeted Audit: Placeholder Validation Logic for Editable Fields
+
+**Tested:** 2026-03-17
+**Tester:** QA Engineer (AI)
+**Scope:** End-to-end placeholder length validation across PPTX parser, upload dialog, edit dialog, API routes, and locale files
+
+---
+
+#### CHECK 1: Zod EditableFieldSchema -- placeholder max(500) in both API routes
+
+**File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/src/app/api/slides/route.ts` (line 11)
+**File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/src/app/api/slides/[id]/route.ts` (line 13)
+**Status:** PASS
+
+- [x] `src/app/api/slides/route.ts` line 11: `placeholder: z.string().max(500).default('')`
+- [x] `src/app/api/slides/[id]/route.ts` line 13: `placeholder: z.string().max(500).default('')`
+- [x] Both schemas are identical and consistent with each other
+
+---
+
+#### CHECK 2: Upload dialog threshold is 500 (not 200)
+
+**File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/src/components/slides/upload-slide-dialog.tsx` (line 281)
+**Status:** PASS
+
+- [x] Line 281: `placeholder: f.placeholder.length <= 500 ? f.placeholder : ''`
+- [x] Threshold correctly set to 500
+- [x] When PPTX text exceeds 500 characters, placeholder is set to empty string (graceful degradation, not an error)
+- [x] Label is truncated to 100 chars at line 280: `label: f.label.slice(0, 100)`
+
+---
+
+#### CHECK 3: Edit dialog maxLength={500} and warning threshold at 450
+
+**File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/src/components/slides/edit-slide-dialog.tsx` (lines 393, 396-399)
+**Status:** PASS
+
+- [x] Line 393: `maxLength={500}` on the placeholder Input element
+- [x] Line 396: `{field.placeholder.length > 450 && (` -- warning threshold is 450
+- [x] Line 398: `{field.placeholder.length}/500 {t('slides.placeholder_max_hint')}` -- counter shows X/500
+- [x] Warning text references correct i18n key `slides.placeholder_max_hint`
+
+---
+
+#### CHECK 4: PPTX parser text length threshold vs Zod max -- INCONSISTENCY FOUND
+
+**File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/src/lib/pptx-parser.ts` (line 82)
+**Status:** INCONSISTENCY -- see BUG-38
+
+- [x] Line 82: `if (text.length > 300) continue` -- parser skips shapes with text longer than 300 characters
+- [x] Zod allows up to 500 characters for placeholder
+- [x] Upload dialog allows up to 500 characters for placeholder (line 281)
+
+**Analysis:** The parser threshold (300) and the Zod/UI threshold (500) are intentionally different layers with different purposes:
+
+- The parser uses 300 as a heuristic to skip "paragraph-like" content that is unlikely to be an editable field placeholder
+- Zod uses 500 as a hard validation limit for manually entered or edited placeholders
+
+However, this creates a **dead zone between 301-500 characters**: a placeholder in that range can never be auto-detected from a PPTX file (parser skips it), but an admin could manually type a placeholder of that length in the edit dialog. This is not a functional bug per se, but it is a design inconsistency documented below.
+
+---
+
+#### CHECK 5: Locale files contain "500" in placeholder_max_hint
+
+**File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/public/locales/en.json` (line 870)
+**File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/public/locales/de.json` (line 870)
+**Status:** PASS
+
+- [x] en.json: `"placeholder_max_hint": "characters -- max 500 allowed"`
+- [x] de.json: `"placeholder_max_hint": "Zeichen -- max. 500 erlaubt"`
+- [x] Both locale files reference "500" consistently
+
+---
+
+#### CHECK 6: No other places in the codebase validate or constrain placeholder length
+
+**Status:** PASS with OBSERVATION
+
+Searched the entire codebase for `placeholder.*max`, `maxLength`, `.max(` patterns related to editable field placeholders.
+
+- [x] Only two Zod schemas define `EditableFieldSchema` (both in the slide API routes, both use `.max(500)`)
+- [x] Only one UI input constrains placeholder length (`maxLength={500}` in edit-slide-dialog.tsx)
+- [x] Upload dialog applies the 500-char threshold client-side before submitting to the API
+- [x] `render-preview/route.ts` and `export/route.ts` consume placeholders at runtime but do not validate length (they read from the database where Zod has already validated on write). This is acceptable.
+- [x] `edit-fields-dialog.tsx` uses `field.placeholder` as a `placeholder` attribute on a Textarea (line 68) -- this is the user-facing display of the placeholder text, not a validation constraint. No length issue here.
+
+**Observation:** The `handleRescan` function in `edit-slide-dialog.tsx` (lines 104-123) does NOT apply the same 500-char truncation or 100-char label truncation that the upload dialog applies. See BUG-39 below.
+
+---
+
+#### CHECK 7: Stale documentation in PROJ-17 feature spec
+
+**File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/features/PROJ-17-automatic-slide-updates.md` (line 196)
+**Status:** BUG (documentation) -- see BUG-40
+
+- The PROJ-17 spec references `placeholder (max 200)` in its QA notes. This is stale -- the actual Zod schema now uses `.max(500)`.
+
+---
+
+### Bugs Found in Placeholder Audit
+
+#### BUG-38 (NEW): Parser 300-char heuristic vs 500-char Zod limit creates a confusing gap
+
+- **Severity:** Low
+- **Category:** Design inconsistency (not a runtime bug)
+- **Details:**
+  - PPTX parser (`pptx-parser.ts` line 82) skips shapes with text > 300 characters
+  - Zod schema and UI allow placeholders up to 500 characters
+  - This means: (a) auto-detected fields from PPTX will never have placeholders longer than 300 chars, (b) but admins can manually type placeholders up to 500 chars in the edit dialog, (c) the upload dialog silently drops to empty string for text > 500 chars but passes through text 301-500 from the parser -- which is impossible because the parser already skipped those
+  - The 300-char parser threshold is a valid heuristic for "this is a paragraph, not a field." The 500-char Zod limit is a valid upper bound for manually-entered placeholder text. The gap is harmless but could confuse future developers.
+- **Impact:** None at runtime. The parser and Zod serve different roles and the data flow is correct.
+- **Priority:** No action needed. Document the intentional difference in code comments if desired.
+
+#### BUG-39 (NEW): Rescan in edit dialog does not apply placeholder/label length limits
+
+- **Severity:** Medium
+- **Category:** Validation gap
+- **File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/src/components/slides/edit-slide-dialog.tsx` (lines 104-123)
+- **Steps to Reproduce:**
+  1. Open the edit slide dialog for any slide
+  2. Click "Rescan PPTX" and select a PPTX file
+  3. The rescan handler calls `parsePptxFields()` and maps results directly to fields (lines 110-115)
+  4. No `.slice(0, 100)` truncation is applied to `f.label`
+  5. No `f.placeholder.length <= 500 ? f.placeholder : ''` check is applied to `f.placeholder`
+- **Comparison with upload dialog:**
+  - Upload dialog (line 280): `label: f.label.slice(0, 100)`
+  - Upload dialog (line 281): `placeholder: f.placeholder.length <= 500 ? f.placeholder : ''`
+  - Edit dialog rescan (line 112): `label: f.label` (no truncation)
+  - Edit dialog rescan (line 113): `placeholder: f.placeholder` (no truncation)
+- **Impact:** If a PPTX file has a shape with a label (shape name) longer than 100 characters, or a placeholder longer than 500 characters, the rescan will set those values in the UI state. When the admin saves, the Zod schema on the server will reject:
+  - Labels > 100 chars will fail Zod validation (`label: z.string().min(1).max(100)`)
+  - Placeholders > 500 chars will fail Zod validation (`placeholder: z.string().max(500)`)
+  - The user would see a generic "Invalid input" error with no indication of which field caused the issue
+- **Mitigating factor:** The parser already skips text > 300 chars (line 82 of pptx-parser.ts), so placeholder overflow through the parser is extremely unlikely. Label overflow from very long shape names is possible but rare.
+- **Fix:** Add the same truncation logic from the upload dialog to the rescan handler:
+  ```typescript
+  const newFields = detected.map((f) => ({
+    id: f.id,
+    label: f.label.slice(0, 100),
+    placeholder: f.placeholder.length <= 500 ? f.placeholder : '',
+    required: f.required,
+  }))
+  ```
+- **Priority:** Fix before deployment (defensive hardening; the parser mitigates most risk but the gap exists)
+
+#### BUG-40 (NEW): Stale documentation in PROJ-17 references placeholder max 200
+
+- **Severity:** Low
+- **Category:** Documentation
+- **File:** `/Users/sebastianploeger/AppProjekte/deckr_studio/features/PROJ-17-automatic-slide-updates.md` (line 196)
+- **Details:** The QA notes from an earlier round state: "Added EditableFieldSchema with typed id, label (max 100), placeholder (max 200), required." The actual Zod schema now uses `placeholder: z.string().max(500)`, not `max(200)`.
+- **Impact:** Future developers reading the spec may be confused about the actual limit.
+- **Priority:** Fix when convenient (documentation-only change)
+
+---
+
+### Placeholder Audit Summary
+
+| Check                              | Target                             | Result                                   |
+| ---------------------------------- | ---------------------------------- | ---------------------------------------- |
+| 1. Zod schemas (both API routes)   | `placeholder: z.string().max(500)` | **PASS**                                 |
+| 2. Upload dialog threshold         | `<= 500` (not 200)                 | **PASS**                                 |
+| 3. Edit dialog maxLength + warning | `maxLength={500}`, warning at 450  | **PASS**                                 |
+| 4. Parser vs Zod consistency       | Parser 300 vs Zod 500              | **PASS** (intentional, different layers) |
+| 5. Locale files "500"              | Both en.json and de.json           | **PASS**                                 |
+| 6. No other validation points      | Codebase-wide search               | **PASS** (with BUG-39)                   |
+| 7. Documentation accuracy          | PROJ-17 spec                       | **FAIL** (BUG-40: stale "max 200")       |
+
+**New bugs:** 3 (0 critical, 0 high, 1 medium, 2 low)
+
+- **BUG-38** (Low): Parser 300 vs Zod 500 gap -- harmless design inconsistency, no action needed
+- **BUG-39** (Medium): Rescan handler missing placeholder/label length limits -- fix before deployment
+- **BUG-40** (Low): Stale "max 200" in PROJ-17 documentation -- fix when convenient
+
+**Verdict:** The placeholder validation change from 200 to 500 has been applied correctly across the two Zod schemas, the upload dialog, the edit dialog UI, and both locale files. The one actionable bug is BUG-39 (rescan handler in the edit dialog lacks the defensive truncation that the upload dialog has).
+
 ## Deployment
 
 _To be added by /deploy_
