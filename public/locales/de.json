@@ -867,6 +867,7 @@
     "auto_detected": "Automatisch erkannt",
     "label_placeholder": "z. B. Kundenname",
     "placeholder_placeholder": "z. B. Kundennamen eingeben",
+    "placeholder_max_hint": "Zeichen — max. 200 erlaubt",
     "required_description": "Erforderlich — Warnung vor Export wenn leer",
     "cancel": "Abbrechen",
     "saving": "Wird gespeichert…",

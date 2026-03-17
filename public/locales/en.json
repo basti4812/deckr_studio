@@ -867,6 +867,7 @@
     "auto_detected": "Auto-detected",
     "label_placeholder": "e.g. Customer name",
     "placeholder_placeholder": "e.g. Enter customer name",
+    "placeholder_max_hint": "characters — max 200 allowed",
     "required_description": "Required — warn before export if empty",
     "cancel": "Cancel",
     "saving": "Saving…",

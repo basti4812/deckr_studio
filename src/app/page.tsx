@@ -478,9 +478,9 @@ export default function LandingPage() {
           </div>
 
           <div className="mt-16 grid gap-6 sm:grid-cols-3">
-            {pricingTiers.map((tier) => (
+            {pricingTiers.map((tier, i) => (
               <div
-                key={tier.name}
+                key={i}
                 data-reveal
                 className={`opacity-0 relative rounded-2xl border p-8 transition-shadow duration-200 hover:shadow-warm-md ${
                   tier.highlighted
