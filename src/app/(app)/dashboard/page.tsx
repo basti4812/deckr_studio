@@ -62,6 +62,9 @@ interface DashboardData {
   teamMembers: number
   recentProjects: RecentProject[]
   recentActivity: ActivityItem[]
+  previousExports: number
+  newSlides: number
+  previousSlides: number
 }
 
 // ---------------------------------------------------------------------------
@@ -139,8 +142,24 @@ function getActorData(actor: ActivityItem['actor']): ActivityActor {
 // Summary Cards
 // ---------------------------------------------------------------------------
 
+function trendPercent(
+  current: number,
+  previous: number
+): { label: string; direction: 'up' | 'down' | 'stable' } {
+  if (previous === 0 && current === 0) return { label: '—', direction: 'stable' }
+  if (previous === 0) return { label: '+100%', direction: 'up' }
+  const pct = Math.round(((current - previous) / previous) * 100)
+  if (pct > 0) return { label: `+${pct}%`, direction: 'up' }
+  if (pct < 0) return { label: `${pct}%`, direction: 'down' }
+  return { label: '—', direction: 'stable' }
+}
+
 function SummaryCards({ data, loading }: { data: DashboardData | null; loading: boolean }) {
   const { t } = useTranslation()
+
+  // Compute trends for slides and exports
+  const slidesTrend = data ? trendPercent(data.newSlides, data.previousSlides) : null
+  const exportsTrend = data ? trendPercent(data.exportsLast30Days, data.previousExports) : null
 
   const cards = [
     {
@@ -148,24 +167,28 @@ function SummaryCards({ data, loading }: { data: DashboardData | null; loading: 
       icon: <Image className="h-5 w-5 text-muted-foreground" aria-hidden="true" />,
       label: t('dashboard.total_slides'),
       value: data?.totalSlides ?? 0,
+      trend: slidesTrend,
     },
     {
       key: 'projects',
       icon: <FolderOpen className="h-5 w-5 text-muted-foreground" aria-hidden="true" />,
       label: t('dashboard.total_projects'),
       value: data?.totalProjects ?? 0,
+      trend: null,
     },
     {
       key: 'exports',
       icon: <Download className="h-5 w-5 text-muted-foreground" aria-hidden="true" />,
       label: t('dashboard.exports_30d'),
       value: data?.exportsLast30Days ?? 0,
+      trend: exportsTrend,
     },
     {
       key: 'team',
       icon: <Users className="h-5 w-5 text-muted-foreground" aria-hidden="true" />,
       label: t('dashboard.team_members'),
       value: data?.teamMembers ?? 0,
+      trend: null,
     },
   ]
 
@@ -183,7 +206,23 @@ function SummaryCards({ data, loading }: { data: DashboardData | null; loading: 
             {loading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
-              <p className="text-3xl font-bold tabular-nums">{card.value.toLocaleString()}</p>
+              <div>
+                <p className="text-3xl font-bold tabular-nums">{card.value.toLocaleString()}</p>
+                {card.trend && card.trend.direction !== 'stable' && (
+                  <p
+                    className={`mt-1 text-xs font-medium ${
+                      card.trend.direction === 'up'
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-destructive'
+                    }`}
+                  >
+                    {card.trend.label}{' '}
+                    <span className="font-normal text-muted-foreground">
+                      {t('dashboard.vs_previous_30d')}
+                    </span>
+                  </p>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>

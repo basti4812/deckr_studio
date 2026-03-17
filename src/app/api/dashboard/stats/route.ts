@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
     const supabase = createServiceClient()
     const tenantId = profile.tenant_id
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString()
 
     const [
       slidesCount,
@@ -32,6 +33,9 @@ export async function GET(request: NextRequest) {
       teamCount,
       recentProjectsResult,
       recentActivityResult,
+      prevExportsCount,
+      newSlidesCount,
+      prevSlidesCount,
     ] = await Promise.all([
       // Total active slides
       supabase
@@ -78,6 +82,32 @@ export async function GET(request: NextRequest) {
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false })
         .limit(5),
+
+      // Exports previous 30 days (30-60 days ago) for trend comparison
+      supabase
+        .from('activity_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
+        .eq('event_type', 'project.exported')
+        .gte('created_at', sixtyDaysAgo)
+        .lt('created_at', thirtyDaysAgo),
+
+      // New slides added in last 30 days
+      supabase
+        .from('slides')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
+        .neq('status', 'deprecated')
+        .gte('created_at', thirtyDaysAgo),
+
+      // New slides added in previous 30-day window (30-60 days ago)
+      supabase
+        .from('slides')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
+        .neq('status', 'deprecated')
+        .gte('created_at', sixtyDaysAgo)
+        .lt('created_at', thirtyDaysAgo),
     ])
 
     return NextResponse.json({
@@ -87,6 +117,9 @@ export async function GET(request: NextRequest) {
       teamMembers: teamCount.count ?? 0,
       recentProjects: recentProjectsResult.data ?? [],
       recentActivity: recentActivityResult.data ?? [],
+      previousExports: prevExportsCount.count ?? 0,
+      newSlides: newSlidesCount.count ?? 0,
+      previousSlides: prevSlidesCount.count ?? 0,
     })
   } catch {
     return NextResponse.json({ error: 'Failed to fetch dashboard stats' }, { status: 500 })

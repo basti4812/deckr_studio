@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CheckSquare, ImageIcon, Loader2, Trash2, Upload, X } from 'lucide-react'
+import { CheckSquare, ImageIcon, Loader2, RefreshCw, Tag, Trash2, Upload, X } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,8 +14,17 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { toast } from 'sonner'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import { SlideCard } from '@/components/slides/slide-card'
@@ -25,6 +34,107 @@ import { EditSlideDialog } from '@/components/slides/edit-slide-dialog'
 import type { Slide } from '@/components/slides/slide-card'
 
 type StatusFilter = 'all' | 'standard' | 'mandatory' | 'deprecated'
+
+// ---------------------------------------------------------------------------
+// Bulk Tag Popover — shows existing tags as checkboxes + input for new tag
+// ---------------------------------------------------------------------------
+
+function BulkTagPopover({
+  open,
+  onOpenChange,
+  allTags,
+  loading,
+  onApply,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  allTags: string[]
+  loading: boolean
+  onApply: (tags: string[]) => void
+}) {
+  const { t } = useTranslation()
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
+  const [newTag, setNewTag] = useState('')
+
+  function toggleTag(tag: string) {
+    setSelectedTags((prev) => {
+      const next = new Set(prev)
+      if (next.has(tag)) next.delete(tag)
+      else next.add(tag)
+      return next
+    })
+  }
+
+  function handleApply() {
+    const tags = [...selectedTags]
+    if (newTag.trim()) tags.push(newTag.trim())
+    if (tags.length > 0) onApply(tags)
+  }
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(o) => {
+        onOpenChange(o)
+        if (!o) {
+          setSelectedTags(new Set())
+          setNewTag('')
+        }
+      }}
+    >
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" disabled={loading}>
+          {loading ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Tag className="mr-2 h-4 w-4" />
+          )}
+          {t('admin.add_tags')}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64" align="start">
+        <div className="space-y-3">
+          <p className="text-sm font-medium">{t('admin.select_tags')}</p>
+          {allTags.length > 0 && (
+            <div className="max-h-40 space-y-2 overflow-y-auto">
+              {allTags.map((tag) => (
+                <label key={tag} className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox
+                    checked={selectedTags.has(tag)}
+                    onCheckedChange={() => toggleTag(tag)}
+                  />
+                  {tag}
+                </label>
+              ))}
+            </div>
+          )}
+          <input
+            type="text"
+            className="flex h-8 w-full rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground"
+            placeholder={t('admin.new_tag_placeholder')}
+            value={newTag}
+            onChange={(e) => setNewTag(e.target.value)}
+            maxLength={50}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                handleApply()
+              }
+            }}
+          />
+          <Button
+            size="sm"
+            className="w-full"
+            disabled={selectedTags.size === 0 && !newTag.trim()}
+            onClick={handleApply}
+          >
+            {t('admin.apply_tags')}
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
 
 export default function SlideLibraryPage() {
   const { t } = useTranslation()
@@ -39,6 +149,9 @@ export default function SlideLibraryPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
+  const [bulkStatusLoading, setBulkStatusLoading] = useState(false)
+  const [bulkTagsOpen, setBulkTagsOpen] = useState(false)
+  const [bulkTagsLoading, setBulkTagsLoading] = useState(false)
 
   const fetchSlides = useCallback(async () => {
     const supabase = createBrowserSupabaseClient()
@@ -200,6 +313,80 @@ export default function SlideLibraryPage() {
     }
   }
 
+  async function handleBulkStatusChange(newStatus: 'standard' | 'mandatory' | 'deprecated') {
+    if (selected.size === 0) return
+    setBulkStatusLoading(true)
+    try {
+      const supabase = createBrowserSupabaseClient()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session) return
+
+      const res = await fetch('/api/slides/bulk-status', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ slideIds: [...selected], status: newStatus }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setSlides((prev) => prev.map((s) => (selected.has(s.id) ? { ...s, status: newStatus } : s)))
+        setSelected(new Set())
+        toast.success(t('admin.status_changed_count', { count: data.updated }))
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast.error((data as { error?: string }).error ?? t('admin.bulk_action_error'))
+      }
+    } finally {
+      setBulkStatusLoading(false)
+    }
+  }
+
+  async function handleBulkAddTags(tagNames: string[]) {
+    if (selected.size === 0 || tagNames.length === 0) return
+    setBulkTagsLoading(true)
+    try {
+      const supabase = createBrowserSupabaseClient()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session) return
+
+      const res = await fetch('/api/slides/bulk-tags', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ slideIds: [...selected], tags: tagNames }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setSlides((prev) =>
+          prev.map((s) => {
+            if (!selected.has(s.id)) return s
+            const currentTags: string[] = (s.tags as string[]) ?? []
+            const merged = [...new Set([...currentTags, ...tagNames])].slice(0, 20)
+            return { ...s, tags: merged }
+          })
+        )
+        setSelected(new Set())
+        setBulkTagsOpen(false)
+        toast.success(t('admin.tags_added_count', { count: data.updated }))
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast.error((data as { error?: string }).error ?? t('admin.bulk_action_error'))
+      }
+    } finally {
+      setBulkTagsLoading(false)
+    }
+  }
+
   const [regenerating, setRegenerating] = useState(false)
 
   async function handleRegenerateThumbnails() {
@@ -245,6 +432,9 @@ export default function SlideLibraryPage() {
   }
 
   const missingThumbnailCount = slides.filter((s) => !s.thumbnail_url && s.pptx_url).length
+
+  // Collect all unique tags from existing slides for the bulk tag popover
+  const allTags = [...new Set(slides.flatMap((s) => (s.tags as string[]) ?? []))].sort()
 
   const filtered = filter === 'all' ? slides : slides.filter((s) => s.status === filter)
 
@@ -326,6 +516,36 @@ export default function SlideLibraryPage() {
                   defaultValue: `${selected.size} selected`,
                 })}
               </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" disabled={bulkStatusLoading}>
+                    {bulkStatusLoading ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                    )}
+                    {t('admin.change_status')}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={() => handleBulkStatusChange('standard')}>
+                    {t('admin.standard')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleBulkStatusChange('mandatory')}>
+                    {t('admin.mandatory')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleBulkStatusChange('deprecated')}>
+                    {t('admin.deprecated')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <BulkTagPopover
+                open={bulkTagsOpen}
+                onOpenChange={setBulkTagsOpen}
+                allTags={allTags}
+                loading={bulkTagsLoading}
+                onApply={handleBulkAddTags}
+              />
               <Button variant="destructive" size="sm" onClick={() => setBulkDeleteConfirm(true)}>
                 <Trash2 className="mr-2 h-4 w-4" />
                 {t('admin.delete_selected', 'Delete selected')}
