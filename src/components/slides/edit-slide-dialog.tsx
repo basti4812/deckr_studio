@@ -390,12 +390,12 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
                       value={field.placeholder}
                       onChange={(e) => updateField(field.id, { placeholder: e.target.value })}
                       placeholder={t('slides.placeholder_placeholder')}
-                      maxLength={200}
+                      maxLength={500}
                       className="h-8 text-sm"
                     />
-                    {field.placeholder.length > 180 && (
+                    {field.placeholder.length > 450 && (
                       <p className="text-[10px] text-warning">
-                        {field.placeholder.length}/200 {t('slides.placeholder_max_hint')}
+                        {field.placeholder.length}/500 {t('slides.placeholder_max_hint')}
                       </p>
                     )}
                   </div>

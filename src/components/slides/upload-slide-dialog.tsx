@@ -278,7 +278,7 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
               editable_fields = detected.map((f) => ({
                 id: f.id,
                 label: f.label.slice(0, 100),
-                placeholder: f.placeholder.length <= 200 ? f.placeholder : '',
+                placeholder: f.placeholder.length <= 500 ? f.placeholder : '',
                 required: f.required,
               }))
             } catch {

@@ -8,7 +8,7 @@ import { isAllowedStorageUrl } from '@/lib/url-validation'
 const EditableFieldSchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1).max(100),
-  placeholder: z.string().max(200).default(''),
+  placeholder: z.string().max(500).default(''),
   required: z.boolean(),
 })
 
