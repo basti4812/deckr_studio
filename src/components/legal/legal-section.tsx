@@ -46,18 +46,18 @@ export function LegalSection({ heading, body }: LegalSectionProps) {
 
   return (
     <section className="space-y-3">
-      <h2 className="text-lg font-semibold text-gray-900">{heading}</h2>
+      <h2 className="text-lg font-semibold text-foreground">{heading}</h2>
       {paragraphs.map((p, i) => {
         // Bullet points start with "•"
         if (p.trimStart().startsWith('•')) {
           return (
-            <p key={i} className="pl-4 text-sm leading-relaxed text-gray-600">
+            <p key={i} className="pl-4 text-sm leading-relaxed text-muted-foreground">
               {renderLine(p, i)}
             </p>
           )
         }
         return (
-          <p key={i} className="text-sm leading-relaxed text-gray-600">
+          <p key={i} className="text-sm leading-relaxed text-muted-foreground">
             {renderLine(p, i)}
           </p>
         )

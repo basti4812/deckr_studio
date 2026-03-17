@@ -19,8 +19,8 @@ export function LegalPage({ title, children }: LegalPageProps) {
 
   return (
     <article className="mx-auto max-w-3xl px-6 py-12">
-      <h1 className="text-3xl font-bold tracking-tight text-gray-900">{title}</h1>
-      <p className="mt-1 text-sm text-gray-400">{t('legal.last_updated')}</p>
+      <h1 className="text-3xl font-bold tracking-tight text-foreground">{title}</h1>
+      <p className="mt-1 text-sm text-muted-foreground">{t('legal.last_updated')}</p>
 
       <Alert className="mt-6 border-yellow-300 bg-yellow-50">
         <Info className="h-4 w-4 text-yellow-700" />

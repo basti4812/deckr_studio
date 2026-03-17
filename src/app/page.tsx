@@ -583,7 +583,7 @@ export default function LandingPage() {
           <div className="mt-10">
             <Button
               size="lg"
-              className="rounded-lg bg-white text-foreground px-8 text-base hover:bg-white/90"
+              className="rounded-lg bg-background text-foreground px-8 text-base hover:bg-background/90"
               asChild
             >
               <Link href="/register">

@@ -83,10 +83,7 @@ function SortableSlideRow({ slide, onRemove }: { slide: Slide; onRemove: () => v
       </div>
       <span className="flex-1 truncate text-sm">{slide.title}</span>
       {slide.status === 'deprecated' && (
-        <Badge
-          variant="secondary"
-          className="shrink-0 text-[10px] text-orange-600 dark:text-orange-400"
-        >
+        <Badge variant="secondary" className="shrink-0 text-[10px] text-warning">
           Deprecated
         </Badge>
       )}
@@ -315,10 +312,7 @@ export function ManageTemplateSlidesDialog({ templateSet, allSlides, onClose, on
                     </div>
                     <span className="flex-1 truncate text-sm">{slide.title}</span>
                     {slide.status === 'deprecated' && (
-                      <Badge
-                        variant="secondary"
-                        className="shrink-0 text-[10px] text-orange-600 dark:text-orange-400"
-                      >
+                      <Badge variant="secondary" className="shrink-0 text-[10px] text-warning">
                         Deprecated
                       </Badge>
                     )}

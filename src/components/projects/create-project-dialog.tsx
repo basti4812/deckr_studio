@@ -461,10 +461,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                       <div className="flex flex-1 items-center gap-2 overflow-hidden">
                         <span className="truncate text-sm">{item.slide.name}</span>
                         {item.slide.status === 'deprecated' && (
-                          <Badge
-                            variant="secondary"
-                            className="shrink-0 text-[10px] text-orange-600 dark:text-orange-400"
-                          >
+                          <Badge variant="secondary" className="shrink-0 text-[10px] text-warning">
                             {t('create_project.deprecated_badge')}
                           </Badge>
                         )}

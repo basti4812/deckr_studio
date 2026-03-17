@@ -14,7 +14,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
   const { t } = useTranslation()
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="flex min-h-screen flex-col bg-background">
       <LandingNav />
 
       {/* Language toggle bar */}
@@ -26,40 +26,40 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
       <main className="flex-1">{children}</main>
 
       {/* Footer */}
-      <footer className="border-t border-white/10 bg-gray-950 py-10">
+      <footer className="border-t bg-secondary py-10">
         <div className="mx-auto max-w-6xl px-6">
           <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
             <Link href="/" className="flex items-center gap-2">
               <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold select-none">
                 O
               </div>
-              <span className="text-sm font-semibold tracking-tight text-white">
+              <span className="text-sm font-semibold tracking-tight text-foreground">
                 onslide Studio
               </span>
             </Link>
 
-            <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-gray-500">
-              <Link href="/impressum" className="hover:text-gray-300 transition-colors">
+            <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+              <Link href="/impressum" className="hover:text-foreground transition-colors">
                 {t('landing.impressum')}
               </Link>
-              <Link href="/privacy" className="hover:text-gray-300 transition-colors">
+              <Link href="/privacy" className="hover:text-foreground transition-colors">
                 {t('landing.privacy')}
               </Link>
-              <Link href="/terms" className="hover:text-gray-300 transition-colors">
+              <Link href="/terms" className="hover:text-foreground transition-colors">
                 {t('landing.terms')}
               </Link>
-              <Link href="/cookies" className="hover:text-gray-300 transition-colors">
+              <Link href="/cookies" className="hover:text-foreground transition-colors">
                 {t('landing.cookies_link')}
               </Link>
-              <Link href="/dpa" className="hover:text-gray-300 transition-colors">
+              <Link href="/dpa" className="hover:text-foreground transition-colors">
                 {t('landing.dpa')}
               </Link>
-              <Link href="/cancellation" className="hover:text-gray-300 transition-colors">
+              <Link href="/cancellation" className="hover:text-foreground transition-colors">
                 {t('landing.cancellation')}
               </Link>
-              <Separator orientation="vertical" className="h-3 bg-gray-700" />
+              <Separator orientation="vertical" className="h-3 bg-border" />
               <button
-                className="hover:text-gray-300 transition-colors"
+                className="hover:text-foreground transition-colors"
                 onClick={() => {
                   localStorage.removeItem('onslide_cookie_consent')
                   window.location.reload()
@@ -70,7 +70,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
             </nav>
           </div>
 
-          <p className="mt-6 text-center text-xs text-gray-600">
+          <p className="mt-6 text-center text-xs text-muted-foreground">
             {t('landing.footer_copyright', { year: new Date().getFullYear() })}
           </p>
         </div>
