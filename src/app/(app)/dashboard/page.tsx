@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import Link from 'next/link'
 import {
@@ -440,42 +441,29 @@ function QuickActions() {
 // Page Component
 // ---------------------------------------------------------------------------
 
+async function fetchDashboardStats(): Promise<DashboardData> {
+  const accessToken = await getAccessToken()
+  if (!accessToken) throw new Error('Not authenticated')
+
+  const res = await fetch('/api/dashboard/stats', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error((body as { error?: string }).error ?? 'Failed to load dashboard')
+  }
+
+  return res.json()
+}
+
 export default function DashboardPage() {
   const { t } = useTranslation()
 
-  const [data, setData] = useState<DashboardData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const fetchData = useCallback(async () => {
-    const accessToken = await getAccessToken()
-    if (!accessToken) return
-
-    setLoading(true)
-    setError(null)
-
-    try {
-      const res = await fetch('/api/dashboard/stats', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      })
-
-      if (!res.ok) {
-        const body = await res.json()
-        throw new Error(body.error ?? 'Failed to load dashboard')
-      }
-
-      const json = await res.json()
-      setData(json)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load dashboard')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchData()
-  }, [fetchData])
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['dashboard-stats'],
+    queryFn: fetchDashboardStats,
+  })
 
   return (
     <div className="space-y-6">
@@ -490,23 +478,23 @@ export default function DashboardPage() {
       {/* Error State */}
       {error && (
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
-          {error}
-          <Button variant="ghost" size="sm" className="ml-2" onClick={fetchData}>
+          {error.message}
+          <Button variant="ghost" size="sm" className="ml-2" onClick={() => refetch()}>
             {t('nav.retry')}
           </Button>
         </div>
       )}
 
       {/* Summary Cards */}
-      <SummaryCards data={data} loading={loading} />
+      <SummaryCards data={data ?? null} loading={isLoading} />
 
       {/* Two Column Layout: Recent Projects + Recent Activity */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         <div className="lg:col-span-3">
-          <RecentProjectsTable projects={data?.recentProjects ?? []} loading={loading} />
+          <RecentProjectsTable projects={data?.recentProjects ?? []} loading={isLoading} />
         </div>
         <div className="lg:col-span-2">
-          <RecentActivityFeed activity={data?.recentActivity ?? []} loading={loading} />
+          <RecentActivityFeed activity={data?.recentActivity ?? []} loading={isLoading} />
         </div>
       </div>
 

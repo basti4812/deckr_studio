@@ -1,7 +1,8 @@
 'use client'
 
 import { useTranslation } from 'react-i18next'
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { Archive, ChevronDown, Plus, Search, Users } from 'lucide-react'
 import { toast } from 'sonner'
@@ -15,54 +16,55 @@ import { createBrowserSupabaseClient } from '@/lib/supabase'
 import { ProjectCard, type Project } from '@/components/projects/project-card'
 import { CreateProjectDialog } from '@/components/projects/create-project-dialog'
 
+async function fetchAllProjects(): Promise<{
+  projects: Project[]
+  shared: Project[]
+  archived: Project[]
+}> {
+  const supabase = createBrowserSupabaseClient()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  if (!session) throw new Error('Not authenticated')
+  const token = session.access_token
+
+  const [ownedRes, sharedRes, archivedRes] = await Promise.all([
+    fetch('/api/projects', { headers: { Authorization: `Bearer ${token}` } }),
+    fetch('/api/projects/shared', { headers: { Authorization: `Bearer ${token}` } }),
+    fetch('/api/projects/archived', { headers: { Authorization: `Bearer ${token}` } }),
+  ])
+
+  const owned = ownedRes.ok ? ((await ownedRes.json()) as { projects: Project[] }).projects : []
+  const shared = sharedRes.ok ? ((await sharedRes.json()) as { projects: Project[] }).projects : []
+  const archived = archivedRes.ok
+    ? ((await archivedRes.json()) as { projects: Project[] }).projects
+    : []
+
+  return { projects: owned, shared, archived }
+}
+
 export default function ProjectsPage() {
   const { t } = useTranslation()
   const router = useRouter()
   const { loading: userLoading } = useCurrentUser()
-  const [projects, setProjects] = useState<Project[]>([])
-  const [sharedProjects, setSharedProjects] = useState<Project[]>([])
-  const [archivedProjects, setArchivedProjects] = useState<Project[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [createOpen, setCreateOpen] = useState(false)
   const [archiveOpen, setArchiveOpen] = useState(false)
   const [search, setSearch] = useState('')
 
-  // ---------------------------------------------------------------------------
-  // Fetch
-  // ---------------------------------------------------------------------------
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ['projects'],
+    queryFn: fetchAllProjects,
+    enabled: !userLoading,
+  })
 
-  const fetchProjects = useCallback(async () => {
-    const supabase = createBrowserSupabaseClient()
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    if (!session) return
-    const token = session.access_token
+  const projects = data?.projects ?? []
+  const sharedProjects = data?.shared ?? []
+  const archivedProjects = data?.archived ?? []
 
-    const [ownedRes, sharedRes, archivedRes] = await Promise.all([
-      fetch('/api/projects', { headers: { Authorization: `Bearer ${token}` } }),
-      fetch('/api/projects/shared', { headers: { Authorization: `Bearer ${token}` } }),
-      fetch('/api/projects/archived', { headers: { Authorization: `Bearer ${token}` } }),
-    ])
-
-    if (ownedRes.ok) {
-      const d = await ownedRes.json()
-      setProjects(d.projects ?? [])
-    }
-    if (sharedRes.ok) {
-      const d = await sharedRes.json()
-      setSharedProjects(d.projects ?? [])
-    }
-    if (archivedRes.ok) {
-      const d = await archivedRes.json()
-      setArchivedProjects(d.projects ?? [])
-    }
-    setLoading(false)
-  }, [])
-
-  useEffect(() => {
-    if (!userLoading) fetchProjects()
-  }, [userLoading, fetchProjects])
+  function invalidateProjects() {
+    queryClient.invalidateQueries({ queryKey: ['projects'] })
+  }
 
   // ---------------------------------------------------------------------------
   // Actions
@@ -83,10 +85,7 @@ export default function ProjectsPage() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ name }),
     })
-    if (res.ok) {
-      const d = await res.json()
-      setProjects((prev) => prev.map((p) => (p.id === id ? d.project : p)))
-    }
+    if (res.ok) invalidateProjects()
   }
 
   async function handleDelete(id: string) {
@@ -95,9 +94,7 @@ export default function ProjectsPage() {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     })
-    if (res.ok) {
-      setProjects((prev) => prev.filter((p) => p.id !== id))
-    }
+    if (res.ok) invalidateProjects()
   }
 
   async function handleLeave(projectId: string) {
@@ -106,9 +103,7 @@ export default function ProjectsPage() {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     })
-    if (res.ok) {
-      setSharedProjects((prev) => prev.filter((p) => p.id !== projectId))
-    }
+    if (res.ok) invalidateProjects()
   }
 
   async function handleDuplicate(projectId: string) {
@@ -120,6 +115,7 @@ export default function ProjectsPage() {
     if (res.ok) {
       const d = await res.json()
       toast.success(t('projects.project_duplicated'))
+      invalidateProjects()
       router.push(`/board?project=${d.project.id}`)
     } else {
       const d = await res.json().catch(() => ({ error: t('projects.failed_duplicate') }))
@@ -135,9 +131,7 @@ export default function ProjectsPage() {
       body: JSON.stringify({ status: 'archived' }),
     })
     if (res.ok) {
-      const d = await res.json()
-      setProjects((prev) => prev.filter((p) => p.id !== id))
-      setArchivedProjects((prev) => [d.project, ...prev])
+      invalidateProjects()
       toast.success(t('projects.project_archived'))
     } else {
       const d = await res.json().catch(() => ({ error: t('projects.failed_archive') }))
@@ -153,9 +147,7 @@ export default function ProjectsPage() {
       body: JSON.stringify({ status: 'active' }),
     })
     if (res.ok) {
-      const d = await res.json()
-      setArchivedProjects((prev) => prev.filter((p) => p.id !== id))
-      setProjects((prev) => [d.project, ...prev])
+      invalidateProjects()
       toast.success(t('projects.project_restored'))
     } else {
       const d = await res.json().catch(() => ({ error: t('projects.failed_restore') }))
@@ -170,7 +162,7 @@ export default function ProjectsPage() {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (res.ok) {
-      setArchivedProjects((prev) => prev.filter((p) => p.id !== id))
+      invalidateProjects()
       toast.success(t('projects.permanently_deleted'))
     } else {
       const d = await res.json().catch(() => ({ error: t('projects.failed_delete') }))

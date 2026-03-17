@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { CheckSquare, ImageIcon, Loader2, RefreshCw, Tag, Trash2, Upload, X } from 'lucide-react'
 import {
@@ -139,8 +140,7 @@ function BulkTagPopover({
 export default function SlideLibraryPage() {
   const { t } = useTranslation()
   const { tenantId, loading: userLoading } = useCurrentUser()
-  const [slides, setSlides] = useState<Slide[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [filter, setFilter] = useState<StatusFilter>('all')
   const [uploadOpen, setUploadOpen] = useState(false)
   const [editSlide, setEditSlide] = useState<Slide | null>(null)
@@ -153,31 +153,29 @@ export default function SlideLibraryPage() {
   const [bulkTagsOpen, setBulkTagsOpen] = useState(false)
   const [bulkTagsLoading, setBulkTagsLoading] = useState(false)
 
-  const fetchSlides = useCallback(async () => {
-    const supabase = createBrowserSupabaseClient()
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    if (!session) return
-
-    setLoading(true)
-    try {
+  const { data: slidesData, isLoading: loading } = useQuery({
+    queryKey: ['slides'],
+    queryFn: async () => {
+      const supabase = createBrowserSupabaseClient()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session) throw new Error('Not authenticated')
       const res = await fetch('/api/slides', {
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
-      if (!res.ok) return
+      if (!res.ok) throw new Error('Failed to load slides')
       const data = await res.json()
-      setSlides(data.slides ?? [])
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+      return (data.slides ?? []) as Slide[]
+    },
+    enabled: !userLoading,
+  })
 
-  useEffect(() => {
-    if (!userLoading) {
-      fetchSlides()
-    }
-  }, [userLoading, fetchSlides])
+  const slides = slidesData ?? []
+
+  function invalidateSlides() {
+    queryClient.invalidateQueries({ queryKey: ['slides'] })
+  }
 
   // Poll for thumbnail updates when slides are missing thumbnails
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -192,35 +190,10 @@ export default function SlideLibraryPage() {
       return
     }
 
-    // Start polling every 5 seconds
+    // Start polling every 5 seconds to pick up new thumbnails
     if (!pollRef.current) {
-      pollRef.current = setInterval(async () => {
-        const supabase = createBrowserSupabaseClient()
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-        if (!session) return
-
-        const res = await fetch('/api/slides', {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        })
-        if (!res.ok) return
-        const data = await res.json()
-        const freshSlides = (data.slides ?? []) as Slide[]
-
-        setSlides((prev) => {
-          let changed = false
-          const updated = prev.map((s) => {
-            if (s.thumbnail_url) return s
-            const fresh = freshSlides.find((f) => f.id === s.id)
-            if (fresh?.thumbnail_url) {
-              changed = true
-              return { ...s, thumbnail_url: fresh.thumbnail_url }
-            }
-            return s
-          })
-          return changed ? updated : prev
-        })
+      pollRef.current = setInterval(() => {
+        invalidateSlides()
       }, 5000)
     }
 
@@ -247,7 +220,7 @@ export default function SlideLibraryPage() {
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
       if (res.ok) {
-        setSlides((prev) => prev.filter((s) => s.id !== deleteSlide.id))
+        invalidateSlides()
       }
     } finally {
       setDeleting(false)
@@ -300,7 +273,7 @@ export default function SlideLibraryPage() {
       }
 
       if (deleted.length > 0) {
-        setSlides((prev) => prev.filter((s) => !deleted.includes(s.id)))
+        invalidateSlides()
       }
       setSelected(new Set())
 
@@ -334,7 +307,7 @@ export default function SlideLibraryPage() {
 
       if (res.ok) {
         const data = await res.json()
-        setSlides((prev) => prev.map((s) => (selected.has(s.id) ? { ...s, status: newStatus } : s)))
+        invalidateSlides()
         setSelected(new Set())
         toast.success(t('admin.status_changed_count', { count: data.updated }))
       } else {
@@ -367,14 +340,7 @@ export default function SlideLibraryPage() {
 
       if (res.ok) {
         const data = await res.json()
-        setSlides((prev) =>
-          prev.map((s) => {
-            if (!selected.has(s.id)) return s
-            const currentTags: string[] = (s.tags as string[]) ?? []
-            const merged = [...new Set([...currentTags, ...tagNames])].slice(0, 20)
-            return { ...s, tags: merged }
-          })
-        )
+        invalidateSlides()
         setSelected(new Set())
         setBulkTagsOpen(false)
         toast.success(t('admin.tags_added_count', { count: data.updated }))
@@ -411,20 +377,7 @@ export default function SlideLibraryPage() {
       })
 
       if (res.ok) {
-        const data = await res.json()
-        if (data.results) {
-          setSlides((prev) =>
-            prev.map((s) => {
-              const result = data.results.find(
-                (r: { slideId: string; thumbnailUrl: string | null }) => r.slideId === s.id
-              )
-              if (result?.thumbnailUrl) {
-                return { ...s, thumbnail_url: result.thumbnailUrl }
-              }
-              return s
-            })
-          )
-        }
+        invalidateSlides()
       }
     } finally {
       setRegenerating(false)
@@ -663,8 +616,8 @@ export default function SlideLibraryPage() {
           open={uploadOpen}
           tenantId={tenantId}
           onClose={() => setUploadOpen(false)}
-          onUploaded={(slide) => {
-            setSlides((prev) => [slide, ...prev])
+          onUploaded={() => {
+            invalidateSlides()
           }}
         />
       )}
@@ -673,8 +626,8 @@ export default function SlideLibraryPage() {
       <EditSlideDialog
         slide={editSlide}
         onClose={() => setEditSlide(null)}
-        onSaved={(updated) => {
-          setSlides((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
+        onSaved={() => {
+          invalidateSlides()
           setEditSlide(null)
         }}
       />

@@ -287,7 +287,29 @@
     "failed_update_name": "Name konnte nicht aktualisiert werden",
     "notifications_enabled": "E-Mail-Benachrichtigungen aktiviert",
     "notifications_disabled": "E-Mail-Benachrichtigungen deaktiviert",
-    "failed_update_preference": "Einstellung konnte nicht aktualisiert werden"
+    "failed_update_preference": "Einstellung konnte nicht aktualisiert werden",
+    "active_sessions": "Aktive Sitzungen",
+    "active_sessions_description": "Geräte, auf denen du derzeit angemeldet bist.",
+    "loading_sessions": "Sitzungen werden geladen…",
+    "no_sessions": "Keine aktiven Sitzungen gefunden.",
+    "unknown_device": "Unbekanntes Gerät",
+    "current_session": "Dieses Gerät",
+    "last_active": "Zuletzt aktiv",
+    "just_now": "Gerade eben",
+    "minutes_ago_one": "Vor {{count}} Minute",
+    "minutes_ago_other": "Vor {{count}} Minuten",
+    "hours_ago_one": "Vor {{count}} Stunde",
+    "hours_ago_other": "Vor {{count}} Stunden",
+    "days_ago_one": "Vor {{count}} Tag",
+    "days_ago_other": "Vor {{count}} Tagen",
+    "sign_out_others": "Alle anderen Sitzungen abmelden",
+    "sign_out_others_confirm": "Dadurch werden {{count}} andere Sitzung(en) abgemeldet und der Zugriff widerrufen. Du bleibst auf diesem Gerät angemeldet.",
+    "confirm_sign_out": "Andere abmelden",
+    "cancel": "Abbrechen",
+    "revoking": "Wird widerrufen…",
+    "sessions_revoked": "Alle anderen Sitzungen wurden abgemeldet.",
+    "revoke_failed": "Sitzungen konnten nicht widerrufen werden",
+    "no_other_sessions": "Keine weiteren aktiven Sitzungen."
   },
   "share": {
     "title": "\"{{name}}\" teilen",
@@ -971,7 +993,11 @@
     "faq_q5": "Können mehrere Personen an derselben Präsentation arbeiten?",
     "faq_a5": "Ja. Sie können Projekte mit Teammitgliedern teilen, die Folien hinzufügen, Textfelder bearbeiten und Kommentare hinterlassen können. Jede Person kann auch private Notizen an Folien anheften. Die Versionshistorie ermöglicht es, jeden vorherigen Stand wiederherzustellen.",
     "faq_q6": "Muss ich Software installieren?",
-    "faq_a6": "Nein. onslide Studio läuft komplett im Browser — auf Desktop und Mobilgeräten. Es gibt nichts zu installieren, keine Plugins und keine IT-Einrichtung. Einfach anmelden und Präsentationen erstellen."
+    "faq_a6": "Nein. onslide Studio läuft komplett im Browser — auf Desktop und Mobilgeräten. Es gibt nichts zu installieren, keine Plugins und keine IT-Einrichtung. Einfach anmelden und Präsentationen erstellen.",
+    "seats": "Plätze",
+    "per_month_total": "Gesamt / Monat",
+    "per_year_total": "Gesamt / Jahr",
+    "yearly_savings": "2 Monate sparen bei jährlicher Zahlung"
   },
   "demo": {
     "banner_text": "Dies ist eine Demo mit Beispieldaten. Keine Änderungen werden gespeichert.",

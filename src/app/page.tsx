@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ArrowDown, ArrowRight, Check, Layers, GripVertical, Shield, Star } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { Slider } from '@/components/ui/slider'
 
 // ---------------------------------------------------------------------------
 // Intersection Observer hook for scroll animations
@@ -74,6 +75,11 @@ function LogoStrip() {
 export default function LandingPage() {
   const revealRef = useScrollReveal()
   const { t } = useTranslation()
+  const [seats, setSeats] = useState(5)
+
+  const pricePerSeat = 49
+  const monthlyTotal = seats * pricePerSeat
+  const yearlyTotal = monthlyTotal * 10 // 2 months free
 
   // Pain points data driven by translations
   const painPoints = [
@@ -503,6 +509,40 @@ export default function LandingPage() {
                     </span>
                   )}
                 </div>
+
+                {/* Seat calculator for Team tier */}
+                {tier.highlighted && (
+                  <div className="mt-4 space-y-3 rounded-lg border bg-muted/50 p-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">{t('landing.seats')}</span>
+                      <span className="font-semibold tabular-nums">{seats}</span>
+                    </div>
+                    <Slider
+                      value={[seats]}
+                      onValueChange={([v]) => setSeats(v)}
+                      min={1}
+                      max={100}
+                      step={1}
+                    />
+                    <div className="space-y-1 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">
+                          {t('landing.per_month_total')}
+                        </span>
+                        <span className="font-semibold tabular-nums">
+                          &euro;{monthlyTotal.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">{t('landing.per_year_total')}</span>
+                        <span className="font-semibold tabular-nums">
+                          &euro;{yearlyTotal.toLocaleString()}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{t('landing.yearly_savings')}</p>
+                    </div>
+                  </div>
+                )}
 
                 <Separator className="my-6" />
 

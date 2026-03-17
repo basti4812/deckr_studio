@@ -3,8 +3,20 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Camera, Lock, Trash2 } from 'lucide-react'
+import { Camera, Lock, Monitor, Smartphone, Trash2 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -84,6 +96,7 @@ export default function ProfilePage() {
         preferences={notificationPreferences}
         onUpdate={(prefs) => setNotificationPreferences(prefs)}
       />
+      <ActiveSessionsCard />
     </div>
   )
 }
@@ -605,6 +618,166 @@ function PasswordCard() {
         <Button onClick={handleSave} disabled={loading} size="sm">
           {loading ? t('profile.changing_password') : t('profile.change_password')}
         </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Card 6 — Active Sessions
+// ---------------------------------------------------------------------------
+
+const SESSION_KEY = 'onslide_session_id'
+
+type Session = {
+  id: string
+  device_info: string | null
+  ip_address: string | null
+  last_active_at: string
+  created_at: string
+}
+
+function ActiveSessionsCard() {
+  const { t } = useTranslation()
+  const [sessions, setSessions] = useState<Session[]>([])
+  const [loading, setLoading] = useState(true)
+  const [revoking, setRevoking] = useState(false)
+
+  const currentSessionId =
+    typeof window !== 'undefined' ? sessionStorage.getItem(SESSION_KEY) : null
+
+  useEffect(() => {
+    loadSessions()
+  }, [])
+
+  async function loadSessions() {
+    setLoading(true)
+    try {
+      const token = await getToken()
+      if (!token) return
+      const res = await fetch('/api/profile/sessions', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setSessions(data.sessions ?? [])
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleRevokeOthers() {
+    setRevoking(true)
+    try {
+      const token = await getToken()
+      if (!token) return
+      const res = await fetch('/api/profile/sessions', {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'x-session-id': currentSessionId ?? '',
+        },
+      })
+      if (!res.ok) {
+        toast.error(t('profile.revoke_failed'))
+        return
+      }
+      toast.success(t('profile.sessions_revoked'))
+      await loadSessions()
+    } finally {
+      setRevoking(false)
+    }
+  }
+
+  function isMobile(deviceInfo: string | null): boolean {
+    if (!deviceInfo) return false
+    return /Android|iOS/i.test(deviceInfo)
+  }
+
+  function formatRelativeTime(dateStr: string): string {
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const minutes = Math.floor(diff / 60_000)
+    if (minutes < 1) return t('profile.just_now')
+    if (minutes < 60) return t('profile.minutes_ago', { count: minutes })
+    const hours = Math.floor(minutes / 60)
+    if (hours < 24) return t('profile.hours_ago', { count: hours })
+    const days = Math.floor(hours / 24)
+    return t('profile.days_ago', { count: days })
+  }
+
+  const otherSessions = sessions.filter((s) => s.id !== currentSessionId)
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('profile.active_sessions')}</CardTitle>
+        <CardDescription>{t('profile.active_sessions_description')}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {loading ? (
+          <p className="text-sm text-muted-foreground">{t('profile.loading_sessions')}</p>
+        ) : sessions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t('profile.no_sessions')}</p>
+        ) : (
+          <>
+            {sessions.map((session) => {
+              const isCurrent = session.id === currentSessionId
+              return (
+                <div key={session.id} className="flex items-center gap-3 rounded-md border p-3">
+                  {isMobile(session.device_info) ? (
+                    <Smartphone className="h-5 w-5 text-muted-foreground shrink-0" />
+                  ) : (
+                    <Monitor className="h-5 w-5 text-muted-foreground shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium truncate">
+                        {session.device_info || t('profile.unknown_device')}
+                      </span>
+                      {isCurrent && (
+                        <Badge variant="secondary" className="text-xs shrink-0">
+                          {t('profile.current_session')}
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {t('profile.last_active')}: {formatRelativeTime(session.last_active_at)}
+                    </p>
+                  </div>
+                </div>
+              )
+            })}
+
+            {otherSessions.length > 0 && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm" className="mt-2" disabled={revoking}>
+                    {revoking ? t('profile.revoking') : t('profile.sign_out_others')}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t('profile.sign_out_others')}</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t('profile.sign_out_others_confirm', { count: otherSessions.length })}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t('profile.cancel')}</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleRevokeOthers}>
+                      {t('profile.confirm_sign_out')}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+
+            {otherSessions.length === 0 && !loading && (
+              <p className="text-sm text-muted-foreground">{t('profile.no_other_sessions')}</p>
+            )}
+          </>
+        )}
       </CardContent>
     </Card>
   )

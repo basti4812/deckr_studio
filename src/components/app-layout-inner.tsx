@@ -8,9 +8,11 @@ import { LanguageToggle } from '@/components/language-toggle'
 import { MobileNav } from '@/components/mobile-nav'
 import { BoardFullscreenProvider, useBoardFullscreen } from '@/providers/fullscreen-provider'
 import { CommandPalette } from '@/components/command-palette'
+import { useSessionTracker } from '@/hooks/use-session-tracker'
 
 function InnerLayout({ children }: { children: React.ReactNode }) {
   const { isFullscreen } = useBoardFullscreen()
+  useSessionTracker()
 
   if (isFullscreen) {
     return (

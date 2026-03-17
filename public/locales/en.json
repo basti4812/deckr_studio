@@ -287,7 +287,29 @@
     "failed_update_name": "Failed to update name",
     "notifications_enabled": "Email notifications enabled",
     "notifications_disabled": "Email notifications disabled",
-    "failed_update_preference": "Failed to update preference"
+    "failed_update_preference": "Failed to update preference",
+    "active_sessions": "Active Sessions",
+    "active_sessions_description": "Devices where you are currently logged in.",
+    "loading_sessions": "Loading sessions…",
+    "no_sessions": "No active sessions found.",
+    "unknown_device": "Unknown device",
+    "current_session": "This device",
+    "last_active": "Last active",
+    "just_now": "Just now",
+    "minutes_ago_one": "{{count}} minute ago",
+    "minutes_ago_other": "{{count}} minutes ago",
+    "hours_ago_one": "{{count}} hour ago",
+    "hours_ago_other": "{{count}} hours ago",
+    "days_ago_one": "{{count}} day ago",
+    "days_ago_other": "{{count}} days ago",
+    "sign_out_others": "Sign out all other sessions",
+    "sign_out_others_confirm": "This will sign out {{count}} other session(s) and revoke their access. You will remain logged in on this device.",
+    "confirm_sign_out": "Sign out others",
+    "cancel": "Cancel",
+    "revoking": "Revoking…",
+    "sessions_revoked": "All other sessions have been signed out.",
+    "revoke_failed": "Failed to revoke sessions",
+    "no_other_sessions": "No other active sessions."
   },
   "share": {
     "title": "Share \"{{name}}\"",
@@ -971,7 +993,11 @@
     "faq_q5": "Can multiple people work on the same presentation?",
     "faq_a5": "Yes. You can share projects with team members who can add slides, edit text fields, and leave comments. Each person can also attach private notes to slides. Version history lets you roll back to any previous state.",
     "faq_q6": "Do I need to install any software?",
-    "faq_a6": "No. onslide Studio runs entirely in your browser — on desktop and mobile. There's nothing to install, no plugins, and no IT setup required. Just sign up and start building presentations."
+    "faq_a6": "No. onslide Studio runs entirely in your browser — on desktop and mobile. There's nothing to install, no plugins, and no IT setup required. Just sign up and start building presentations.",
+    "seats": "Seats",
+    "per_month_total": "Total / month",
+    "per_year_total": "Total / year",
+    "yearly_savings": "Save 2 months with annual billing"
   },
   "demo": {
     "banner_text": "This is a demo with example data. No changes are saved.",
