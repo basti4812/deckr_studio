@@ -209,12 +209,14 @@ function SummaryCards({ data, loading }: { data: DashboardData | null; loading: 
             ) : (
               <div>
                 <p className="text-3xl font-bold tabular-nums">{card.value.toLocaleString()}</p>
-                {card.trend && card.trend.direction !== 'stable' && (
+                {card.trend && (
                   <p
                     className={`mt-1 text-xs font-medium ${
                       card.trend.direction === 'up'
                         ? 'text-emerald-600 dark:text-emerald-400'
-                        : 'text-destructive'
+                        : card.trend.direction === 'down'
+                          ? 'text-destructive'
+                          : 'text-muted-foreground'
                     }`}
                   >
                     {card.trend.label}{' '}

@@ -277,8 +277,8 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
               const detected = await parsePptxFields(qf.file, pi)
               editable_fields = detected.map((f) => ({
                 id: f.id,
-                label: f.label,
-                placeholder: f.placeholder,
+                label: f.label.slice(0, 100),
+                placeholder: f.placeholder.slice(0, 500),
                 required: f.required,
               }))
             } catch {

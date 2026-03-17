@@ -55,10 +55,11 @@
 | PROJ-40 | Analytics Dashboard (Admin)                           | P2       | Deployed | [PROJ-40](PROJ-40-analytics-dashboard-admin.md)            | 2026-02-25 |
 | PROJ-41 | German/English Internationalisation                   | P1       | Deployed | [PROJ-41](PROJ-41-internationalisation.md)                 | 2026-02-25 |
 | PROJ-42 | Mobile View & Responsive Layout                       | P1       | Deployed | [PROJ-42](PROJ-42-mobile-view-responsive-layout.md)        | 2026-02-25 |
+| PROJ-43 | Dark Mode Toggle                                      | P2       | Planned  | [PROJ-43](PROJ-43-dark-mode-toggle.md)                     | 2026-03-17 |
 
 <!-- Add features above this line -->
 
-## Next Available ID: PROJ-43
+## Next Available ID: PROJ-44
 
 ## P0 Summary (13 Features — Must-Have for Launch)
 

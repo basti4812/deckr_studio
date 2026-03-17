@@ -46,7 +46,7 @@ export function CommandPalette() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
-  // Global Cmd+K / Ctrl+K listener
+  // Global Cmd+K / Ctrl+K listener + custom open event
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -54,8 +54,15 @@ export function CommandPalette() {
         setOpen((prev) => !prev)
       }
     }
+    function onOpenPalette() {
+      setOpen(true)
+    }
     document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
+    document.addEventListener('open-command-palette', onOpenPalette)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.removeEventListener('open-command-palette', onOpenPalette)
+    }
   }, [])
 
   // Cleanup debounce and abort on unmount
