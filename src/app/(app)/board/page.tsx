@@ -947,14 +947,22 @@ function BoardPageInner() {
     }
   }
 
+  function showExportPreview(type: 'pptx' | 'pdf') {
+    setExportState({ open: true, error: null, step: 0, format: type })
+  }
+
   function handleExport() {
     if (!projectId) return
     lastExportTypeRef.current = 'pptx'
     const issues = checkFillStatus(trayItems, slideMap, textEdits)
     if (issues.length > 0) {
-      setFillWarning({ issues, proceed: () => doExport('pptx'), proceedLabel: t('board.export') })
+      setFillWarning({
+        issues,
+        proceed: () => showExportPreview('pptx'),
+        proceedLabel: t('board.export'),
+      })
     } else {
-      doExport('pptx')
+      showExportPreview('pptx')
     }
   }
 
@@ -965,11 +973,11 @@ function BoardPageInner() {
     if (issues.length > 0) {
       setFillWarning({
         issues,
-        proceed: () => doExport('pdf'),
+        proceed: () => showExportPreview('pdf'),
         proceedLabel: t('board.export_pdf'),
       })
     } else {
-      doExport('pdf')
+      showExportPreview('pdf')
     }
   }
 
@@ -2243,9 +2251,11 @@ function BoardPageInner() {
           open={exportState.open}
           onClose={() => setExportState(null)}
           onRetry={() => doExport(lastExportTypeRef.current)}
+          onStartExport={() => doExport(exportState.format)}
           error={exportState.error}
           step={exportState.step}
           format={exportState.format}
+          slideCount={trayItems.length}
         />
       )}
 

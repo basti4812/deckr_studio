@@ -439,7 +439,12 @@
     "step_finalizing": "Finalizing download...",
     "taking_moment": "This may take a moment...",
     "not_authenticated": "Not authenticated. Please refresh and try again.",
-    "export_failed_message": "Export failed. Please try again."
+    "export_failed_message": "Export failed. Please try again.",
+    "preview_title": "Export Preview",
+    "slide_count_one": "{{count}} Slide",
+    "slide_count_other": "{{count}} Slides",
+    "seconds": "seconds",
+    "start_export": "Start Export"
   },
   "fill_warning": {
     "title": "Required fields are empty",
@@ -1227,5 +1232,14 @@
     "wrong_password": "The password is incorrect.",
     "error": "An error occurred. Please try again.",
     "closed_beta": "onslide is currently in a closed beta phase. You need a password to test the app."
+  },
+  "search": {
+    "placeholder": "Search pages, projects, slides, team…",
+    "searching": "Searching…",
+    "no_results": "No results found.",
+    "navigation": "Navigation",
+    "projects": "Projects",
+    "slides": "Slides",
+    "team": "Team"
   }
 }

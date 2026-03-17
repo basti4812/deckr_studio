@@ -491,6 +491,307 @@ After those two fixes, one additional fix is recommended before the next user-fa
 
 The remaining four bugs (BUG-26, BUG-29, BUG-30, BUG-31) are low severity and can be addressed in subsequent cleanup commits.
 
+---
+
+## QA Test Results: Sprint 6 -- Bulk Actions & Dashboard Trends (2026-03-17)
+
+**Tested:** 2026-03-17
+**Tester:** QA Engineer (AI)
+**Scope:** Bulk status change, bulk tag add, dashboard trend metrics, BulkTagPopover component, translation additions.
+
+### Files Reviewed
+
+- `src/app/api/slides/bulk-status/route.ts` (new)
+- `src/app/api/slides/bulk-tags/route.ts` (new)
+- `src/app/api/dashboard/stats/route.ts` (modified)
+- `src/app/(app)/admin/slides/page.tsx` (modified -- BulkTagPopover, handleBulkStatusChange, handleBulkAddTags)
+- `src/app/(app)/dashboard/page.tsx` (modified -- trendPercent, SummaryCards trend badges)
+- `public/locales/en.json` (new keys)
+- `public/locales/de.json` (new keys)
+- `src/lib/auth-helpers.ts` (dependency)
+- `src/lib/rate-limit.ts` (dependency)
+- `src/lib/notifications.ts` (dependency)
+- `src/lib/activity-log.ts` (dependency)
+
+### Build Verification
+
+- [x] `npm run build` succeeds with zero errors
+- [x] `npm run lint` produces zero errors (22 pre-existing warnings, none in Sprint 6 files)
+
+---
+
+### 1. API Security Audit: PATCH /api/slides/bulk-status
+
+| Check                  | Result   | Details                                                                                                                                                                                                                            |
+| ---------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Auth required          | **PASS** | `requireAdmin(request)` enforced at line 19. Returns 401/403/404 on failure.                                                                                                                                                       |
+| Rate limiting          | **PASS** | `checkRateLimit(auth.user.id, 'slides:bulk-status', 10, 60_000)` at line 24. 10 requests per minute.                                                                                                                               |
+| Input validation (Zod) | **PASS** | `BulkStatusSchema` validates slideIds as `z.array(z.string().uuid()).min(1).max(100)` and status as `z.enum(['standard', 'mandatory', 'deprecated'])`.                                                                             |
+| Array size bounded     | **PASS** | Max 100 slide IDs per request (`.max(100)` in schema).                                                                                                                                                                             |
+| Tenant isolation       | **PASS** | Ownership verified at line 47-51: fetches slides matching both `id IN slideIds` AND `tenant_id = tenantId`. Only validated IDs are updated. Update query also includes `.eq('tenant_id', tenantId)` at line 67 (defense-in-depth). |
+| Cross-tenant attack    | **PASS** | If `slideIds` contains IDs from another tenant, the ownership query returns an empty set for those IDs. They are silently excluded from `validIds`.                                                                                |
+| SQL injection          | **PASS** | Supabase client uses parameterized queries. No raw SQL.                                                                                                                                                                            |
+| Invalid JSON body      | **PASS** | Caught at line 28-31, returns 400 "Invalid JSON".                                                                                                                                                                                  |
+| Error message safety   | **PASS** | Fetch error returns generic "Failed to verify slides". Update error at line 70 returns `updateError.message` -- see BUG-32.                                                                                                        |
+| Activity logging       | **PASS** | `logActivity` called for each deprecated slide with `slide.deprecated` event type (lines 76-84).                                                                                                                                   |
+| Notifications          | **PASS** | `createNotifications` called for affected project owners when status = deprecated (lines 100-112).                                                                                                                                 |
+
+### 2. API Security Audit: POST /api/slides/bulk-tags
+
+| Check                  | Result       | Details                                                                                                                                                                                                                                                                            |
+| ---------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Auth required          | **PASS**     | `requireAdmin(request)` enforced at line 17.                                                                                                                                                                                                                                       |
+| Rate limiting          | **PASS**     | `checkRateLimit(auth.user.id, 'slides:bulk-tags', 10, 60_000)` at line 23.                                                                                                                                                                                                         |
+| Input validation (Zod) | **PASS**     | `BulkTagsSchema` validates slideIds as `z.array(z.string().uuid()).min(1).max(100)` and tags as `z.array(z.string().trim().min(1).max(50)).min(1).max(20)`. Consistent with single-slide tag validation.                                                                           |
+| Array size bounded     | **PASS**     | Max 100 slide IDs, max 20 tags per request.                                                                                                                                                                                                                                        |
+| Tag length bounded     | **PASS**     | Each tag max 50 chars, trimmed.                                                                                                                                                                                                                                                    |
+| Tag dedup + cap        | **PASS**     | Merged tags capped at 20 per slide (line 64: `.slice(0, 20)`). Set deduplication prevents duplicates.                                                                                                                                                                              |
+| Tenant isolation       | **PASS**     | Fetch query at line 46-50 filters by `tenant_id`. Update at line 71 also includes `.eq('tenant_id', tenantId)`.                                                                                                                                                                    |
+| Empty tags array       | **PASS**     | Zod schema enforces `.min(1)` on tags array. Empty array is rejected.                                                                                                                                                                                                              |
+| Invalid JSON body      | **PASS**     | Caught at line 28-31, returns 400.                                                                                                                                                                                                                                                 |
+| Tag sanitization (XSS) | **LOW RISK** | Tags are plain strings stored in JSONB. React renders them with JSX escaping (no `dangerouslySetInnerHTML`). Stored XSS is not possible in the current rendering pipeline. However, no regex filter prevents tags containing HTML entities, angle brackets, or control characters. |
+
+### 3. API Audit: GET /api/dashboard/stats (Modified)
+
+| Check                    | Result         | Details                                                                                                                                                                                                                                  |
+| ------------------------ | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Auth required            | **PASS**       | `requireAdmin(request)` at line 13.                                                                                                                                                                                                      |
+| Rate limiting            | **PASS**       | 30 requests per minute at line 20.                                                                                                                                                                                                       |
+| Tenant isolation         | **PASS**       | All 8 queries in Promise.all filter by `tenantId` from `profile.tenant_id`.                                                                                                                                                              |
+| New queries correct      | **PASS**       | `prevExportsCount` queries activity_logs with `gte(sixtyDaysAgo)` AND `lt(thirtyDaysAgo)` -- correctly targets the 30-60 day window.                                                                                                     |
+| previousSlides semantics | **SEE BUG-33** | Query counts slides with `created_at < thirtyDaysAgo` and `status != deprecated`. This is NOT "slides in the previous 30-day window" but rather "total slides that existed 30 days ago." The trend comparison is semantically incorrect. |
+| Null safety              | **PASS**       | All counts use `?? 0` fallback (lines 104-111).                                                                                                                                                                                          |
+| Error handling           | **PASS**       | Wrapped in try/catch returning generic 500 error.                                                                                                                                                                                        |
+
+### 4. Frontend Audit: BulkTagPopover Component
+
+| Check                          | Result         | Details                                                                                                                                                                                                                            |
+| ------------------------------ | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Uses translated strings        | **PASS**       | All visible text uses `t()` -- `admin.add_tags`, `admin.select_tags`, `admin.new_tag_placeholder`, `admin.apply_tags`.                                                                                                             |
+| Empty state (no existing tags) | **PASS**       | When `allTags.length === 0`, the checkbox section is skipped (line 102 conditional). Only the new-tag input and apply button are shown.                                                                                            |
+| State reset on close           | **PASS**       | `onOpenChange` handler resets `selectedTags` and `newTag` when popover closes (lines 83-85).                                                                                                                                       |
+| Keyboard support               | **PASS**       | Enter key triggers `handleApply` (lines 122-125).                                                                                                                                                                                  |
+| Apply with no selection        | **PASS**       | Apply button disabled when no tags selected and no new tag typed (line 132).                                                                                                                                                       |
+| shadcn Input not used          | **SEE BUG-34** | Line 115-127 uses a raw `<input>` element with manually replicated styling instead of the `Input` component from `@/components/ui/input`.                                                                                          |
+| Max tag input length           | **PASS**       | `maxLength={50}` on the raw input (line 121). Consistent with Zod validation.                                                                                                                                                      |
+| Duplicate new tag handling     | **LOW RISK**   | If the user types a new tag that matches an existing checked tag, both will be in the `tags` array passed to `onApply`. The API-side Set dedup handles this, but the UI does not prevent it. Not a bug -- just slightly redundant. |
+
+### 5. Frontend Audit: handleBulkStatusChange / handleBulkAddTags
+
+| Check                        | Result   | Details                                                                                                             |
+| ---------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------- |
+| Optimistic UI update         | **PASS** | On success, `setSlides` updates local state to reflect new status/tags without re-fetching.                         |
+| Selection cleared on success | **PASS** | `setSelected(new Set())` called on success for both handlers.                                                       |
+| Error toast                  | **PASS** | On non-ok response, error is extracted from JSON and shown via toast. Falls back to `t('admin.bulk_action_error')`. |
+| Loading state managed        | **PASS** | `bulkStatusLoading` and `bulkTagsLoading` set/unset in try/finally blocks.                                          |
+| Session null guard           | **PASS** | Both handlers return early if `session` is null (silently -- see BUG-35).                                           |
+
+### 6. Frontend Audit: Dashboard trendPercent + Trend Badges
+
+| Check                  | Result   | Details                                                                                                                                                                                                              |
+| ---------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Division by zero       | **PASS** | `trendPercent` handles `previous === 0` explicitly at line 145-146. Returns stable if both are 0, +100% if only current > 0.                                                                                         |
+| Backward compatibility | **PASS** | `DashboardData` interface includes `previousExports` and `previousSlides` as `number`. Since the API always returns these with `?? 0` fallback, undefined is not possible when the endpoint is the Sprint 6 version. |
+| Trend badge visibility | **PASS** | Trend badges only shown when `direction !== 'stable'` (line 211).                                                                                                                                                    |
+| Color coding           | **PASS** | Up = `text-emerald-600` (green), Down = `text-destructive` (red).                                                                                                                                                    |
+| Translation            | **PASS** | `dashboard.vs_previous_30d` present in both en.json and de.json.                                                                                                                                                     |
+
+### 7. Translation Completeness
+
+All 9 new translation keys verified in BOTH locale files:
+
+| Key                          | en.json                                          | de.json                                               |
+| ---------------------------- | ------------------------------------------------ | ----------------------------------------------------- |
+| `admin.change_status`        | "Change status" (line 796)                       | "Status andern" (line 796)                            |
+| `admin.add_tags`             | "Add tags" (line 797)                            | "Tags hinzufugen" (line 797)                          |
+| `admin.select_tags`          | "Select tags to add" (line 798)                  | "Tags zum Hinzufugen auswahlen" (line 798)            |
+| `admin.new_tag_placeholder`  | "New tag..." (line 799)                          | "Neuer Tag..." (line 799)                             |
+| `admin.apply_tags`           | "Apply tags" (line 800)                          | "Tags anwenden" (line 800)                            |
+| `admin.status_changed_count` | "Status updated for {{count}} slides" (line 801) | "Status fur {{count}} Slides aktualisiert" (line 801) |
+| `admin.tags_added_count`     | "Tags added to {{count}} slides" (line 802)      | "Tags zu {{count}} Slides hinzugefugt" (line 802)     |
+| `admin.bulk_action_error`    | "Bulk action failed" (line 803)                  | "Massenaktion fehlgeschlagen" (line 803)              |
+| `dashboard.vs_previous_30d`  | "vs. previous 30 days" (line 1206)               | "ggu. vorherigen 30 Tagen" (line 1206)                |
+
+**Result: PASS** -- all keys present in both locales with correct interpolation.
+
+---
+
+### 8. Bugs Found
+
+#### BUG-32: bulk-status endpoint leaks Supabase error message to client
+
+- **Severity:** MEDIUM
+- **File:** `src/app/api/slides/bulk-status/route.ts`, line 70
+- **Code:**
+  ```typescript
+  if (updateError) {
+    return NextResponse.json({ error: updateError.message }, { status: 500 })
+  }
+  ```
+- **Description:** The raw `updateError.message` from the Supabase client is returned directly to the client. This could leak internal details such as table names, column names, constraint names, or PostgreSQL error codes. The analogous bulk-tags endpoint (line 52-54) correctly returns a generic "Failed to fetch slides" message.
+- **Expected:** Return a generic error message: `{ error: 'Failed to update slides' }` and log the actual error server-side.
+- **Priority:** Fix before production.
+
+#### BUG-33: previousSlides metric is semantically misleading for trend calculation
+
+- **Severity:** MEDIUM
+- **File:** `src/app/api/dashboard/stats/route.ts`, lines 94-100
+- **Code:**
+  ```typescript
+  // Slides created in previous 30-day window (for new-slide trend)
+  supabase
+    .from('slides')
+    .select('id', { count: 'exact', head: true })
+    .eq('tenant_id', tenantId)
+    .neq('status', 'deprecated')
+    .lt('created_at', thirtyDaysAgo),
+  ```
+- **Description:** The comment says "previous 30-day window" but the query counts ALL non-deprecated slides created BEFORE 30 days ago (with no lower bound). This means `previousSlides` represents the total slide count as it was ~30 days ago. Meanwhile, `totalSlides` counts ALL non-deprecated slides including those older ones. So the trend shows growth in total library size, not a period-over-period comparison of new slides added.
+
+  For **exports**, the trend correctly compares: "exports in last 30 days" vs "exports in the 30-60 day window" (a true period-over-period comparison).
+
+  For **slides**, the trend compares: "total slides now" vs "total slides 30 days ago" -- this is a cumulative metric, not a period comparison. This is inconsistent with the exports trend and with the label "vs. previous 30 days."
+
+  Example: A tenant with 100 slides 30 days ago and 110 slides now shows +10%. A tenant with 100 slides 30 days ago and 100 slides now (same slides, none added, none removed) shows 0%. The comparison is technically valid as a "library growth" metric, but it is labeled and presented as if it were a period comparison.
+
+- **Expected:** Either (a) query slides created in the 30-60 day window (matching exports pattern) and compare against slides created in the last 30 days, or (b) update the label from "vs. previous 30 days" to "growth from 30 days ago."
+- **Priority:** Fix before production. The current metric could be confusing or misleading to admins.
+
+#### BUG-34: BulkTagPopover uses raw HTML input instead of shadcn Input component
+
+- **Severity:** LOW
+- **File:** `src/app/(app)/admin/slides/page.tsx`, lines 115-127
+- **Code:**
+  ```tsx
+  <input
+    type="text"
+    className="flex h-8 w-full rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground"
+    placeholder={t('admin.new_tag_placeholder')}
+    ...
+  />
+  ```
+- **Description:** The project rules (`.claude/rules/frontend.md`) state: "NEVER create custom implementations of: Button, Input, Select, Checkbox..." A shadcn `Input` component exists at `src/components/ui/input.tsx`. The BulkTagPopover uses a raw `<input>` element with manually duplicated CSS classes instead of importing `Input` from `@/components/ui/input`. The styling also differs -- the raw input uses `h-8` while the shadcn Input uses `h-10`, and the raw input is missing the focus ring styles (`focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`).
+- **Expected:** Replace with `<Input className="h-8" ... />` from `@/components/ui/input`.
+- **Priority:** Fix in next sprint. Violates project conventions but is functionally correct.
+
+#### BUG-35: Silent failure when session is null in bulk action handlers
+
+- **Severity:** LOW
+- **File:** `src/app/(app)/admin/slides/page.tsx`, lines 327-328, 362-363
+- **Code:**
+  ```typescript
+  if (!session) return
+  ```
+- **Description:** In both `handleBulkStatusChange` and `handleBulkAddTags`, if `getSession()` returns no session, the function returns silently without clearing the loading state or notifying the user. Since the function entered the `try` block but returns before setting `setBulkStatusLoading(false)` in `finally` -- wait, actually the `finally` block DOES execute on early return. So loading state IS cleared. However, the user receives no feedback that the action failed due to an expired session. The button stops spinning but nothing happens.
+- **Note:** This pattern is consistent with other handlers in the same file (e.g., `fetchSlides`, `handleDelete`, `handleBulkDelete`), so this is a pre-existing pattern, not specific to Sprint 6.
+- **Priority:** Low. Consider adding a `toast.error('Session expired')` or triggering a re-auth flow. Non-blocking.
+
+#### BUG-36: Unbounded project query in bulk-status notification logic
+
+- **Severity:** MEDIUM
+- **File:** `src/app/api/slides/bulk-status/route.ts`, lines 87-90
+- **Code:**
+  ```typescript
+  const { data: affectedProjects } = await supabase
+    .from('projects')
+    .select('id, owner_id, name, slide_order')
+    .eq('tenant_id', tenantId)
+  ```
+- **Description:** This query fetches ALL projects for the tenant (no `.limit()`) including the full `slide_order` JSONB column for every project. For tenants with hundreds or thousands of projects, this could be a significant performance issue and memory burden on the serverless function.
+
+  The single-slide deprecation endpoint (`src/app/api/slides/[id]/route.ts`, line 158-162) uses a much more efficient approach: `.contains('slide_order', [{ slide_id: id }])` which filters at the database level. The bulk endpoint cannot use the same `contains` approach for multiple slide IDs in a single query, but it should at minimum add a `.limit()` or paginate.
+
+  Additionally, per `.claude/rules/backend.md`: "Use `.limit()` on all list queries."
+
+- **Expected:** Either (a) add a reasonable `.limit()` (e.g., 1000), or (b) for each slide ID in `validIds`, query with `.contains('slide_order', [{ slide_id: slideId }])` individually (trading N queries for reduced payload), or (c) select only `id, owner_id, name` and use a database function to check slide_order membership.
+- **Priority:** Fix before production. Risk of OOM or timeout on large tenants.
+
+#### BUG-37: Notification message only references first project per owner
+
+- **Severity:** LOW
+- **File:** `src/app/api/slides/bulk-status/route.ts`, lines 99-112
+- **Code:**
+  ```typescript
+  const uniqueOwners = [...new Set(relevantProjects.map((p) => p.owner_id))]
+  createNotifications(
+    uniqueOwners.map((ownerId) => {
+      const proj = relevantProjects.find((p) => p.owner_id === ownerId)!
+      return {
+        ...
+        message: `${validIds.length} slide${...} in "${proj.name}" ${...} been deprecated`,
+        resourceId: proj.id,
+      }
+    })
+  )
+  ```
+- **Description:** If an owner has multiple projects affected by the bulk deprecation, `relevantProjects.find()` returns only the FIRST matching project. The notification message says "X slides in 'Project A' have been deprecated" but does not mention Project B, Project C, etc. The `resourceId` also points to only the first project, so clicking the notification navigates to only one of the affected projects.
+- **Expected:** Either (a) send one notification per affected project (not per owner), or (b) adjust the message to say "X slides in Y projects have been deprecated" and list the project names.
+- **Priority:** Low. Functional but incomplete information for the user.
+
+---
+
+### 9. Cross-Browser & Responsive Check (Code Review)
+
+| Viewport         | Result               | Notes                                                                                                                                                                                                     |
+| ---------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1440px (Desktop) | **PASS**             | Bulk action toolbar renders inline with adequate spacing. Dropdown and popover align correctly. Dashboard trend badges fit within card layout.                                                            |
+| 768px (Tablet)   | **PASS**             | Selection toolbar wraps using `flex-wrap` (implicit in `flex items-center gap-3`). Popover content `w-64` fits within viewport. Dashboard cards use `sm:grid-cols-2`.                                     |
+| 375px (Mobile)   | **PASS with caveat** | The bulk action toolbar has 4-5 buttons in a row which will wrap. The popover `w-64` (256px) fits within 375px viewport minus padding. Dashboard trend text may truncate on very long percentage strings. |
+| Chrome           | **PASS**             | Standard React/Tailwind rendering.                                                                                                                                                                        |
+| Firefox          | **PASS**             | No browser-specific APIs. DropdownMenu and Popover from Radix UI are cross-browser.                                                                                                                       |
+| Safari           | **PASS**             | No known compatibility issues with the components used.                                                                                                                                                   |
+
+### 10. Regression Check
+
+| Feature                       | Risk                                          | Result                                                                                                                                          |
+| ----------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| PROJ-15 (Slide Library)       | Modified page.tsx                             | **PASS** -- existing functionality (upload, edit, delete, single-slide operations) unchanged. New code is additive.                             |
+| PROJ-16 (Slide Tags)          | Tags modified via new bulk endpoint           | **PASS** -- bulk-tags uses same merge logic as edit-slide. Single-slide tag editing unaffected.                                                 |
+| PROJ-40 (Analytics Dashboard) | dashboard/stats endpoint modified             | **PASS** -- two new fields added to response; existing fields unchanged. Old dashboard code would simply ignore the new fields if not consumed. |
+| PROJ-13 (Notifications)       | New notification trigger for bulk deprecation | **PASS** -- uses same `createNotifications` API as existing single-slide deprecation. No changes to notification infrastructure.                |
+| PROJ-39 (Activity Log)        | New activity log entries for bulk deprecation | **PASS** -- uses same `logActivity` API. Event type `slide.deprecated` already exists in `ALL_EVENT_TYPES` array.                               |
+
+---
+
+### 11. Summary
+
+| Category                               | Result                                |
+| -------------------------------------- | ------------------------------------- |
+| Build verification                     | **PASS**                              |
+| Lint                                   | **PASS** (0 errors)                   |
+| API auth + rate limiting (bulk-status) | **PASS**                              |
+| API auth + rate limiting (bulk-tags)   | **PASS**                              |
+| API input validation (bulk-status)     | **PASS**                              |
+| API input validation (bulk-tags)       | **PASS**                              |
+| Tenant isolation (both endpoints)      | **PASS**                              |
+| Dashboard stats modification           | **PASS** (with BUG-33)                |
+| Translation completeness               | **PASS** (all 9 keys in both locales) |
+| Frontend components                    | **PASS** (with BUG-34)                |
+| Cross-browser                          | **PASS**                              |
+| Responsive layout                      | **PASS**                              |
+| Regression                             | **PASS**                              |
+
+### Bugs Summary
+
+| Bug                                                            | Severity | Priority              | Category               |
+| -------------------------------------------------------------- | -------- | --------------------- | ---------------------- |
+| BUG-32: Supabase error message leaked to client in bulk-status | MEDIUM   | Fix before production | Security               |
+| BUG-33: previousSlides metric semantically misleading          | MEDIUM   | Fix before production | Data accuracy          |
+| BUG-34: Raw HTML input instead of shadcn Input component       | LOW      | Fix in next sprint    | Convention             |
+| BUG-35: Silent failure on expired session in bulk handlers     | LOW      | Non-blocking          | UX                     |
+| BUG-36: Unbounded project query in bulk-status notifications   | MEDIUM   | Fix before production | Performance / Security |
+| BUG-37: Notification only references first project per owner   | LOW      | Non-blocking          | UX                     |
+
+### Verdict
+
+**Conditionally production-ready.** Three MEDIUM bugs should be fixed before production deployment:
+
+1. **BUG-32** (Medium/Security): Replace `updateError.message` with a generic error message in bulk-status endpoint.
+2. **BUG-33** (Medium/Data): Fix the previousSlides query to use a proper 30-60 day window, or relabel the trend metric.
+3. **BUG-36** (Medium/Performance): Add `.limit()` or use database-level filtering for the project notification query.
+
+The remaining three bugs (BUG-34, BUG-35, BUG-37) are LOW severity and can be addressed in subsequent sprints.
+
 ## Deployment
 
 _To be added by /deploy_

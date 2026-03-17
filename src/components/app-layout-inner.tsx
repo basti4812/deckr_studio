@@ -7,6 +7,7 @@ import { SubscriptionBanner } from '@/components/subscription-banner'
 import { LanguageToggle } from '@/components/language-toggle'
 import { MobileNav } from '@/components/mobile-nav'
 import { BoardFullscreenProvider, useBoardFullscreen } from '@/providers/fullscreen-provider'
+import { CommandPalette } from '@/components/command-palette'
 
 function InnerLayout({ children }: { children: React.ReactNode }) {
   const { isFullscreen } = useBoardFullscreen()
@@ -34,6 +35,7 @@ function InnerLayout({ children }: { children: React.ReactNode }) {
         <main className="flex flex-1 flex-col gap-4 p-6 pb-20 md:pb-6">{children}</main>
       </SidebarInset>
       <MobileNav />
+      <CommandPalette />
     </SidebarProvider>
   )
 }

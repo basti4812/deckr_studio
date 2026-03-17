@@ -439,7 +439,12 @@
     "step_finalizing": "Download wird abgeschlossen...",
     "taking_moment": "Dies kann einen Moment dauern...",
     "not_authenticated": "Nicht authentifiziert. Bitte aktualisieren Sie die Seite und versuchen Sie es erneut.",
-    "export_failed_message": "Export fehlgeschlagen. Bitte versuchen Sie es erneut."
+    "export_failed_message": "Export fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "preview_title": "Export-Vorschau",
+    "slide_count_one": "{{count}} Folie",
+    "slide_count_other": "{{count}} Folien",
+    "seconds": "Sekunden",
+    "start_export": "Export starten"
   },
   "fill_warning": {
     "title": "Erforderliche Felder sind leer",
@@ -1227,5 +1232,14 @@
     "wrong_password": "Das Passwort ist leider nicht korrekt.",
     "error": "Ein Fehler ist aufgetreten. Bitte versuche es erneut.",
     "closed_beta": "onslide befindet sich aktuell in einer geschlossenen Beta-Phase. Du benötigst ein Passwort, um die App zu testen."
+  },
+  "search": {
+    "placeholder": "Seiten, Projekte, Folien, Team durchsuchen…",
+    "searching": "Wird gesucht…",
+    "no_results": "Keine Ergebnisse gefunden.",
+    "navigation": "Navigation",
+    "projects": "Projekte",
+    "slides": "Folien",
+    "team": "Team"
   }
 }
