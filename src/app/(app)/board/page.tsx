@@ -278,7 +278,7 @@ function BoardPageInner() {
   } | null>(null)
 
   // Share panel state
-  const [sharePanelOpen, setSharePanelOpen] = useState(false)
+  const [sharePanelTab, setSharePanelTab] = useState<'people' | 'links' | null>(null)
   const [shares, setShares] = useState<ShareRecord[]>([])
 
   // Comment panel state (PROJ-30)
@@ -1063,9 +1063,14 @@ function BoardPageInner() {
     }
   }
 
-  function handleOpenSharePanel() {
+  function handleOpenShareLinks() {
     fetchShares()
-    setSharePanelOpen(true)
+    setSharePanelTab('links')
+  }
+
+  function handleOpenManageAccess() {
+    fetchShares()
+    setSharePanelTab('people')
   }
 
   async function handleAddShare(
@@ -2254,7 +2259,8 @@ function BoardPageInner() {
               projectId && canEdit ? () => setUploadDialogOpen(true) : undefined
             }
             onSaveVersion={projectId && canEdit ? () => setSaveVersionOpen(true) : undefined}
-            onShareLink={projectId && canEdit ? handleOpenSharePanel : undefined}
+            onShareLink={projectId && canEdit ? handleOpenShareLinks : undefined}
+            onManageAccess={projectId && canEdit ? handleOpenManageAccess : undefined}
             previewUrls={previewUrls}
           />
         </div>
@@ -2344,8 +2350,9 @@ function BoardPageInner() {
       {/* Share panel (owner + editors) */}
       {canEdit && (
         <SharePanel
-          open={sharePanelOpen}
-          onClose={() => setSharePanelOpen(false)}
+          open={sharePanelTab !== null}
+          defaultTab={sharePanelTab ?? 'people'}
+          onClose={() => setSharePanelTab(null)}
           projectId={projectId!}
           projectName={project?.name ?? ''}
           ownerName={displayName ?? 'You'}

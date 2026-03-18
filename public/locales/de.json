@@ -348,7 +348,12 @@
     "remove_access": "Zugriff entfernen",
     "copy_link": "Link kopieren",
     "open_link": "Link öffnen",
-    "revoke_link": "Link widerrufen"
+    "revoke_link": "Link widerrufen",
+    "colleagues": "Kolleg:innen",
+    "links_title": "Browserlinks",
+    "links_description": "Erstellen und verwalten Sie Links für externe Empfänger.",
+    "access_title": "Zugriff verwalten",
+    "access_description": "Teilen Sie dieses Projekt mit Kolleg:innen."
   },
   "board": {
     "view_only": "Nur Ansicht",
@@ -449,6 +454,7 @@
     "add_slides_to_export": "Folien hinzufügen zum Exportieren",
     "add_slides_to_share": "Folien hinzufügen zum Teilen",
     "share_link_tooltip": "Browserlink für Kunden erstellen",
+    "manage_access_tooltip": "Projekt mit Kolleg:innen teilen",
     "open_project_hint": "Öffnen Sie ein Projekt, um Ihre Präsentation zusammenzustellen.",
     "open_project": "Projekt öffnen"
   },

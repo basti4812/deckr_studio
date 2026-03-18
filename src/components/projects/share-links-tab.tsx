@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Check,
   ChevronDown,
@@ -60,17 +61,17 @@ interface ShareLinksTabProps {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
+function formatDate(iso: string, locale: string): string {
+  return new Date(iso).toLocaleDateString(locale === 'de' ? 'de-DE' : 'en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   })
 }
 
-function formatDateTime(iso: string): string {
+function formatDateTime(iso: string, locale: string): string {
   const d = new Date(iso)
-  return d.toLocaleDateString('en-US', {
+  return d.toLocaleDateString(locale === 'de' ? 'de-DE' : 'en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -79,24 +80,12 @@ function formatDateTime(iso: string): string {
   })
 }
 
-function expiryLabel(expiresAt: string | null): string {
-  if (!expiresAt) return 'Never expires'
-  const d = new Date(expiresAt)
-  if (d < new Date()) return 'Expired'
-  return `Expires ${formatDate(expiresAt)}`
-}
-
-function viewCountLabel(count: number): string {
-  if (count === 0) return 'Not viewed yet'
-  if (count === 1) return 'Viewed 1 time'
-  return `Viewed ${count} times`
-}
-
 // ---------------------------------------------------------------------------
 // AccessHistory sub-component
 // ---------------------------------------------------------------------------
 
 function AccessHistory({ projectId, link }: { projectId: string; link: ShareLink }) {
+  const { t, i18n } = useTranslation()
   const [data, setData] = useState<AccessData>({
     accesses: [],
     total: 0,
@@ -155,6 +144,13 @@ function AccessHistory({ projectId, link }: { projectId: string; link: ShareLink
     fetchAccesses(500)
   }
 
+  const viewLabel =
+    link.view_count === 0
+      ? t('share.not_viewed')
+      : link.view_count === 1
+        ? t('share.viewed_one')
+        : t('share.viewed_other', { count: link.view_count })
+
   if (link.view_count === 0) {
     return null
   }
@@ -166,11 +162,11 @@ function AccessHistory({ projectId, link }: { projectId: string; link: ShareLink
           variant="ghost"
           size="sm"
           className="h-7 w-full justify-between px-2 text-xs text-muted-foreground hover:text-foreground"
-          aria-label={`${viewCountLabel(link.view_count)}. Toggle access history.`}
+          aria-label={viewLabel}
         >
           <span className="flex items-center gap-1.5">
             <Eye className="h-3 w-3" />
-            {viewCountLabel(link.view_count)}
+            {viewLabel}
           </span>
           {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
         </Button>
@@ -183,18 +179,18 @@ function AccessHistory({ projectId, link }: { projectId: string; link: ShareLink
             </div>
           ) : data.accesses.length === 0 && data.loaded ? (
             <p className="py-2 text-center text-xs text-muted-foreground">
-              No access records found.
+              {t('share.no_access_records')}
             </p>
           ) : (
             <>
-              <ul className="space-y-0.5" aria-label="Access history">
+              <ul className="space-y-0.5" aria-label={viewLabel}>
                 {data.accesses.map((access) => (
                   <li
                     key={access.id}
                     className="flex items-center gap-1.5 rounded px-1.5 py-1 text-xs text-muted-foreground hover:bg-muted/50"
                   >
                     <Clock className="h-3 w-3 shrink-0" />
-                    <span>{formatDateTime(access.accessed_at)}</span>
+                    <span>{formatDateTime(access.accessed_at, i18n.language)}</span>
                   </li>
                 ))}
               </ul>
@@ -209,7 +205,7 @@ function AccessHistory({ projectId, link }: { projectId: string; link: ShareLink
                   disabled={data.loading}
                 >
                   {data.loading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
-                  Show all {data.total} accesses
+                  {t('share.show_all_accesses', { count: data.total })}
                 </Button>
               )}
 
@@ -232,6 +228,7 @@ function AccessHistory({ projectId, link }: { projectId: string; link: ShareLink
 // ---------------------------------------------------------------------------
 
 export function ShareLinksTab({ projectId }: ShareLinksTabProps) {
+  const { t, i18n } = useTranslation()
   const [links, setLinks] = useState<ShareLink[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
@@ -317,6 +314,19 @@ export function ShareLinksTab({ projectId }: ShareLinksTabProps) {
     })
   }
 
+  function getExpiryLabel(expiresAt: string | null): string {
+    if (!expiresAt) return t('share.never_expires')
+    const d = new Date(expiresAt)
+    if (d < new Date()) return t('share.expired')
+    return `${t('share.expires')} ${formatDate(expiresAt, i18n.language)}`
+  }
+
+  function getViewCountLabel(count: number): string {
+    if (count === 0) return t('share.not_viewed')
+    if (count === 1) return t('share.viewed_one')
+    return t('share.viewed_other', { count })
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -329,17 +339,17 @@ export function ShareLinksTab({ projectId }: ShareLinksTabProps) {
     <div className="mt-4 flex flex-col gap-4">
       {/* Create link section */}
       <div className="space-y-3">
-        <p className="text-sm font-medium">Create a public link</p>
+        <p className="text-sm font-medium">{t('share.create_public_link')}</p>
         <div className="flex items-center gap-2">
           <Select value={expiryOption} onValueChange={setExpiryOption}>
             <SelectTrigger className="w-[140px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="1d">1 day</SelectItem>
-              <SelectItem value="7d">7 days</SelectItem>
-              <SelectItem value="30d">30 days</SelectItem>
-              <SelectItem value="never">No expiry</SelectItem>
+              <SelectItem value="1d">{t('share.one_day')}</SelectItem>
+              <SelectItem value="7d">{t('share.seven_days')}</SelectItem>
+              <SelectItem value="30d">{t('share.thirty_days')}</SelectItem>
+              <SelectItem value="never">{t('share.no_expiry')}</SelectItem>
             </SelectContent>
           </Select>
           <Button onClick={handleCreate} disabled={creating} size="sm">
@@ -348,7 +358,7 @@ export function ShareLinksTab({ projectId }: ShareLinksTabProps) {
             ) : (
               <Link className="mr-1.5 h-3.5 w-3.5" />
             )}
-            Create link
+            {t('share.create_link')}
           </Button>
         </div>
       </div>
@@ -357,11 +367,13 @@ export function ShareLinksTab({ projectId }: ShareLinksTabProps) {
 
       {/* Links list */}
       <div className="space-y-1">
-        <p className="text-sm font-medium text-muted-foreground mb-2">Share links</p>
+        <p className="text-sm font-medium text-muted-foreground mb-2">
+          {t('share.share_links_list')}
+        </p>
 
         {links.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
-            No share links yet. Create one above.
+            {t('share.no_share_links')}
           </p>
         ) : (
           <div className="space-y-2">
@@ -379,7 +391,7 @@ export function ShareLinksTab({ projectId }: ShareLinksTabProps) {
                     size="icon"
                     className="h-7 w-7 shrink-0"
                     onClick={() => handleCopy(link)}
-                    title="Copy link"
+                    title={t('share.copy_link')}
                   >
                     {copiedId === link.id ? (
                       <Check className="h-3.5 w-3.5 text-green-600" />
@@ -398,7 +410,7 @@ export function ShareLinksTab({ projectId }: ShareLinksTabProps) {
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 shrink-0"
-                      title="Open link"
+                      title={t('share.open_link')}
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
                     </Button>
@@ -408,19 +420,19 @@ export function ShareLinksTab({ projectId }: ShareLinksTabProps) {
                 {/* Meta row */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs text-muted-foreground">
-                    Created {formatDate(link.created_at)}
+                    {t('share.created')} {formatDate(link.created_at, i18n.language)}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {expiryLabel(link.expires_at)}
+                    {getExpiryLabel(link.expires_at)}
                   </span>
                   <Badge variant="secondary" className="text-xs">
-                    {viewCountLabel(link.view_count)}
+                    {getViewCountLabel(link.view_count)}
                   </Badge>
                   <Badge
                     variant={link.status === 'active' ? 'default' : 'secondary'}
                     className="text-xs"
                   >
-                    {link.status === 'active' ? 'Active' : 'Expired'}
+                    {link.status === 'active' ? t('share.active') : t('share.expired')}
                   </Badge>
                   <div className="flex-1" />
                   <Button
@@ -429,7 +441,7 @@ export function ShareLinksTab({ projectId }: ShareLinksTabProps) {
                     className="h-7 w-7 text-muted-foreground hover:text-destructive"
                     onClick={() => handleDelete(link.id)}
                     disabled={deletingId === link.id}
-                    title="Revoke link"
+                    title={t('share.revoke_link')}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>

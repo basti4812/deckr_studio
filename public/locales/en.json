@@ -348,7 +348,12 @@
     "remove_access": "Remove access",
     "copy_link": "Copy link",
     "open_link": "Open link",
-    "revoke_link": "Revoke link"
+    "revoke_link": "Revoke link",
+    "colleagues": "Colleagues",
+    "links_title": "Share Links",
+    "links_description": "Create and manage links for external recipients.",
+    "access_title": "Manage Access",
+    "access_description": "Share this project with colleagues."
   },
   "board": {
     "view_only": "View only",
@@ -449,6 +454,7 @@
     "add_slides_to_export": "Add slides to export",
     "add_slides_to_share": "Add slides to create a link",
     "share_link_tooltip": "Create a shareable link for customers",
+    "manage_access_tooltip": "Share project with colleagues",
     "open_project_hint": "Open a project to start assembling your presentation.",
     "open_project": "Open project"
   },

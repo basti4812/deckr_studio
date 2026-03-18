@@ -11,6 +11,7 @@ import {
   Play,
   Save,
   Upload,
+  Users,
 } from 'lucide-react'
 import {
   DndContext,
@@ -73,6 +74,7 @@ interface TrayPanelProps {
   onUploadPersonalSlide?: () => void
   onSaveVersion?: () => void
   onShareLink?: () => void
+  onManageAccess?: () => void
   previewUrls?: Record<string, string>
 }
 
@@ -101,6 +103,7 @@ export function TrayPanel({
   onUploadPersonalSlide,
   onSaveVersion,
   onShareLink,
+  onManageAccess,
   previewUrls,
 }: TrayPanelProps) {
   const { t } = useTranslation()
@@ -167,7 +170,12 @@ export function TrayPanel({
 
         {/* Action buttons — only shown when a project is open */}
         {projectId &&
-          (onPresent || onExport || onUploadPersonalSlide || onSaveVersion || onShareLink) && (
+          (onPresent ||
+            onExport ||
+            onUploadPersonalSlide ||
+            onSaveVersion ||
+            onShareLink ||
+            onManageAccess) && (
             <TooltipProvider delayDuration={300}>
               <div className="flex gap-1">
                 {onUploadPersonalSlide && (
@@ -284,6 +292,21 @@ export function TrayPanel({
                         ? t('tray.add_slides_to_share')
                         : t('tray.share_link_tooltip')}
                     </TooltipContent>
+                  </Tooltip>
+                )}
+                {onManageAccess && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={onManageAccess}
+                      >
+                        <Users className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('tray.manage_access_tooltip')}</TooltipContent>
                   </Tooltip>
                 )}
               </div>
