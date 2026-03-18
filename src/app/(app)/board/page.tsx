@@ -54,6 +54,7 @@ import { TrayPanel, type TrayItem } from '@/components/board/tray-panel'
 import { EditFieldsDialog } from '@/components/board/edit-fields-dialog'
 import { FillWarningDialog } from '@/components/board/fill-warning-dialog'
 import { ExportProgressDialog } from '@/components/board/export-progress-dialog'
+import { PrepareDialog } from '@/components/board/prepare-dialog'
 import { SlidePreviewDialog } from '@/components/board/slide-preview-dialog'
 import { PresentationMode, type PresentationSlide } from '@/components/board/presentation-mode'
 import { SharePanel, type ShareRecord, type SearchUser } from '@/components/projects/share-panel'
@@ -269,6 +270,13 @@ function BoardPageInner() {
     format: 'pptx' | 'pdf'
   } | null>(null)
   const [presentationMode, setPresentationMode] = useState(false)
+
+  // Prepare dialog state (PROJ-35: text injection for presentation/share/PDF)
+  const [prepareState, setPrepareState] = useState<{
+    open: boolean
+    format: 'presentation' | 'share' | 'pdf'
+    onReady: (previews: Record<string, string>) => void
+  } | null>(null)
 
   // Share panel state
   const [sharePanelOpen, setSharePanelOpen] = useState(false)
@@ -970,28 +978,69 @@ function BoardPageInner() {
     if (!projectId) return
     lastExportTypeRef.current = 'pdf'
     const issues = checkFillStatus(trayItems, slideMap, textEdits)
+    const startPdf = () => {
+      if (hasAnyTextEdits()) {
+        startPrepare('pdf', () => showExportPreview('pdf'))
+      } else {
+        showExportPreview('pdf')
+      }
+    }
     if (issues.length > 0) {
       setFillWarning({
         issues,
-        proceed: () => showExportPreview('pdf'),
+        proceed: startPdf,
         proceedLabel: t('board.export_pdf'),
       })
     } else {
-      showExportPreview('pdf')
+      startPdf()
     }
+  }
+
+  /** Check if any tray item has actual text edits that need rendering */
+  function hasAnyTextEdits(): boolean {
+    return trayItems.some((item) => {
+      const slide = slideMap.get(item.slide_id)
+      if (!slide) return false
+      const fields = Array.isArray(slide.editable_fields) ? slide.editable_fields : []
+      const edits = textEdits[item.id]
+      if (!edits) return false
+      return fields.some((f: { id: string }) => edits[f.id]?.trim())
+    })
+  }
+
+  function startPrepare(
+    format: 'presentation' | 'share' | 'pdf',
+    onReady: (previews: Record<string, string>) => void
+  ) {
+    setPrepareState({ open: true, format, onReady })
+  }
+
+  function handlePrepareReady(previews: Record<string, string>) {
+    // Merge rendered previews into local previewUrls state
+    setPreviewUrls((prev) => ({ ...prev, ...previews }))
+    const onReady = prepareState?.onReady
+    setPrepareState(null)
+    onReady?.(previews)
   }
 
   function handlePresent() {
     if (!projectId) return
     const issues = checkFillStatus(trayItems, slideMap, textEdits)
+    const startPresentation = () => {
+      if (hasAnyTextEdits()) {
+        startPrepare('presentation', () => setPresentationMode(true))
+      } else {
+        setPresentationMode(true)
+      }
+    }
     if (issues.length > 0) {
       setFillWarning({
         issues,
-        proceed: () => setPresentationMode(true),
+        proceed: startPresentation,
         proceedLabel: t('board.present'),
       })
     } else {
-      setPresentationMode(true)
+      startPresentation()
     }
   }
 
@@ -2271,6 +2320,17 @@ function BoardPageInner() {
             setFillWarning(null)
           }}
           onGoToField={(instanceId) => setEditingInstance(instanceId)}
+        />
+      )}
+
+      {/* Prepare dialog (PROJ-35: text injection before presentation/share/PDF) */}
+      {prepareState && projectId && (
+        <PrepareDialog
+          open={prepareState.open}
+          projectId={projectId}
+          format={prepareState.format}
+          onReady={handlePrepareReady}
+          onCancel={() => setPrepareState(null)}
         />
       )}
 

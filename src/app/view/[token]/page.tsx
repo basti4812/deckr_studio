@@ -44,7 +44,7 @@ export default async function ViewPage({ params }: { params: Params }) {
   // 3. Load project
   const { data: project } = await supabase
     .from('projects')
-    .select('id, name, slide_order')
+    .select('id, name, slide_order, rendered_previews')
     .eq('id', link.project_id)
     .single()
 
@@ -98,7 +98,11 @@ export default async function ViewPage({ params }: { params: Params }) {
     }
   }
 
-  // Build ordered slides array
+  // Build ordered slides array — prefer rendered previews (text edits applied)
+  const renderedPreviews = (project.rendered_previews ?? {}) as Record<
+    string,
+    { url: string; hash: string } | string
+  >
   const slides: ViewerSlide[] = []
   for (const item of trayItems) {
     if (item.is_personal && item.personal_slide_id) {
@@ -107,7 +111,11 @@ export default async function ViewPage({ params }: { params: Params }) {
       continue
     }
     const slide = slideMap.get(item.slide_id)
-    if (slide) slides.push({ thumbnail_url: slide.thumbnail_url, title: slide.title })
+    if (!slide) continue
+    // Use rendered preview URL if available (contains text edits)
+    const preview = renderedPreviews[item.id]
+    const previewUrl = typeof preview === 'string' ? preview : preview?.url
+    slides.push({ thumbnail_url: previewUrl ?? slide.thumbnail_url, title: slide.title })
   }
 
   if (slides.length === 0) {

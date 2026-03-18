@@ -468,6 +468,16 @@
     "seconds": "Sekunden",
     "start_export": "Export starten"
   },
+  "prepare": {
+    "title": "Präsentation wird vorbereitet",
+    "error_title": "Vorbereitung fehlgeschlagen",
+    "message_presentation": "Deine Texte werden in die Folien eingefügt und für die Präsentation vorbereitet...",
+    "message_share": "Deine Texte werden in die Folien eingefügt und für den Link vorbereitet...",
+    "message_pdf": "Deine Texte werden in die Folien eingefügt und als PDF vorbereitet...",
+    "done": "Fertig!",
+    "cancel": "Abbrechen",
+    "taking_moment": "Das kann einen Moment dauern..."
+  },
   "fill_warning": {
     "title": "Erforderliche Felder sind leer",
     "description": "Die folgenden erforderlichen Felder sind noch nicht ausgefüllt. Sie können trotzdem {{action}}, aber die Felder bleiben leer.",

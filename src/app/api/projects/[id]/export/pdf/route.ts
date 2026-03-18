@@ -39,7 +39,7 @@ export async function POST(request: NextRequest, { params }: { params: Params })
   // Load project
   const { data: project } = await supabase
     .from('projects')
-    .select('id, name, owner_id, slide_order, text_edits')
+    .select('id, name, owner_id, slide_order, text_edits, rendered_previews')
     .eq('id', id)
     .single()
 
@@ -98,6 +98,12 @@ export async function POST(request: NextRequest, { params }: { params: Params })
     }
   }
 
+  // Parse rendered_previews for text-injected thumbnails
+  const renderedPreviews = (project.rendered_previews ?? {}) as Record<
+    string,
+    { url: string; hash: string } | string
+  >
+
   // Build PDF — one 1280×720 page per tray item (16:9)
   const PAGE_W = 1280
   const PAGE_H = 720
@@ -141,9 +147,13 @@ export async function POST(request: NextRequest, { params }: { params: Params })
     const page = pdfDoc.addPage([PAGE_W, PAGE_H])
     let imageEmbedded = false
 
-    if (slide.thumbnail_url) {
+    // Prefer rendered preview (text edits applied) over original thumbnail
+    const preview = renderedPreviews[item.id]
+    const imageUrl = (typeof preview === 'string' ? preview : preview?.url) ?? slide.thumbnail_url
+
+    if (imageUrl) {
       try {
-        const res = await fetch(slide.thumbnail_url)
+        const res = await fetch(imageUrl)
         if (res.ok) {
           const imageBytes = new Uint8Array(await res.arrayBuffer())
           const contentType = res.headers.get('content-type') ?? ''

@@ -468,6 +468,16 @@
     "seconds": "seconds",
     "start_export": "Start Export"
   },
+  "prepare": {
+    "title": "Preparing presentation",
+    "error_title": "Preparation failed",
+    "message_presentation": "Your texts are being applied to the slides and prepared for the presentation...",
+    "message_share": "Your texts are being applied to the slides and prepared for the link...",
+    "message_pdf": "Your texts are being applied to the slides and prepared as PDF...",
+    "done": "Done!",
+    "cancel": "Cancel",
+    "taking_moment": "This may take a moment..."
+  },
   "fill_warning": {
     "title": "Required fields are empty",
     "description": "The following required fields are not yet filled in. You can still {{action}}, but the fields will be empty.",

@@ -5,6 +5,11 @@ import { checkRateLimit } from '@/lib/rate-limit'
 import { logActivity } from '@/lib/activity-log'
 import { onProjectExported } from '@/lib/crm-hooks'
 import { isAllowedStorageUrl } from '@/lib/url-validation'
+import {
+  applyTextEdits as sharedApplyTextEdits,
+  extractSinglePage,
+  type EditableField,
+} from '@/lib/slide-renderer'
 import JSZip from 'jszip'
 
 type Params = Promise<{ id: string }>
@@ -14,13 +19,6 @@ interface TrayItem {
   slide_id: string
   is_personal?: boolean
   personal_slide_id?: string
-}
-
-interface EditableField {
-  id: string
-  label: string
-  placeholder: string
-  required: boolean
 }
 
 interface SlideRecord {
@@ -289,26 +287,7 @@ async function applyTextEdits(
   const hasEdits = fields.some((f) => instanceEdits[f.id]?.trim())
   if (!hasEdits) return new Uint8Array(buffer)
 
-  const zip = await JSZip.loadAsync(buffer)
-  const slideFiles = Object.keys(zip.files).filter((f) => /^ppt\/slides\/slide\d+\.xml$/.test(f))
-
-  for (const slideFile of slideFiles) {
-    let xml = await zip.file(slideFile)!.async('string')
-
-    for (const field of fields) {
-      const value = instanceEdits[field.id]
-      if (!value || !field.placeholder) continue
-      const escapedValue = escapeXml(value)
-      // Pass 1: simple single-run replacement
-      xml = xml.replace(new RegExp(escapeRegex(field.placeholder), 'g'), escapedValue)
-      // Pass 2: cross-run normalization for placeholders split across multiple XML runs
-      xml = normalizeCrossRunPlaceholder(xml, field.placeholder, escapedValue)
-    }
-
-    zip.file(slideFile, xml)
-  }
-
-  return zip.generateAsync({ type: 'uint8array' })
+  return sharedApplyTextEdits(buffer, fields, instanceEdits)
 }
 
 // ---------------------------------------------------------------------------
@@ -435,145 +414,6 @@ function getMaxSlideId(presentationXml: string): number {
  * then rebuilds the paragraph as a single run with the placeholder replaced.
  * Preserves paragraph properties and the first run's character properties.
  */
-function normalizeCrossRunPlaceholder(
-  xml: string,
-  placeholder: string,
-  escapedValue: string
-): string {
-  return xml.replace(/<a:p\b[^>]*>[\s\S]*?<\/a:p>/g, (paragraph) => {
-    // Collect all text run contents in this paragraph
-    const runPattern = /<a:r\b[^>]*>[\s\S]*?<a:t[^>]*>([\s\S]*?)<\/a:t>[\s\S]*?<\/a:r>/g
-    const runs: string[] = []
-    let m
-    while ((m = runPattern.exec(paragraph)) !== null) runs.push(m[1])
-    if (runs.length < 2) return paragraph // single-run case already handled by Pass 1
-
-    const combined = runs.join('')
-    if (!combined.includes(placeholder)) return paragraph
-
-    // Rebuild the paragraph with a single merged run
-    const newText = combined.replace(new RegExp(escapeRegex(placeholder), 'g'), escapedValue)
-    const pOpen = (paragraph.match(/^(<a:p\b[^>]*>)/) || ['', '<a:p>'])[1]
-    const pPr = (paragraph.match(/<a:pPr[^>]*(?:\/>|>[\s\S]*?<\/a:pPr>)/) || [''])[0]
-    const rPr = (paragraph.match(/<a:r\b[^>]*>[\s\S]*?(<a:rPr[^>]*(?:\/>|>[\s\S]*?<\/a:rPr>))/) || [
-      '',
-      '',
-    ])[1]
-    const newRun = rPr
-      ? `<a:r>${rPr}<a:t>${newText}</a:t></a:r>`
-      : `<a:r><a:t>${newText}</a:t></a:r>`
-    return pPr ? `${pOpen}${pPr}${newRun}</a:p>` : `${pOpen}${newRun}</a:p>`
-  })
-}
-
-/**
- * Extracts a single page from a multi-page PPTX by presentation order,
- * returning a new single-slide PPTX. Uses presentation.xml to determine
- * the actual slide order (file names like slide3.xml don't imply order).
- */
-async function extractSinglePage(buffer: ArrayBuffer, pageIndex: number): Promise<ArrayBuffer> {
-  const srcZip = await JSZip.loadAsync(buffer)
-
-  // Read presentation.xml.rels to map rId → slide file target
-  const presRelsFile = srcZip.file('ppt/_rels/presentation.xml.rels')
-  if (!presRelsFile) throw new Error('Missing presentation.xml.rels')
-  const presRelsXml = await presRelsFile.async('string')
-
-  const ridToTarget = new Map<string, string>()
-  for (const m of presRelsXml.matchAll(
-    /<Relationship[^>]+Id="(rId\d+)"[^>]+Target="([^"]+)"[^>]*\/>/g
-  )) {
-    ridToTarget.set(m[1], m[2])
-  }
-
-  // Read presentation.xml to get slide order from sldIdLst
-  const presFile = srcZip.file('ppt/presentation.xml')
-  if (!presFile) throw new Error('Missing presentation.xml')
-  const presXml = await presFile.async('string')
-
-  const orderedSlideTargets: string[] = []
-  for (const m of presXml.matchAll(/<p:sldId[^>]+r:id="(rId\d+)"[^>]*\/>/g)) {
-    const target = ridToTarget.get(m[1])
-    if (target) orderedSlideTargets.push(target)
-  }
-
-  if (pageIndex >= orderedSlideTargets.length) {
-    throw new Error(`Page ${pageIndex} out of range (${orderedSlideTargets.length} slides)`)
-  }
-
-  // The actual slide file for the requested page index (e.g. "slides/slide7.xml")
-  const targetSlide = orderedSlideTargets[pageIndex]
-  const targetSlidePath = `ppt/${targetSlide}`
-  const targetSlideFileName = targetSlide.replace('slides/', '')
-
-  const slideFile = srcZip.file(targetSlidePath)
-  if (!slideFile) throw new Error(`Slide file ${targetSlidePath} not found`)
-
-  // Build output ZIP
-  const outZip = await JSZip.loadAsync(buffer)
-
-  // Remove all slide XMLs and their rels
-  const allSlideXmls = Object.keys(outZip.files).filter((f) =>
-    /^ppt\/slides\/slide\d+\.xml$/.test(f)
-  )
-  const allSlideRels = Object.keys(outZip.files).filter((f) =>
-    /^ppt\/slides\/_rels\/slide\d+\.xml\.rels$/.test(f)
-  )
-  for (const f of [...allSlideXmls, ...allSlideRels]) outZip.remove(f)
-
-  // Add target slide as slide1.xml
-  const slideContent = await slideFile.async('uint8array')
-  outZip.file('ppt/slides/slide1.xml', slideContent)
-
-  // Copy rels for target slide, renaming to slide1.xml.rels
-  const relsFile = srcZip.file(`ppt/slides/_rels/${targetSlideFileName}.rels`)
-  if (relsFile) {
-    const relsContent = await relsFile.async('uint8array')
-    outZip.file('ppt/slides/_rels/slide1.xml.rels', relsContent)
-  }
-
-  // Fix presentation.xml: keep only one slide reference
-  let newPresXml = presXml.replace(
-    /<p:sldIdLst>[\s\S]*?<\/p:sldIdLst>/,
-    '<p:sldIdLst><p:sldId id="256" r:id="rId2"/></p:sldIdLst>'
-  )
-  outZip.file('ppt/presentation.xml', newPresXml)
-
-  // Fix presentation.xml.rels: keep one slide relationship
-  let newPresRels = presRelsXml.replace(/<Relationship[^>]*Type="[^"]*\/slide"[^>]*\/>\s*/g, '')
-  const slideRelType = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide'
-  newPresRels = newPresRels.replace(
-    '</Relationships>',
-    `<Relationship Id="rId2" Type="${slideRelType}" Target="slides/slide1.xml"/>\n</Relationships>`
-  )
-  outZip.file('ppt/_rels/presentation.xml.rels', newPresRels)
-
-  // Fix [Content_Types].xml: keep only slide1 override
-  const ctFile = outZip.file('[Content_Types].xml')
-  if (ctFile) {
-    let ctXml = await ctFile.async('string')
-    ctXml = ctXml.replace(/<Override[^>]*PartName="\/ppt\/slides\/slide\d+\.xml"[^>]*\/>\s*/g, '')
-    const slideContentType =
-      'application/vnd.openxmlformats-officedocument.presentationml.slide+xml'
-    ctXml = ctXml.replace(
-      '</Types>',
-      `<Override PartName="/ppt/slides/slide1.xml" ContentType="${slideContentType}"/>\n</Types>`
-    )
-    outZip.file('[Content_Types].xml', ctXml)
-  }
-
-  return outZip.generateAsync({ type: 'arraybuffer' })
-}
-
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-function escapeXml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;')
 }
