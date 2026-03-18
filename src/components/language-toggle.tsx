@@ -9,35 +9,36 @@ const LANGUAGES = [
   { code: 'en', label: 'EN' },
 ] as const
 
+async function persistLanguage(lang: string) {
+  try {
+    const supabase = createBrowserSupabaseClient()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (!session) return
+    fetch('/api/profile', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ preferred_language: lang }),
+    })
+  } catch {
+    // Persistence failed silently
+  }
+}
+
 export function LanguageToggle() {
   const { i18n } = useTranslation()
   const currentLang = i18n.language
 
-  async function handleLanguageChange(lang: string) {
-    // 1. Immediate UI switch
+  function handleLanguageChange(lang: string) {
+    // Immediate UI switch
     i18n.changeLanguage(lang)
 
-    // 2. Persist to backend if user is authenticated
-    try {
-      const supabase = createBrowserSupabaseClient()
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      if (session) {
-        await fetch('/api/profile', {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ preferred_language: lang }),
-        })
-      }
-      // If no session (public page), language is changed locally only
-    } catch {
-      // Persistence failed silently -- the local language change still applies
-    }
+    // Persist to backend in background (fire-and-forget)
+    persistLanguage(lang)
   }
 
   return (

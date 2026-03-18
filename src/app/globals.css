@@ -59,6 +59,14 @@
     /* Semantic colors */
     --success: 149.7 39.4% 49.2%;
     --warning: 41.2 100% 47.1%;
+
+    /* Landing hero gradient */
+    --hero-from: 40 23.1% 97.5%;
+    --hero-to: 30 34.8% 91%;
+
+    /* Board canvas */
+    --canvas-bg: 0 0% 94%;
+    --canvas-dot: 0 0% 82%;
   }
 
   .dark {
@@ -110,6 +118,14 @@
 
     --success: 149.7 39.4% 45%;
     --warning: 41.2 80% 50%;
+
+    /* Landing hero gradient */
+    --hero-from: 25 12% 10%;
+    --hero-to: 25 10% 14%;
+
+    /* Board canvas */
+    --canvas-bg: 25 10% 12%;
+    --canvas-dot: 25 8% 20%;
   }
 }
 

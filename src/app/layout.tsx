@@ -41,12 +41,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="font-sans antialiased">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange={false}
-        >
+        <ThemeProvider attribute="class" defaultTheme="light" disableTransitionOnChange={false}>
           <I18nProvider>
             {children}
             <CookieConsent />

@@ -456,7 +456,8 @@
     "share_link_tooltip": "Browserlink für Kunden erstellen",
     "manage_access_tooltip": "Projekt mit Kolleg:innen teilen",
     "open_project_hint": "Öffnen Sie ein Projekt, um Ihre Präsentation zusammenzustellen.",
-    "open_project": "Projekt öffnen"
+    "open_project": "Projekt öffnen",
+    "new_project": "Neues Projekt erstellen"
   },
   "export_dialog": {
     "exporting": "Wird exportiert…",

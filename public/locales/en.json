@@ -456,7 +456,8 @@
     "share_link_tooltip": "Create a shareable link for customers",
     "manage_access_tooltip": "Share project with colleagues",
     "open_project_hint": "Open a project to start assembling your presentation.",
-    "open_project": "Open project"
+    "open_project": "Open project",
+    "new_project": "Create new project"
   },
   "export_dialog": {
     "exporting": "Exporting…",

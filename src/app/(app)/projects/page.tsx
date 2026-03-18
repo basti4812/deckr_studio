@@ -48,7 +48,10 @@ export default function ProjectsPage() {
   const router = useRouter()
   const { loading: userLoading } = useCurrentUser()
   const queryClient = useQueryClient()
-  const [createOpen, setCreateOpen] = useState(false)
+  const [createOpen, setCreateOpen] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return new URLSearchParams(window.location.search).get('new') === 'true'
+  })
   const [archiveOpen, setArchiveOpen] = useState(false)
   const [search, setSearch] = useState('')
 

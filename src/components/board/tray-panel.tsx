@@ -144,17 +144,15 @@ export function TrayPanel({
       <div className="flex flex-col border-b px-3 py-2.5 gap-2">
         <div className="flex items-center gap-2">
           <div className="flex-1 min-w-0">
-            {projectId ? (
-              <p className="truncate text-sm font-semibold leading-tight">
-                {projectName || t('tray.project')}
-              </p>
-            ) : (
-              <p className="text-sm font-semibold">{t('tray.title')}</p>
-            )}
             {projectId && (
-              <p className="text-xs text-muted-foreground">
-                {t('tray.slide_count', { count: trayItems.length })}
-              </p>
+              <>
+                <p className="truncate text-sm font-semibold leading-tight">
+                  {projectName || t('tray.project')}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t('tray.slide_count', { count: trayItems.length })}
+                </p>
+              </>
             )}
           </div>
           <Button
@@ -328,9 +326,14 @@ export function TrayPanel({
           <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
             <FolderOpen className="h-8 w-8 text-muted-foreground/40" />
             <p className="text-xs text-muted-foreground px-4">{t('tray.open_project_hint')}</p>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/projects">{t('tray.open_project')}</Link>
-            </Button>
+            <div className="flex flex-col gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/projects">{t('tray.open_project')}</Link>
+              </Button>
+              <Button variant="default" size="sm" asChild>
+                <Link href="/projects?new=true">{t('tray.new_project')}</Link>
+              </Button>
+            </div>
           </div>
         ) : loading ? (
           <div className="space-y-1.5">

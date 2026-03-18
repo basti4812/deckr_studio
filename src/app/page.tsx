@@ -215,7 +215,7 @@ export default function LandingPage() {
       <section
         className="relative overflow-hidden pt-20 pb-24"
         style={{
-          background: 'linear-gradient(180deg, hsl(40 23.1% 97.5%) 0%, hsl(30 34.8% 91%) 100%)',
+          background: 'linear-gradient(180deg, hsl(var(--hero-from)) 0%, hsl(var(--hero-to)) 100%)',
         }}
       >
         <div className="relative mx-auto max-w-6xl px-6 text-center">

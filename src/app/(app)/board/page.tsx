@@ -1798,9 +1798,9 @@ function BoardPageInner() {
             ref={containerRef}
             className={`relative flex-1 min-h-0 overflow-hidden cursor-grab active:cursor-grabbing ${isBoardFullscreen ? 'rounded-lg border' : ''}`}
             style={{
-              background: 'radial-gradient(circle, #d0d0d0 1px, transparent 1px)',
+              background: 'radial-gradient(circle, hsl(var(--canvas-dot)) 1px, transparent 1px)',
               backgroundSize: '24px 24px',
-              backgroundColor: '#f0f0f0',
+              backgroundColor: 'hsl(var(--canvas-bg))',
             }}
             onPointerDown={(e) => {
               // If a drag is active, don't start panning
