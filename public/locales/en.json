@@ -447,6 +447,8 @@
     "export_pdf": "Export as PDF",
     "export_pdf_desc": "Fixed-layout document for sharing",
     "add_slides_to_export": "Add slides to export",
+    "add_slides_to_share": "Add slides to create a link",
+    "share_link_tooltip": "Create a shareable link for customers",
     "open_project_hint": "Open a project to start assembling your presentation.",
     "open_project": "Open project"
   },

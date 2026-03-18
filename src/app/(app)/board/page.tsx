@@ -15,7 +15,6 @@ import {
   Minimize2,
   Plus,
   RotateCcw,
-  Share2,
   Upload,
   X,
 } from 'lucide-react'
@@ -2198,19 +2197,6 @@ function BoardPageInner() {
                       </TooltipTrigger>
                       <TooltipContent>{t('crm.button')}</TooltipContent>
                     </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8 bg-background/80 backdrop-blur-sm"
-                          onClick={handleOpenSharePanel}
-                        >
-                          <Share2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>{t('board.share')}</TooltipContent>
-                    </Tooltip>
                   </>
                 )}
               </div>
@@ -2268,6 +2254,7 @@ function BoardPageInner() {
               projectId && canEdit ? () => setUploadDialogOpen(true) : undefined
             }
             onSaveVersion={projectId && canEdit ? () => setSaveVersionOpen(true) : undefined}
+            onShareLink={projectId && canEdit ? handleOpenSharePanel : undefined}
             previewUrls={previewUrls}
           />
         </div>

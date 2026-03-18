@@ -447,6 +447,8 @@
     "export_pdf": "Als PDF exportieren",
     "export_pdf_desc": "Festes Layout zum Teilen",
     "add_slides_to_export": "Folien hinzufügen zum Exportieren",
+    "add_slides_to_share": "Folien hinzufügen zum Teilen",
+    "share_link_tooltip": "Browserlink für Kunden erstellen",
     "open_project_hint": "Öffnen Sie ein Projekt, um Ihre Präsentation zusammenzustellen.",
     "open_project": "Projekt öffnen"
   },
