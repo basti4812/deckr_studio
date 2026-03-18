@@ -274,6 +274,21 @@ export function TrayPanel({
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
+                {onManageAccess && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={onManageAccess}
+                      >
+                        <Users className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('tray.manage_access_tooltip')}</TooltipContent>
+                  </Tooltip>
+                )}
                 {onShareLink && (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -292,21 +307,6 @@ export function TrayPanel({
                         ? t('tray.add_slides_to_share')
                         : t('tray.share_link_tooltip')}
                     </TooltipContent>
-                  </Tooltip>
-                )}
-                {onManageAccess && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={onManageAccess}
-                      >
-                        <Users className="h-3.5 w-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('tray.manage_access_tooltip')}</TooltipContent>
                   </Tooltip>
                 )}
               </div>

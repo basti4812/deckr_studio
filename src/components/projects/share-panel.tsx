@@ -22,7 +22,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ShareLinksTab } from '@/components/projects/share-links-tab'
 
 // ---------------------------------------------------------------------------
@@ -45,7 +44,7 @@ export interface SearchUser {
 
 interface SharePanelProps {
   open: boolean
-  defaultTab?: 'people' | 'links'
+  mode?: 'people' | 'links'
   onClose: () => void
   projectId: string
   projectName: string
@@ -63,7 +62,7 @@ interface SharePanelProps {
 
 export function SharePanel({
   open,
-  defaultTab = 'people',
+  mode = 'people',
   onClose,
   projectId,
   projectName,
@@ -75,7 +74,6 @@ export function SharePanel({
   onSearchUsers,
 }: SharePanelProps) {
   const { t } = useTranslation()
-  const [activeTab, setActiveTab] = useState<'people' | 'links'>(defaultTab)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchUser[]>([])
   const [searching, setSearching] = useState(false)
@@ -84,13 +82,6 @@ export function SharePanel({
   const [removing, setRemoving] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // Sync active tab when defaultTab prop changes (e.g. opening from different buttons)
-  useEffect(() => {
-    if (open) {
-      setActiveTab(defaultTab)
-    }
-  }, [open, defaultTab])
 
   // Reset state when panel closes
   useEffect(() => {
@@ -158,11 +149,10 @@ export function SharePanel({
       .slice(0, 2)
   }
 
-  // Dynamic title & description based on active tab
-  const sheetTitle = activeTab === 'links' ? t('share.links_title') : t('share.access_title')
-
+  // Dynamic title & description based on mode
+  const sheetTitle = mode === 'links' ? t('share.links_title') : t('share.access_title')
   const sheetDescription =
-    activeTab === 'links' ? t('share.links_description') : t('share.access_description')
+    mode === 'links' ? t('share.links_description') : t('share.access_description')
 
   return (
     <Sheet
@@ -177,19 +167,10 @@ export function SharePanel({
           <SheetDescription>{sheetDescription}</SheetDescription>
         </SheetHeader>
 
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => setActiveTab(v as 'people' | 'links')}
-          className="mt-4 flex-1 flex flex-col overflow-hidden"
-        >
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="people">{t('share.colleagues')}</TabsTrigger>
-            <TabsTrigger value="links">{t('share.share_links')}</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="people" className="flex-1 flex flex-col overflow-hidden">
+        {mode === 'people' ? (
+          <div className="mt-4 flex-1 flex flex-col overflow-hidden">
             {/* ----- Add people section ----- */}
-            <div className="mt-4 space-y-3">
+            <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -328,12 +309,12 @@ export function SharePanel({
                 </p>
               )}
             </div>
-          </TabsContent>
-
-          <TabsContent value="links" className="flex-1 overflow-y-auto">
+          </div>
+        ) : (
+          <div className="mt-4 flex-1 overflow-y-auto">
             <ShareLinksTab projectId={projectId} />
-          </TabsContent>
-        </Tabs>
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   )

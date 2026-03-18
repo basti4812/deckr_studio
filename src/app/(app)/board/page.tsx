@@ -2351,7 +2351,7 @@ function BoardPageInner() {
       {canEdit && (
         <SharePanel
           open={sharePanelTab !== null}
-          defaultTab={sharePanelTab ?? 'people'}
+          mode={sharePanelTab ?? 'people'}
           onClose={() => setSharePanelTab(null)}
           projectId={projectId!}
           projectName={project?.name ?? ''}
