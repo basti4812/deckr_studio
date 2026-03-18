@@ -543,6 +543,8 @@
     "cancel": "Abbrechen",
     "done": "Fertig",
     "auto_saved": "Änderungen werden automatisch gespeichert",
+    "save_and_render": "Speichern & neu rendern",
+    "rendering": "Wird gerendert…",
     "no_editable_fields": "Diese Folie hat keine bearbeitbaren Textfelder."
   },
   "comments": {
@@ -895,6 +897,8 @@
     "title_required": "Titel ist erforderlich",
     "all_fields_need_label": "Alle bearbeitbaren Felder müssen ein Label haben",
     "scan_error": "Textfelder konnten nicht aus der Datei gelesen werden",
+    "auto_generated_warning": "Dieser Name wurde automatisch erkannt. Bitte gib einen beschreibenden Namen ein.",
+    "rename_required": "Bitte benennen Sie alle automatisch erkannten Felder um, bevor Sie speichern.",
     "upload_presentations": "Präsentationen hochladen",
     "upload_presentations_description": "Laden Sie Präsentationsdateien hoch, um sie zur Folienbibliothek hinzuzufügen. Mehrseitige Dateien erzeugen eine Folie pro Seite.",
     "presentation_file_label": "Präsentationsdateien",

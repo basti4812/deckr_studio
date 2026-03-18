@@ -404,48 +404,6 @@ function BoardPageInner() {
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({})
   const renderTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
-  /**
-   * Schedule a background re-render of a slide thumbnail with text edits.
-   * Debounced to 2 seconds after the last edit to avoid hammering ConvertAPI.
-   */
-  function scheduleRenderPreview(
-    instanceId: string,
-    slideId: string,
-    edits: Record<string, string>
-  ) {
-    if (!projectId) return
-    // Clear any pending render for this instance
-    if (renderTimers.current[instanceId]) {
-      clearTimeout(renderTimers.current[instanceId])
-    }
-    renderTimers.current[instanceId] = setTimeout(async () => {
-      try {
-        const supabase = createBrowserSupabaseClient()
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-        if (!session) return
-
-        const res = await fetch('/api/slides/render-preview', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ slideId, projectId, instanceId, edits }),
-        })
-
-        if (!res.ok) return
-        const data = await res.json()
-        if (data.previewUrl) {
-          setPreviewUrls((prev) => ({ ...prev, [instanceId]: data.previewUrl }))
-        }
-      } catch {
-        // Silently ignore render failures — user can still export
-      }
-    }, 2000)
-  }
-
   // -------------------------------------------------------------------------
   // Fetch slides + groups
   // -------------------------------------------------------------------------
@@ -859,22 +817,57 @@ function BoardPageInner() {
     scheduleSave(items, textEditsRef.current)
   }
 
-  function handleFieldChange(instanceId: string, fieldId: string, value: string) {
-    setTextEdits((prev) => {
-      const updated = {
-        ...prev,
-        [instanceId]: { ...(prev[instanceId] ?? {}), [fieldId]: value },
-      }
-      scheduleSave(trayItemsRef.current, updated)
+  /** Save all field values at once and render preview */
+  async function handleSaveFields(
+    instanceId: string,
+    fieldValues: Record<string, string>
+  ): Promise<string | undefined> {
+    // Update state
+    const updated = { ...textEditsRef.current, [instanceId]: fieldValues }
+    setTextEdits(updated)
+    textEditsRef.current = updated
+    scheduleSave(trayItemsRef.current, updated)
 
-      // Trigger background re-render of the slide thumbnail with text edits
-      const trayItem = trayItemsRef.current.find((t) => t.id === instanceId)
-      if (trayItem && !trayItem.is_personal) {
-        scheduleRenderPreview(instanceId, trayItem.slide_id, updated[instanceId])
-      }
+    // Render preview immediately (no debounce)
+    const trayItem = trayItemsRef.current.find((t) => t.id === instanceId)
+    if (!trayItem || trayItem.is_personal || !projectId) return undefined
 
-      return updated
-    })
+    // Clear any pending debounced render
+    if (renderTimers.current[instanceId]) {
+      clearTimeout(renderTimers.current[instanceId])
+    }
+
+    try {
+      const supabase = createBrowserSupabaseClient()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session) return undefined
+
+      const res = await fetch('/api/slides/render-preview', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          slideId: trayItem.slide_id,
+          projectId,
+          instanceId,
+          edits: fieldValues,
+        }),
+      })
+
+      if (!res.ok) return undefined
+      const data = await res.json()
+      if (data.previewUrl) {
+        setPreviewUrls((prev) => ({ ...prev, [instanceId]: data.previewUrl }))
+        return data.previewUrl as string
+      }
+    } catch {
+      // Silently ignore render failures
+    }
+    return undefined
   }
 
   // -------------------------------------------------------------------------
@@ -1960,6 +1953,7 @@ function BoardPageInner() {
                       isCollapsed={collapsedGroups.has(section.id)}
                       onToggleCollapse={() => toggleGroupCollapse(section.id)}
                       onPreview={(slide) => setPreviewSlideId(slide.id)}
+                      onEditFields={(slide) => setPreviewSlideId(slide.id)}
                       onDoubleClick={(slide) => {
                         if (!containerRef.current) return
                         const idx = section.slides.findIndex((s) => s.id === slide.id)
@@ -2274,7 +2268,8 @@ function BoardPageInner() {
           slide={editingSlide}
           instanceId={editingInstance}
           values={textEdits[editingInstance] ?? {}}
-          onChange={(fieldId, value) => handleFieldChange(editingInstance, fieldId, value)}
+          previewUrl={previewUrls[editingInstance]}
+          onSave={(fieldValues) => handleSaveFields(editingInstance, fieldValues)}
         />
       )}
 

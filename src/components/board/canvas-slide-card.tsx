@@ -40,6 +40,7 @@ interface CanvasSlideCardProps {
   onClick?: (slide: Slide) => void
   onAddToTray?: (slide: Slide) => void
   onPreview?: (slide: Slide) => void
+  onEditFields?: (slide: Slide) => void
   onDoubleClick?: (slide: Slide) => void
   annotation?: string
   onAnnotationClick?: (slideId: string) => void
@@ -71,12 +72,19 @@ function StatusBadge({ status }: { status: Slide['status'] }) {
   return null
 }
 
+/** Clamp a counter-scale factor so icons never get absurdly large or small */
+function clampScale(zoom: number): number {
+  const raw = 1 / zoom
+  return Math.min(2, Math.max(0.6, raw))
+}
+
 export const CanvasSlideCard = memo(function CanvasSlideCard({
   slide,
   zoom = 1,
   onClick,
   onAddToTray,
   onPreview,
+  onEditFields,
   onDoubleClick,
   annotation,
   onAnnotationClick,
@@ -98,8 +106,9 @@ export const CanvasSlideCard = memo(function CanvasSlideCard({
   const hasContextMenu = onAnnotationClick || (moveTargets && moveTargets.length > 0)
   const hasEditableFields = slide.editable_fields && slide.editable_fields.length > 0
 
-  // Counter-scale factor so label stays constant size on screen
+  // Counter-scale factor so labels/icons stay constant size on screen
   const labelScale = 1 / zoom
+  const iconScale = clampScale(zoom)
 
   const cardContent = (
     <div style={{ width: CARD_WIDTH }}>
@@ -136,15 +145,29 @@ export const CanvasSlideCard = memo(function CanvasSlideCard({
           {slide.status === 'deprecated' && <div className="absolute inset-0 bg-destructive/10" />}
           {onAddToTray && (
             <div className="absolute inset-0 flex items-center justify-center bg-primary/0 group-hover/card:bg-primary/10 transition-colors">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground opacity-0 group-hover/card:opacity-100 transition-opacity shadow-md">
+              <div
+                className="flex items-center justify-center rounded-full bg-primary text-primary-foreground opacity-0 group-hover/card:opacity-100 transition-opacity shadow-md"
+                style={{
+                  width: 32,
+                  height: 32,
+                  transform: `scale(${iconScale})`,
+                }}
+              >
                 <Plus className="h-4 w-4" />
               </div>
             </div>
           )}
+          {/* Eye icon — hover only, counter-scaled */}
           {onPreview && (
             <button
               data-no-pan
-              className="absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-md bg-black/50 text-white opacity-0 group-hover/card:opacity-100 transition-opacity hover:bg-black/70"
+              className="absolute top-1.5 right-1.5 flex items-center justify-center rounded-md bg-black/50 text-white opacity-0 group-hover/card:opacity-100 transition-opacity hover:bg-black/70"
+              style={{
+                width: 24,
+                height: 24,
+                transform: `scale(${iconScale})`,
+                transformOrigin: 'top right',
+              }}
               onClick={(e) => {
                 e.stopPropagation()
                 onPreview(slide)
@@ -154,15 +177,35 @@ export const CanvasSlideCard = memo(function CanvasSlideCard({
               <Eye className="h-3.5 w-3.5" />
             </button>
           )}
-          {/* Editable fields indicator */}
+          {/* Pencil icon — hover only, counter-scaled, clickable */}
           {hasEditableFields && (
-            <div className="absolute bottom-1.5 left-1.5 flex h-5 w-5 items-center justify-center rounded bg-amber-500/90 text-white shadow-sm">
+            <button
+              data-no-pan
+              className="absolute bottom-1.5 left-1.5 flex items-center justify-center rounded bg-amber-500/90 text-white shadow-sm opacity-0 group-hover/card:opacity-100 transition-opacity hover:bg-amber-600"
+              style={{
+                width: 20,
+                height: 20,
+                transform: `scale(${iconScale})`,
+                transformOrigin: 'bottom left',
+              }}
+              onClick={(e) => {
+                e.stopPropagation()
+                onEditFields?.(slide)
+              }}
+              title={t('edit_fields.title')}
+            >
               <Pencil className="h-3 w-3" />
-            </div>
+            </button>
           )}
-          {/* Status badge overlay */}
+          {/* Status badge overlay — always visible */}
           {slide.status !== 'standard' && (
-            <div className="absolute top-1.5 left-1.5">
+            <div
+              className="absolute top-1.5 left-1.5"
+              style={{
+                transform: `scale(${iconScale})`,
+                transformOrigin: 'top left',
+              }}
+            >
               <StatusBadge status={slide.status} />
             </div>
           )}

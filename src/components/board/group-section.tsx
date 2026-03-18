@@ -39,6 +39,8 @@ interface GroupSectionProps {
   onToggleCollapse?: () => void
   /** Preview callback for slide cards */
   onPreview?: (slide: Slide) => void
+  /** Edit fields callback for slide cards */
+  onEditFields?: (slide: Slide) => void
   /** Double-click callback for zoom-to-slide */
   onDoubleClick?: (slide: Slide) => void
   /** Current canvas zoom level (passed to cards for counter-scaling labels) */
@@ -66,6 +68,7 @@ export const GroupSection = memo(function GroupSection({
   isCollapsed,
   onToggleCollapse,
   onPreview,
+  onEditFields,
   onDoubleClick,
   zoom,
 }: GroupSectionProps) {
@@ -239,6 +242,7 @@ export const GroupSection = memo(function GroupSection({
                   zoom={zoom}
                   onAddToTray={onAddToTray}
                   onPreview={onPreview}
+                  onEditFields={onEditFields}
                   onDoubleClick={onDoubleClick}
                   annotation={annotations?.[slide.id]}
                   onAnnotationClick={onAnnotationClick}

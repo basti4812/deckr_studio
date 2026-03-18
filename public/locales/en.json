@@ -543,6 +543,8 @@
     "cancel": "Cancel",
     "done": "Done",
     "auto_saved": "Changes saved automatically",
+    "save_and_render": "Save & re-render",
+    "rendering": "Rendering…",
     "no_editable_fields": "This slide has no editable text fields."
   },
   "comments": {
@@ -895,6 +897,8 @@
     "title_required": "Title is required",
     "all_fields_need_label": "All editable fields must have a label",
     "scan_error": "Could not parse text fields from file",
+    "auto_generated_warning": "This name was automatically detected. Please enter a descriptive name.",
+    "rename_required": "Please rename all automatically detected fields before saving.",
     "upload_presentations": "Upload Presentations",
     "upload_presentations_description": "Upload presentation files to add them to the slide library. Multi-page files create one slide per page.",
     "presentation_file_label": "Presentation files",
