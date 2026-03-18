@@ -496,6 +496,12 @@
     "proceed_anyway": "{{action}} anyway",
     "go_back_and_fix": "Go back and fix"
   },
+  "mandatory_warning": {
+    "title": "Mandatory slides missing",
+    "description": "The following mandatory slides are not included in your presentation. They are required for a complete presentation.",
+    "proceed_anyway": "{{action}} anyway",
+    "go_back": "Go back and add"
+  },
   "save_version_dialog": {
     "title": "Save Version",
     "description": "Save a named snapshot of the current slide selection and text edits. You can restore this version later.",

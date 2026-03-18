@@ -43,3 +43,28 @@ export function checkFillStatus(
 
   return unfilled
 }
+
+export interface MissingMandatorySlide {
+  slideId: string
+  slideTitle: string
+}
+
+/**
+ * Checks if any mandatory slides are missing from the tray.
+ * Returns the list of missing mandatory slides.
+ */
+export function checkMissingMandatory(
+  trayItems: TrayItem[],
+  slideMap: Map<string, Slide>
+): MissingMandatorySlide[] {
+  const traySlideIds = new Set(trayItems.map((item) => item.slide_id))
+  const missing: MissingMandatorySlide[] = []
+
+  for (const [slideId, slide] of slideMap) {
+    if (slide.status === 'mandatory' && !traySlideIds.has(slideId)) {
+      missing.push({ slideId, slideTitle: slide.title })
+    }
+  }
+
+  return missing
+}

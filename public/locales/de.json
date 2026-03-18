@@ -496,6 +496,12 @@
     "proceed_anyway": "Trotzdem {{action}}",
     "go_back_and_fix": "Zurück und korrigieren"
   },
+  "mandatory_warning": {
+    "title": "Pflichtfolien fehlen",
+    "description": "Die folgenden Pflichtfolien sind nicht in Ihrer Präsentation enthalten. Sie werden für eine vollständige Präsentation benötigt.",
+    "proceed_anyway": "Trotzdem {{action}}",
+    "go_back": "Zurück und hinzufügen"
+  },
   "save_version_dialog": {
     "title": "Version speichern",
     "description": "Speichern Sie einen Schnappschuss der aktuellen Folienauswahl und Textbearbeitungen. Sie können diese Version später wiederherstellen.",

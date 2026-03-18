@@ -16,18 +16,6 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import type { Slide } from '@/components/slides/slide-card'
 
-/** Consistent colors for numbered markers */
-const MARKER_COLORS = [
-  'bg-blue-500',
-  'bg-emerald-500',
-  'bg-amber-500',
-  'bg-purple-500',
-  'bg-rose-500',
-  'bg-cyan-500',
-  'bg-orange-500',
-  'bg-teal-500',
-]
-
 interface EditFieldsDialogProps {
   open: boolean
   onClose: () => void
@@ -105,22 +93,6 @@ export function EditFieldsDialog({
                 </div>
               )}
             </div>
-
-            {/* Numbered field legend below preview */}
-            {slide.editable_fields.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {slide.editable_fields.map((field, i) => (
-                  <div key={field.id} className="flex items-center gap-1.5">
-                    <span
-                      className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white ${MARKER_COLORS[i % MARKER_COLORS.length]}`}
-                    >
-                      {i + 1}
-                    </span>
-                    <span className="text-xs text-muted-foreground">{field.label}</span>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Text fields */}
@@ -128,14 +100,9 @@ export function EditFieldsDialog({
             <p className="text-sm text-muted-foreground">{t('edit_fields.no_editable_fields')}</p>
           ) : (
             <div className="space-y-4 pb-2">
-              {slide.editable_fields.map((field, i) => (
+              {slide.editable_fields.map((field) => (
                 <div key={field.id} className="space-y-1.5">
                   <div className="flex items-center gap-2">
-                    <span
-                      className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white ${MARKER_COLORS[i % MARKER_COLORS.length]}`}
-                    >
-                      {i + 1}
-                    </span>
                     <Label htmlFor={`field-${field.id}`} className="text-sm font-medium">
                       {field.label}
                       {field.required && <span className="ml-0.5 text-destructive">*</span>}

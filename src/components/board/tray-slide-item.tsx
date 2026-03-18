@@ -94,11 +94,9 @@ export function TraySlideItem({
       }}
       className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5 group"
     >
-      {/* Drag handle — hidden for mandatory and view-only */}
+      {/* Drag handle — hidden for view-only */}
       {!onRemove ? (
         <div className="h-3.5 w-3.5 shrink-0" />
-      ) : isMandatory ? (
-        <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
       ) : (
         <button
           {...attributes}
@@ -126,7 +124,11 @@ export function TraySlideItem({
 
       {/* Title + fill indicator */}
       <div className="flex flex-1 min-w-0 flex-col gap-0.5">
-        <span className="truncate text-xs leading-tight" title={slide.title}>
+        <span
+          className="flex items-center gap-1 truncate text-xs leading-tight"
+          title={slide.title}
+        >
+          {isMandatory && <Lock className="h-2.5 w-2.5 shrink-0 text-muted-foreground/60" />}
           {slide.title}
         </span>
         <div className="flex items-center gap-1">
@@ -188,8 +190,8 @@ export function TraySlideItem({
         </Button>
       )}
 
-      {/* Remove button — hidden for mandatory and view-only */}
-      {!isMandatory && onRemove && (
+      {/* Remove button — hidden for view-only */}
+      {onRemove && (
         <Button
           variant="ghost"
           size="icon"
@@ -200,7 +202,7 @@ export function TraySlideItem({
           <X className="h-3 w-3" />
         </Button>
       )}
-      {isMandatory && !hasEditableFields && <div className="h-5 w-5 shrink-0" />}
+      {!onRemove && !hasEditableFields && <div className="h-5 w-5 shrink-0" />}
     </div>
   )
 }

@@ -6,11 +6,13 @@ import Link from 'next/link'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import {
+  AlertTriangle,
   Briefcase,
   ChevronsDownUp,
   ChevronsUpDown,
   Clock,
   Eye,
+  Lock,
   Maximize2,
   Minimize2,
   Plus,
@@ -28,6 +30,13 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -69,7 +78,12 @@ import { FilterPanel, type ActiveFilters } from '@/components/board/filter-panel
 import { VersionHistoryPanel, type ProjectVersion } from '@/components/board/version-history-panel'
 import { SaveVersionDialog } from '@/components/board/save-version-dialog'
 import { RestoreConfirmDialog } from '@/components/board/restore-confirm-dialog'
-import { checkFillStatus, type UnfilledField } from '@/lib/fill-check'
+import {
+  checkFillStatus,
+  checkMissingMandatory,
+  type MissingMandatorySlide,
+  type UnfilledField,
+} from '@/lib/fill-check'
 import type { Slide } from '@/components/slides/slide-card'
 import { MobileProjectView } from '@/components/board/mobile-project-view'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -259,6 +273,11 @@ function BoardPageInner() {
   const [previewSlideId, setPreviewSlideId] = useState<string | null>(null)
   const [fillWarning, setFillWarning] = useState<{
     issues: UnfilledField[]
+    proceed: () => void
+    proceedLabel: string
+  } | null>(null)
+  const [mandatoryWarning, setMandatoryWarning] = useState<{
+    missing: MissingMandatorySlide[]
     proceed: () => void
     proceedLabel: string
   } | null>(null)
@@ -800,12 +819,8 @@ function BoardPageInner() {
       return
     }
 
-    // Library slides: check mandatory
+    // Library slides: allow removal (including mandatory — checked on export)
     setTrayItems((prev) => {
-      const it = prev.find((t) => t.id === instanceId)
-      if (!it) return prev
-      const slide = slideMap.get(it.slide_id)
-      if (slide?.status === 'mandatory') return prev
       const updated = prev.filter((t) => t.id !== instanceId)
       scheduleSave(updated, textEditsRef.current)
       return updated
@@ -951,25 +966,36 @@ function BoardPageInner() {
     setExportState({ open: true, error: null, step: 0, format: type })
   }
 
+  /**
+   * Run mandatory-slide + fill-status checks before an action.
+   * Shows mandatory warning first, then fill warning, then calls `action`.
+   */
+  function guardExport(action: () => void, proceedLabel: string) {
+    const missing = checkMissingMandatory(trayItems, slideMap)
+    const runFillCheck = () => {
+      const issues = checkFillStatus(trayItems, slideMap, textEdits)
+      if (issues.length > 0) {
+        setFillWarning({ issues, proceed: action, proceedLabel })
+      } else {
+        action()
+      }
+    }
+    if (missing.length > 0) {
+      setMandatoryWarning({ missing, proceed: runFillCheck, proceedLabel })
+    } else {
+      runFillCheck()
+    }
+  }
+
   function handleExport() {
     if (!projectId) return
     lastExportTypeRef.current = 'pptx'
-    const issues = checkFillStatus(trayItems, slideMap, textEdits)
-    if (issues.length > 0) {
-      setFillWarning({
-        issues,
-        proceed: () => showExportPreview('pptx'),
-        proceedLabel: t('board.export'),
-      })
-    } else {
-      showExportPreview('pptx')
-    }
+    guardExport(() => showExportPreview('pptx'), t('board.export'))
   }
 
   function handlePdfExport() {
     if (!projectId) return
     lastExportTypeRef.current = 'pdf'
-    const issues = checkFillStatus(trayItems, slideMap, textEdits)
     const startPdf = () => {
       if (hasAnyTextEdits()) {
         startPrepare('pdf', () => showExportPreview('pdf'))
@@ -977,15 +1003,7 @@ function BoardPageInner() {
         showExportPreview('pdf')
       }
     }
-    if (issues.length > 0) {
-      setFillWarning({
-        issues,
-        proceed: startPdf,
-        proceedLabel: t('board.export_pdf'),
-      })
-    } else {
-      startPdf()
-    }
+    guardExport(startPdf, t('board.export_pdf'))
   }
 
   /** Check if any tray item has actual text edits that need rendering */
@@ -1017,7 +1035,6 @@ function BoardPageInner() {
 
   function handlePresent() {
     if (!projectId) return
-    const issues = checkFillStatus(trayItems, slideMap, textEdits)
     const startPresentation = () => {
       if (hasAnyTextEdits()) {
         startPrepare('presentation', () => setPresentationMode(true))
@@ -1025,15 +1042,7 @@ function BoardPageInner() {
         setPresentationMode(true)
       }
     }
-    if (issues.length > 0) {
-      setFillWarning({
-        issues,
-        proceed: startPresentation,
-        proceedLabel: t('board.present'),
-      })
-    } else {
-      startPresentation()
-    }
+    guardExport(startPresentation, t('board.present'))
   }
 
   // -------------------------------------------------------------------------
@@ -1953,7 +1962,10 @@ function BoardPageInner() {
                       isCollapsed={collapsedGroups.has(section.id)}
                       onToggleCollapse={() => toggleGroupCollapse(section.id)}
                       onPreview={(slide) => setPreviewSlideId(slide.id)}
-                      onEditFields={(slide) => setPreviewSlideId(slide.id)}
+                      onEditFields={(slide) => {
+                        const inst = trayItems.find((t) => t.slide_id === slide.id)
+                        if (inst) setEditingInstance(inst.id)
+                      }}
                       onDoubleClick={(slide) => {
                         if (!containerRef.current) return
                         const idx = section.slides.findIndex((s) => s.id === slide.id)
@@ -2279,6 +2291,21 @@ function BoardPageInner() {
           open
           onClose={() => setPreviewSlideId(null)}
           slide={slideMap.get(previewSlideId) ?? null}
+          previewUrl={(() => {
+            const inst = trayItems.find((t) => t.slide_id === previewSlideId)
+            return inst ? previewUrls[inst.id] : undefined
+          })()}
+          onEditFields={
+            projectId && canEdit
+              ? () => {
+                  const inst = trayItems.find((t) => t.slide_id === previewSlideId)
+                  if (inst) {
+                    setPreviewSlideId(null)
+                    setEditingInstance(inst.id)
+                  }
+                }
+              : undefined
+          }
         />
       )}
 
@@ -2309,6 +2336,56 @@ function BoardPageInner() {
           }}
           onGoToField={(instanceId) => setEditingInstance(instanceId)}
         />
+      )}
+
+      {/* Mandatory slides missing warning */}
+      {mandatoryWarning && (
+        <Dialog
+          open
+          onOpenChange={(o) => {
+            if (!o) setMandatoryWarning(null)
+          }}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
+                {t('mandatory_warning.title')}
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">{t('mandatory_warning.description')}</p>
+            <ul className="space-y-1.5">
+              {mandatoryWarning.missing.map((m) => (
+                <li
+                  key={m.slideId}
+                  className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
+                >
+                  <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  {m.slideTitle}
+                </li>
+              ))}
+            </ul>
+            <DialogFooter className="flex-col gap-2 sm:flex-row sm:gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground"
+                onClick={() => {
+                  const proceed = mandatoryWarning.proceed
+                  setMandatoryWarning(null)
+                  proceed()
+                }}
+              >
+                {t('mandatory_warning.proceed_anyway', {
+                  action: mandatoryWarning.proceedLabel,
+                })}
+              </Button>
+              <Button size="sm" onClick={() => setMandatoryWarning(null)}>
+                {t('mandatory_warning.go_back')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Prepare dialog (PROJ-35: text injection before presentation/share/PDF) */}
