@@ -55,9 +55,10 @@ interface TenantContextValue {
 
   // Actions
   refresh: () => Promise<void>
+  updatePreferredLanguage: (lang: string) => void
 }
 
-const TenantContext = createContext<TenantContextValue | null>(null)
+export const TenantContext = createContext<TenantContextValue | null>(null)
 
 // ---------------------------------------------------------------------------
 // Provider
@@ -134,6 +135,10 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     }
   }, [fetchTenantData])
 
+  const updatePreferredLanguage = useCallback((lang: string) => {
+    setUserData((prev) => (prev ? { ...prev, preferred_language: lang } : prev))
+  }, [])
+
   const value: TenantContextValue = {
     tenantId: userData?.tenant.id ?? null,
     tenantName: userData?.tenant.name ?? null,
@@ -154,6 +159,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     loading,
     error,
     refresh: fetchTenantData,
+    updatePreferredLanguage,
   }
 
   return <TenantContext.Provider value={value}>{children}</TenantContext.Provider>

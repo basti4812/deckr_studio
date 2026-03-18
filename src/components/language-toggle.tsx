@@ -1,8 +1,10 @@
 'use client'
 
+import { useContext } from 'react'
 import { useTranslation } from 'react-i18next'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
+import { TenantContext } from '@/providers/tenant-provider'
 
 const LANGUAGES = [
   { code: 'de', label: 'DE' },
@@ -31,11 +33,15 @@ async function persistLanguage(lang: string) {
 
 export function LanguageToggle() {
   const { i18n } = useTranslation()
+  const tenantCtx = useContext(TenantContext)
   const currentLang = i18n.language
 
   function handleLanguageChange(lang: string) {
     // Immediate UI switch
     i18n.changeLanguage(lang)
+
+    // Update TenantContext so I18nLanguageSync doesn't revert
+    tenantCtx?.updatePreferredLanguage(lang)
 
     // Persist to backend in background (fire-and-forget)
     persistLanguage(lang)
