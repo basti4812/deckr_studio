@@ -7,6 +7,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/s
 import { Separator } from '@/components/ui/separator'
 import { SubscriptionBanner } from '@/components/subscription-banner'
 import { LanguageToggle } from '@/components/language-toggle'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { MobileNav } from '@/components/mobile-nav'
 import { BoardFullscreenProvider, useBoardFullscreen } from '@/providers/fullscreen-provider'
 import { CommandPalette } from '@/components/command-palette'
@@ -42,7 +43,8 @@ function InnerLayout({ children }: { children: React.ReactNode }) {
               ⌘K
             </kbd>
           </button>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-1">
+            <ThemeToggle />
             <LanguageToggle />
           </div>
         </header>

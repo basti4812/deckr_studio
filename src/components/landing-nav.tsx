@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 export function LandingNav() {
   const { t, i18n } = useTranslation()
@@ -57,6 +58,9 @@ export function LandingNav() {
 
         {/* Desktop actions */}
         <div className="hidden items-center gap-3 md:flex">
+          {/* Theme toggle */}
+          <ThemeToggle />
+
           {/* Language switcher */}
           <button
             onClick={toggleLang}
@@ -123,6 +127,11 @@ export function LandingNav() {
                 ))}
               </nav>
               <div className="flex flex-col gap-3 border-t border-border pt-4">
+                {/* Theme toggle (mobile) */}
+                <div className="flex items-center gap-2 px-2">
+                  <ThemeToggle />
+                </div>
+
                 {/* Language switcher (mobile) */}
                 <button
                   onClick={toggleLang}

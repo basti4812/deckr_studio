@@ -1311,5 +1311,11 @@
     "projects": "Projekte",
     "slides": "Folien",
     "team": "Team"
+  },
+  "theme": {
+    "toggle": "Design wechseln",
+    "light": "Hell",
+    "dark": "Dunkel",
+    "system": "System"
   }
 }

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { DM_Serif_Display, Plus_Jakarta_Sans } from 'next/font/google'
+import { ThemeProvider } from 'next-themes'
 import './globals.css'
 import { CookieConsent } from '@/components/cookie-consent'
 import { I18nProvider } from '@/providers/i18n-provider'
@@ -34,12 +35,23 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${headingFont.variable} ${bodyFont.variable}`}>
+    <html
+      lang="en"
+      className={`${headingFont.variable} ${bodyFont.variable}`}
+      suppressHydrationWarning
+    >
       <body className="font-sans antialiased">
-        <I18nProvider>
-          {children}
-          <CookieConsent />
-        </I18nProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange={false}
+        >
+          <I18nProvider>
+            {children}
+            <CookieConsent />
+          </I18nProvider>
+        </ThemeProvider>
       </body>
     </html>
   )
