@@ -273,7 +273,7 @@ export default function LandingPage() {
               <div className="grid grid-cols-4 gap-0">
                 {/* Sidebar */}
                 <div className="border-r border-border bg-secondary/50 p-4 space-y-3">
-                  {['Home', 'Board', 'Projects', 'Profile'].map((item) => (
+                  {['Home', 'Board', 'Presentations', 'Profile'].map((item) => (
                     <div key={item} className="flex items-center gap-2 rounded-lg p-2">
                       <div className="h-3.5 w-3.5 rounded bg-muted-foreground/15" />
                       <span className="text-xs text-muted-foreground">{item}</span>

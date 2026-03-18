@@ -1995,13 +1995,13 @@ function BoardPageInner() {
                   <BreadcrumbList>
                     <BreadcrumbItem>
                       <BreadcrumbLink asChild>
-                        <Link href="/projects">{t('nav.projects', 'Projects')}</Link>
+                        <Link href="/projects">{t('nav.projects', 'Presentations')}</Link>
                       </BreadcrumbLink>
                     </BreadcrumbItem>
                     <BreadcrumbSeparator />
                     <BreadcrumbItem>
                       <BreadcrumbPage className="max-w-[200px] truncate">
-                        {project?.name || t('board.project', 'Project')}
+                        {project?.name || t('board.project', 'Presentation')}
                       </BreadcrumbPage>
                     </BreadcrumbItem>
                   </BreadcrumbList>
