@@ -1130,7 +1130,12 @@
     "no_slides": "Noch keine Folien",
     "no_slides_desc": "Diese Präsentation enthält noch keine Folien.",
     "slides_unavailable": "Keine Folien verfügbar",
-    "slides_unavailable_desc": "Die Folien in dieser Präsentation konnten nicht geladen werden."
+    "slides_unavailable_desc": "Die Folien in dieser Präsentation konnten nicht geladen werden.",
+    "pdf_preparing_title": "PDF wird erstellt",
+    "pdf_preparing_message": "Die Folien werden als PDF zusammengestellt...",
+    "pdf_taking_moment": "Das kann einen Moment dauern...",
+    "pdf_done": "Fertig!",
+    "pdf_error_title": "PDF-Erstellung fehlgeschlagen"
   },
   "legal": {
     "back_to_home": "Zurück zur Startseite",

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
+  AlertTriangle,
+  Check,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -13,6 +15,8 @@ import {
   X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Progress } from '@/components/ui/progress'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -47,7 +51,11 @@ export function ViewerSlideshow({
   const { t } = useTranslation()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [downloading, setDownloading] = useState(false)
-  const [downloadError, setDownloadError] = useState(false)
+  const [downloadStatus, setDownloadStatus] = useState<'idle' | 'preparing' | 'done' | 'error'>(
+    'idle'
+  )
+  const [downloadError, setDownloadError] = useState<string | null>(null)
+  const [downloadElapsed, setDownloadElapsed] = useState(0)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showFsUI, setShowFsUI] = useState(true)
   const touchStartXRef = useRef<number | null>(null)
@@ -106,18 +114,31 @@ export function ViewerSlideshow({
     return () => window.removeEventListener('keydown', onKey)
   }, [slides.length, isFullscreen, toggleFullscreen])
 
+  // Elapsed timer for download dialog
+  useEffect(() => {
+    if (downloadStatus !== 'preparing') return
+    setDownloadElapsed(0)
+    const interval = setInterval(() => setDownloadElapsed((e) => e + 1), 1000)
+    return () => clearInterval(interval)
+  }, [downloadStatus])
+
   // Download PDF
   async function handleDownloadPdf() {
     setDownloading(true)
-    setDownloadError(false)
+    setDownloadStatus('preparing')
+    setDownloadError(null)
+    setDownloadElapsed(0)
     try {
       const res = await fetch(`/api/view/${shareToken}/pdf`, { method: 'POST' })
       if (!res.ok) {
-        setDownloadError(true)
-        setDownloading(false)
-        return
+        const d = await res.json().catch(() => ({}))
+        throw new Error((d as { error?: string }).error ?? t('viewer.pdf_failed'))
       }
       const blob = await res.blob()
+
+      setDownloadStatus('done')
+      await new Promise((r) => setTimeout(r, 600))
+
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -131,10 +152,16 @@ export function ViewerSlideshow({
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-    } catch {
-      setDownloadError(true)
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : t('viewer.pdf_failed'))
+      setDownloadStatus('error')
     }
     setDownloading(false)
+  }
+
+  function handleDismissDownloadDialog() {
+    setDownloadStatus('idle')
+    setDownloadError(null)
   }
 
   function handleTouchStart(e: React.TouchEvent) {
@@ -301,18 +328,66 @@ export function ViewerSlideshow({
         </div>
       </header>
 
-      {/* Download error banner */}
-      {downloadError && (
-        <div className="flex items-center justify-center gap-2 bg-destructive/10 px-4 py-2 text-sm text-destructive">
-          {t('viewer.pdf_failed')}
-          <button
-            onClick={() => setDownloadError(false)}
-            className="ml-2 underline hover:no-underline"
-          >
-            {t('viewer.dismiss')}
-          </button>
-        </div>
-      )}
+      {/* PDF download progress dialog */}
+      <Dialog
+        open={downloadStatus !== 'idle'}
+        onOpenChange={(o) => {
+          if (!o && downloadStatus !== 'preparing') handleDismissDownloadDialog()
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              {downloadStatus === 'error'
+                ? t('viewer.pdf_error_title', 'Error')
+                : downloadStatus === 'done'
+                  ? t('viewer.pdf_done', 'Done!')
+                  : t('viewer.pdf_preparing_title', 'Preparing PDF')}
+            </DialogTitle>
+          </DialogHeader>
+
+          {downloadStatus === 'preparing' && (
+            <div className="flex flex-col items-center gap-4 py-4">
+              <Loader2 className="h-8 w-8 animate-spin" style={{ color: tenantPrimaryColor }} />
+              <p className="text-sm text-muted-foreground text-center">
+                {t('viewer.pdf_preparing_message', 'Your PDF is being created...')}
+              </p>
+              <Progress value={Math.min(downloadElapsed * 6, 90)} className="h-1.5" />
+              {downloadElapsed >= 5 && (
+                <p className="text-xs text-muted-foreground">
+                  {t('viewer.pdf_taking_moment', 'This may take a moment...')}
+                </p>
+              )}
+            </div>
+          )}
+
+          {downloadStatus === 'done' && (
+            <div className="flex flex-col items-center gap-3 py-4">
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-full"
+                style={{ backgroundColor: `${tenantPrimaryColor}15` }}
+              >
+                <Check className="h-5 w-5" style={{ color: tenantPrimaryColor }} />
+              </div>
+              <p className="text-sm text-muted-foreground">{t('viewer.pdf_done', 'Done!')}</p>
+            </div>
+          )}
+
+          {downloadStatus === 'error' && (
+            <div className="flex flex-col gap-4 py-2">
+              <div className="flex items-start gap-3 rounded-md border border-destructive/30 bg-destructive/10 p-3">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-destructive mt-0.5" />
+                <p className="text-sm text-destructive">{downloadError}</p>
+              </div>
+              <div className="flex justify-end">
+                <Button variant="ghost" size="sm" onClick={handleDismissDownloadDialog}>
+                  {t('viewer.dismiss', 'Close')}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Slide canvas — responsive, fills available space */}
       <div className="flex flex-1 items-center justify-center p-4 sm:p-8">

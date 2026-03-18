@@ -1130,7 +1130,12 @@
     "no_slides": "No slides yet",
     "no_slides_desc": "This presentation doesn't have any slides.",
     "slides_unavailable": "No slides available",
-    "slides_unavailable_desc": "The slides in this presentation could not be loaded."
+    "slides_unavailable_desc": "The slides in this presentation could not be loaded.",
+    "pdf_preparing_title": "Preparing PDF",
+    "pdf_preparing_message": "Your slides are being compiled into a PDF...",
+    "pdf_taking_moment": "This may take a moment...",
+    "pdf_done": "Done!",
+    "pdf_error_title": "PDF creation failed"
   },
   "legal": {
     "back_to_home": "Back to home",
