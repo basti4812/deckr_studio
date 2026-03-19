@@ -9,6 +9,9 @@ const RequestSchema = z.object({
   slideIds: z.array(z.string().uuid()).min(1).max(100),
 })
 
+/** ConvertAPI timeout: 60 seconds per PPTX conversion */
+const CONVERTAPI_TIMEOUT_MS = 60_000
+
 /**
  * POST /api/slides/generate-thumbnails
  *
@@ -16,6 +19,8 @@ const RequestSchema = z.object({
  * Accepts an array of slide IDs, fetches their PPTX files,
  * converts each page to PNG, stores in Supabase Storage,
  * and updates the slide records with thumbnail URLs.
+ *
+ * Tracks status per slide: pending → generating → done/failed
  */
 export async function POST(request: NextRequest) {
   const auth = await requireAdmin(request)
@@ -58,6 +63,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'No slides found' }, { status: 404 })
   }
 
+  // Mark all slides as 'generating' before we start
+  const allIds = slides.map((s) => s.id)
+  await supabase
+    .from('slides')
+    .update({ thumbnail_status: 'generating', thumbnail_error: null })
+    .in('id', allIds)
+
   // Group slides by pptx_url to avoid converting the same file multiple times
   const pptxGroups = new Map<string, typeof slides>()
   for (const slide of slides) {
@@ -69,17 +81,27 @@ export async function POST(request: NextRequest) {
 
   const results: { slideId: string; thumbnailUrl: string | null; error?: string }[] = []
 
+  /** Mark a slide as failed in DB */
+  async function markFailed(slideId: string, error: string) {
+    await supabase
+      .from('slides')
+      .update({ thumbnail_status: 'failed', thumbnail_error: error })
+      .eq('id', slideId)
+  }
+
   for (const [pptxUrl, groupSlides] of pptxGroups) {
     // SEC-7: Validate pptx_url points to Supabase storage (prevent SSRF)
     if (!isAllowedStorageUrl(pptxUrl)) {
       for (const slide of groupSlides) {
-        results.push({ slideId: slide.id, thumbnailUrl: null, error: 'Invalid slide URL' })
+        const err = 'Invalid slide URL'
+        await markFailed(slide.id, err)
+        results.push({ slideId: slide.id, thumbnailUrl: null, error: err })
       }
       continue
     }
 
     try {
-      // Call ConvertAPI: PPTX → PNG (all pages)
+      // Call ConvertAPI: PPTX → PNG (all pages) with timeout
       const convertRes = await fetch('https://v2.convertapi.com/convert/pptx/to/png', {
         method: 'POST',
         headers: {
@@ -93,6 +115,7 @@ export async function POST(request: NextRequest) {
             { Name: 'ImageWidth', Value: '1920' },
           ],
         }),
+        signal: AbortSignal.timeout(CONVERTAPI_TIMEOUT_MS),
       })
 
       if (!convertRes.ok) {
@@ -102,12 +125,10 @@ export async function POST(request: NextRequest) {
           convertRes.status,
           errText.slice(0, 500)
         )
+        const errorMsg = `ConvertAPI error (${convertRes.status})`
         for (const slide of groupSlides) {
-          results.push({
-            slideId: slide.id,
-            thumbnailUrl: null,
-            error: 'Thumbnail generation failed',
-          })
+          await markFailed(slide.id, errorMsg)
+          results.push({ slideId: slide.id, thumbnailUrl: null, error: errorMsg })
         }
         continue
       }
@@ -120,11 +141,9 @@ export async function POST(request: NextRequest) {
       for (const slide of groupSlides) {
         const pageFile = convertData.Files[slide.page_index ?? 0]
         if (!pageFile) {
-          results.push({
-            slideId: slide.id,
-            thumbnailUrl: null,
-            error: `Page ${slide.page_index} not found in conversion result`,
-          })
+          const err = `Page ${slide.page_index} not found in conversion result (${convertData.Files.length} pages returned)`
+          await markFailed(slide.id, err)
+          results.push({ slideId: slide.id, thumbnailUrl: null, error: err })
           continue
         }
 
@@ -141,11 +160,9 @@ export async function POST(request: NextRequest) {
           })
 
         if (uploadErr) {
-          results.push({
-            slideId: slide.id,
-            thumbnailUrl: null,
-            error: `Storage upload failed: ${uploadErr.message}`,
-          })
+          const err = `Storage upload failed: ${uploadErr.message}`
+          await markFailed(slide.id, err)
+          results.push({ slideId: slide.id, thumbnailUrl: null, error: err })
           continue
         }
 
@@ -156,25 +173,33 @@ export async function POST(request: NextRequest) {
 
         const thumbnailUrl = publicUrlData.publicUrl
 
-        // Update slide record with thumbnail URL
+        // Update slide record with thumbnail URL + done status
         const { error: updateErr } = await supabase
           .from('slides')
-          .update({ thumbnail_url: thumbnailUrl })
+          .update({
+            thumbnail_url: thumbnailUrl,
+            thumbnail_status: 'done',
+            thumbnail_error: null,
+          })
           .eq('id', slide.id)
 
         if (updateErr) {
-          results.push({
-            slideId: slide.id,
-            thumbnailUrl: null,
-            error: `DB update failed: ${updateErr.message}`,
-          })
+          const err = `DB update failed: ${updateErr.message}`
+          await markFailed(slide.id, err)
+          results.push({ slideId: slide.id, thumbnailUrl: null, error: err })
         } else {
           results.push({ slideId: slide.id, thumbnailUrl })
         }
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown error'
+      const msg =
+        err instanceof Error
+          ? err.name === 'TimeoutError'
+            ? 'ConvertAPI timeout (60s) — file may be too large'
+            : err.message
+          : 'Unknown error'
       for (const slide of groupSlides) {
+        await markFailed(slide.id, msg)
         results.push({ slideId: slide.id, thumbnailUrl: null, error: msg })
       }
     }

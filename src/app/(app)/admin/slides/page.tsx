@@ -177,22 +177,38 @@ export default function SlideLibraryPage() {
     queryClient.invalidateQueries({ queryKey: ['slides'] })
   }
 
-  // Poll for thumbnail updates when slides are missing thumbnails
+  // Poll for thumbnail updates when slides are actively generating
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const pendingThumbnails = slides.filter((s) => s.pptx_url && !s.thumbnail_url)
+  const pollCountRef = useRef(0)
+  const MAX_POLL_CYCLES = 60 // 5s × 60 = 5 minutes max polling
+
+  const generatingThumbnails = slides.filter(
+    (s) =>
+      s.thumbnail_status === 'generating' ||
+      (s.pptx_url && !s.thumbnail_url && s.thumbnail_status !== 'failed')
+  )
+  const failedThumbnails = slides.filter((s) => s.thumbnail_status === 'failed')
 
   useEffect(() => {
-    if (pendingThumbnails.length === 0 || loading) {
+    if (generatingThumbnails.length === 0 || loading) {
       if (pollRef.current) {
         clearInterval(pollRef.current)
         pollRef.current = null
+        pollCountRef.current = 0
       }
       return
     }
 
-    // Start polling every 5 seconds to pick up new thumbnails
+    // Start polling every 5 seconds to pick up new thumbnails (max 5 minutes)
     if (!pollRef.current) {
+      pollCountRef.current = 0
       pollRef.current = setInterval(() => {
+        pollCountRef.current++
+        if (pollCountRef.current >= MAX_POLL_CYCLES) {
+          clearInterval(pollRef.current!)
+          pollRef.current = null
+          return
+        }
         invalidateSlides()
       }, 5000)
     }
@@ -203,7 +219,7 @@ export default function SlideLibraryPage() {
         pollRef.current = null
       }
     }
-  }, [pendingThumbnails.length, loading])
+  }, [generatingThumbnails.length, loading])
 
   async function handleDelete() {
     if (!deleteSlide) return
@@ -355,9 +371,11 @@ export default function SlideLibraryPage() {
 
   const [regenerating, setRegenerating] = useState(false)
 
-  async function handleRegenerateThumbnails() {
-    const missing = slides.filter((s) => !s.thumbnail_url)
-    if (missing.length === 0) return
+  async function handleRegenerateThumbnails(slideIds?: string[]) {
+    const targetIds =
+      slideIds ??
+      slides.filter((s) => !s.thumbnail_url || s.thumbnail_status === 'failed').map((s) => s.id)
+    if (targetIds.length === 0) return
 
     setRegenerating(true)
     try {
@@ -373,10 +391,20 @@ export default function SlideLibraryPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ slideIds: missing.map((s) => s.id) }),
+        body: JSON.stringify({ slideIds: targetIds }),
       })
 
       if (res.ok) {
+        const data = await res.json()
+        if (data.failed > 0) {
+          toast.error(
+            t('admin.thumbnail_generation_partial', {
+              succeeded: data.succeeded,
+              failed: data.failed,
+              defaultValue: `${data.succeeded} succeeded, ${data.failed} failed`,
+            })
+          )
+        }
         invalidateSlides()
       }
     } finally {
@@ -384,7 +412,9 @@ export default function SlideLibraryPage() {
     }
   }
 
-  const missingThumbnailCount = slides.filter((s) => !s.thumbnail_url && s.pptx_url).length
+  const retryableThumbnailCount = slides.filter(
+    (s) => s.pptx_url && (!s.thumbnail_url || s.thumbnail_status === 'failed')
+  ).length
 
   // Collect all unique tags from existing slides for the bulk tag popover
   const allTags = [...new Set(slides.flatMap((s) => (s.tags as string[]) ?? []))].sort()
@@ -411,14 +441,18 @@ export default function SlideLibraryPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {missingThumbnailCount > 0 && (
-            <Button variant="outline" onClick={handleRegenerateThumbnails} disabled={regenerating}>
+          {retryableThumbnailCount > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => handleRegenerateThumbnails()}
+              disabled={regenerating}
+            >
               <ImageIcon className="mr-2 h-4 w-4" />
               {regenerating
                 ? t('admin.regenerating_thumbnails', 'Generating…')
                 : t('admin.regenerate_thumbnails', {
-                    count: missingThumbnailCount,
-                    defaultValue: `Regenerate thumbnails (${missingThumbnailCount})`,
+                    count: retryableThumbnailCount,
+                    defaultValue: `Regenerate thumbnails (${retryableThumbnailCount})`,
                   })}
             </Button>
           )}
@@ -513,17 +547,37 @@ export default function SlideLibraryPage() {
       )}
 
       {/* Thumbnail generation banner */}
-      {(regenerating || pendingThumbnails.length > 0) && !loading && (
+      {(regenerating || generatingThumbnails.length > 0) && !loading && (
         <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
           <Loader2 className="h-4 w-4 animate-spin text-primary" />
           <p className="text-sm text-primary">
             {regenerating
               ? t('admin.generating_thumbnails_banner', 'Generating thumbnails, please wait…')
               : t('admin.thumbnails_pending_banner', {
-                  count: pendingThumbnails.length,
-                  defaultValue: `${pendingThumbnails.length} thumbnail${pendingThumbnails.length !== 1 ? 's' : ''} are being generated. They will appear automatically.`,
+                  count: generatingThumbnails.length,
+                  defaultValue: `${generatingThumbnails.length} thumbnail${generatingThumbnails.length !== 1 ? 's' : ''} are being generated. They will appear automatically.`,
                 })}
           </p>
+        </div>
+      )}
+
+      {/* Failed thumbnails banner */}
+      {failedThumbnails.length > 0 && !regenerating && !loading && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3">
+          <p className="text-sm text-destructive">
+            {t('admin.thumbnails_failed_banner', {
+              count: failedThumbnails.length,
+              defaultValue: `${failedThumbnails.length} thumbnail${failedThumbnails.length !== 1 ? 's' : ''} failed to generate.`,
+            })}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleRegenerateThumbnails(failedThumbnails.map((s) => s.id))}
+          >
+            <RefreshCw className="mr-2 h-3 w-3" />
+            {t('admin.retry_failed_thumbnails', 'Retry')}
+          </Button>
         </div>
       )}
 

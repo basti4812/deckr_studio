@@ -29,6 +29,8 @@ export interface Slide {
   page_index?: number | null
   page_count?: number | null
   source_filename?: string | null
+  thumbnail_status?: string | null
+  thumbnail_error?: string | null
 }
 
 export interface EditableField {

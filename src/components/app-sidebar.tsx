@@ -21,6 +21,7 @@ import {
   Users,
 } from 'lucide-react'
 
+import { useState } from 'react'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import { NotificationPanel } from '@/components/notifications/notification-panel'
@@ -43,6 +44,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 
@@ -108,6 +119,7 @@ export function AppSidebar() {
   const { isAdmin, displayName, avatarUrl, role, userId } = useCurrentUser()
   const { state } = useSidebar()
   const isCollapsed = state === 'collapsed'
+  const [logoutOpen, setLogoutOpen] = useState(false)
 
   const inAdminWorkspace = isAdmin && isAdminWorkspace(pathname)
   const navItems = inAdminWorkspace ? adminNavItems : personalNavItems
@@ -115,7 +127,8 @@ export function AppSidebar() {
   async function handleLogout() {
     const supabase = createBrowserSupabaseClient()
     await supabase.auth.signOut()
-    router.push('/login')
+    // Full page reload to clear all React state (providers, context, etc.)
+    window.location.href = '/login'
   }
 
   return (
@@ -260,7 +273,7 @@ export function AppSidebar() {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={handleLogout}
+                  onClick={() => setLogoutOpen(true)}
                   className="text-destructive focus:text-destructive"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
@@ -271,6 +284,24 @@ export function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+      {/* Logout confirmation dialog */}
+      <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('nav.logout_confirm_title')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('nav.logout_confirm_description')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleLogout}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t('nav.log_out')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sidebar>
   )
 }
