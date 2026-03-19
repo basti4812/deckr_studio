@@ -467,11 +467,11 @@ function addContentType(contentTypes: string, partName: string, contentType: str
   return contentTypes.replace('</Types>', `${override}\n</Types>`)
 }
 
-/** Replace a relationship target in a rels XML string */
+/** Replace a relationship target in a rels XML string (handles any attribute order) */
 function remapRelTarget(relsXml: string, relId: string, newTarget: string): string {
-  return relsXml.replace(
-    new RegExp(`(<Relationship[^>]*Id="${escapeRegex(relId)}"[^>]*Target=")([^"]+)(")`),
-    `$1${newTarget}$3`
+  const pattern = new RegExp(`<Relationship\\b[^>]*\\bId="${escapeRegex(relId)}"[^>]*/>`)
+  return relsXml.replace(pattern, (match) =>
+    match.replace(/\bTarget="[^"]*"/, `Target="${newTarget}"`)
   )
 }
 
@@ -547,6 +547,26 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
     return parts.join('|')
   }
 
+  // ── Step 2b: Cache base ZIP fingerprint to avoid duplicating structures ──
+  const baseFingerprint = await getFingerprint(baseZip)
+  const baseStructure: CopiedStructure = {
+    layoutMap: new Map(),
+    masterMap: new Map(),
+    themeMap: new Map(),
+  }
+  for (const f of Object.keys(baseZip.files)) {
+    if (/^ppt\/slideLayouts\/slideLayout\d+\.xml$/.test(f)) {
+      baseStructure.layoutMap.set(f, f)
+    }
+    if (/^ppt\/slideMasters\/slideMaster\d+\.xml$/.test(f)) {
+      baseStructure.masterMap.set(f, f)
+    }
+    if (/^ppt\/theme\/theme\d+\.xml$/.test(f)) {
+      baseStructure.themeMap.set(f, f)
+    }
+  }
+  structureCache.set(baseFingerprint, baseStructure)
+
   // ── Step 3: Process each subsequent slide ─────────────────────────────
   for (let i = 1; i < buffers.length; i++) {
     const srcZip = await JSZip.loadAsync(buffers[i])
@@ -569,14 +589,15 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
     let structure = structureCache.get(fingerprint)
 
     if (!structure) {
-      // This is a new source structure — copy its layouts, masters, themes
+      // New source structure — copy layouts, masters, themes using a phased
+      // approach so that ALL paths are known before writing .rels files.
       structure = {
         layoutMap: new Map(),
         masterMap: new Map(),
         themeMap: new Map(),
       }
 
-      // Find all slide layouts in the source
+      // ── Phase A: Copy all layout XMLs and build complete layoutMap ──
       const srcLayoutFiles = Object.keys(srcZip.files).filter((f) =>
         /^ppt\/slideLayouts\/slideLayout\d+\.xml$/.test(f)
       )
@@ -584,156 +605,178 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
       for (const srcLayoutPath of srcLayoutFiles) {
         layoutCounter++
         const newLayoutPath = `ppt/slideLayouts/slideLayout${layoutCounter}.xml`
-        const newLayoutName = `slideLayout${layoutCounter}.xml`
         structure.layoutMap.set(srcLayoutPath, newLayoutPath)
-
-        // Copy layout XML
         await copyFile(srcZip, baseZip, srcLayoutPath, newLayoutPath)
+        contentTypes = addContentType(contentTypes, `/${newLayoutPath}`, CT_LAYOUT)
+      }
 
-        // Copy layout rels (with media remapping)
-        const srcLayoutRelsPath =
-          srcLayoutPath.replace('ppt/slideLayouts/', 'ppt/slideLayouts/_rels/') + '.rels'
-        const srcLayoutRelsFile = srcZip.file(srcLayoutRelsPath)
+      // ── Phase B: Read layout rels to discover masters; copy master XMLs ──
+      // Store layout rels data for later writing (Phase D)
+      const layoutRelsData = new Map<
+        string,
+        { relsXml: string; masterSrcPath: string | null; masterRelId: string | null }
+      >()
 
-        if (srcLayoutRelsFile) {
-          let layoutRels = await srcLayoutRelsFile.async('string')
+      for (const srcLayoutPath of srcLayoutFiles) {
+        const srcLayoutName = srcLayoutPath.replace('ppt/slideLayouts/', '')
+        const srcRelsPath = `ppt/slideLayouts/_rels/${srcLayoutName}.rels`
+        const relsFile = srcZip.file(srcRelsPath)
+        if (!relsFile) continue
 
-          // Remap media in layout rels
-          layoutRels = await copyAndRemapMedia(
-            srcZip,
-            baseZip,
-            layoutRels,
-            'ppt/slideLayouts',
-            existingMedia,
-            mediaCounter
-          )
+        let relsXml = await relsFile.async('string')
+        relsXml = await copyAndRemapMedia(
+          srcZip,
+          baseZip,
+          relsXml,
+          'ppt/slideLayouts',
+          existingMedia,
+          mediaCounter
+        )
 
-          // Find and remap slideMaster reference in layout rels
-          const layoutRelsParsed = parseRels(layoutRels)
-          const masterRel = findRel(layoutRelsParsed, REL_SLIDE_MASTER)
-          if (masterRel) {
-            const srcMasterPath = resolveRelativePath('ppt/slideLayouts', masterRel.target)
+        // Discover master
+        const rels = parseRels(relsXml)
+        const masterRel = findRel(rels, REL_SLIDE_MASTER)
+        let masterSrcPath: string | null = null
+        let masterRelId: string | null = null
 
-            if (!structure.masterMap.has(srcMasterPath)) {
-              // Copy this master
-              masterCounter++
-              const newMasterPath = `ppt/slideMasters/slideMaster${masterCounter}.xml`
-              structure.masterMap.set(srcMasterPath, newMasterPath)
-
-              await copyFile(srcZip, baseZip, srcMasterPath, newMasterPath)
-
-              // Copy master rels
-              const srcMasterRelsPath =
-                srcMasterPath.replace('ppt/slideMasters/', 'ppt/slideMasters/_rels/') + '.rels'
-              const srcMasterRelsFile = srcZip.file(srcMasterRelsPath)
-
-              if (srcMasterRelsFile) {
-                let masterRels = await srcMasterRelsFile.async('string')
-
-                // Remap media in master rels
-                masterRels = await copyAndRemapMedia(
-                  srcZip,
-                  baseZip,
-                  masterRels,
-                  'ppt/slideMasters',
-                  existingMedia,
-                  mediaCounter
-                )
-
-                // Find and remap theme reference
-                const masterRelsParsed = parseRels(masterRels)
-                const themeRel = findRel(masterRelsParsed, REL_THEME)
-                if (themeRel) {
-                  const srcThemePath = resolveRelativePath('ppt/slideMasters', themeRel.target)
-
-                  if (!structure.themeMap.has(srcThemePath)) {
-                    themeCounter++
-                    const newThemePath = `ppt/theme/theme${themeCounter}.xml`
-                    structure.themeMap.set(srcThemePath, newThemePath)
-
-                    await copyFile(srcZip, baseZip, srcThemePath, newThemePath)
-
-                    // Copy theme rels if they exist
-                    const srcThemeRelsPath =
-                      srcThemePath.replace('ppt/theme/', 'ppt/theme/_rels/') + '.rels'
-                    const srcThemeRelsFile = srcZip.file(srcThemeRelsPath)
-                    if (srcThemeRelsFile) {
-                      let themeRels = await srcThemeRelsFile.async('string')
-                      themeRels = await copyAndRemapMedia(
-                        srcZip,
-                        baseZip,
-                        themeRels,
-                        'ppt/theme',
-                        existingMedia,
-                        mediaCounter
-                      )
-                      const newThemeRelsPath =
-                        newThemePath.replace('ppt/theme/', 'ppt/theme/_rels/') + '.rels'
-                      baseZip.file(newThemeRelsPath, themeRels)
-                    }
-
-                    // Register theme in content types
-                    contentTypes = addContentType(contentTypes, `/${newThemePath}`, CT_THEME)
-                  }
-
-                  // Remap theme target in master rels
-                  const newThemePath = structure.themeMap.get(srcThemePath)!
-                  const newThemeTarget = computeRelativePath('ppt/slideMasters', newThemePath)
-                  masterRels = remapRelTarget(masterRels, themeRel.id, newThemeTarget)
-                }
-
-                // Remap slideLayout references in master rels to their new paths
-                const masterLayoutRels = masterRelsParsed.filter((r) => r.type === REL_SLIDE_LAYOUT)
-                for (const lr of masterLayoutRels) {
-                  const srcLPath = resolveRelativePath('ppt/slideMasters', lr.target)
-                  const newLPath = structure.layoutMap.get(srcLPath)
-                  if (newLPath) {
-                    const newTarget = computeRelativePath('ppt/slideMasters', newLPath)
-                    masterRels = remapRelTarget(masterRels, lr.id, newTarget)
-                  }
-                }
-
-                const newMasterRelsPath =
-                  newMasterPath.replace('ppt/slideMasters/', 'ppt/slideMasters/_rels/') + '.rels'
-                baseZip.file(newMasterRelsPath, masterRels)
-              }
-
-              // Register master in content types
-              contentTypes = addContentType(contentTypes, `/${newMasterPath}`, CT_MASTER)
-
-              // Add master to presentation.xml.rels
-              presRidCounter++
-              const masterRelId = `rId${presRidCounter}`
-              presentationRels = addRelToXml(
-                presentationRels,
-                masterRelId,
-                REL_SLIDE_MASTER,
-                newMasterPath.replace('ppt/', '')
-              )
-
-              // Add master to sldMasterIdLst in presentation.xml
-              masterIdCounter++
-              const masterIdEntry = `<p:sldMasterId id="${masterIdCounter}" r:id="${masterRelId}"/>`
-              if (presentationXml.includes('</p:sldMasterIdLst>')) {
-                presentationXml = presentationXml.replace(
-                  '</p:sldMasterIdLst>',
-                  `${masterIdEntry}\n</p:sldMasterIdLst>`
-                )
-              }
-            }
-
-            // Remap master target in layout rels
-            const newMasterPath = structure.masterMap.get(srcMasterPath)!
-            const newMasterTarget = computeRelativePath('ppt/slideLayouts', newMasterPath)
-            layoutRels = remapRelTarget(layoutRels, masterRel.id, newMasterTarget)
+        if (masterRel) {
+          masterSrcPath = resolveRelativePath('ppt/slideLayouts', masterRel.target)
+          masterRelId = masterRel.id
+          if (!structure.masterMap.has(masterSrcPath)) {
+            masterCounter++
+            const newMasterPath = `ppt/slideMasters/slideMaster${masterCounter}.xml`
+            structure.masterMap.set(masterSrcPath, newMasterPath)
+            await copyFile(srcZip, baseZip, masterSrcPath, newMasterPath)
+            contentTypes = addContentType(contentTypes, `/${newMasterPath}`, CT_MASTER)
           }
-
-          const newLayoutRelsPath = `ppt/slideLayouts/_rels/${newLayoutName}.rels`
-          baseZip.file(newLayoutRelsPath, layoutRels)
         }
 
-        // Register layout in content types
-        contentTypes = addContentType(contentTypes, `/${newLayoutPath}`, CT_LAYOUT)
+        layoutRelsData.set(srcLayoutPath, { relsXml, masterSrcPath, masterRelId })
+      }
+
+      // ── Phase C: Read master rels to discover themes; copy theme XMLs ──
+      // Store master rels data for later writing (Phase E)
+      const masterRelsData = new Map<string, { relsXml: string }>()
+
+      for (const [srcMasterPath] of structure.masterMap) {
+        const srcMasterName = srcMasterPath.replace('ppt/slideMasters/', '')
+        const srcRelsPath = `ppt/slideMasters/_rels/${srcMasterName}.rels`
+        const relsFile = srcZip.file(srcRelsPath)
+        if (!relsFile) continue
+
+        let relsXml = await relsFile.async('string')
+        relsXml = await copyAndRemapMedia(
+          srcZip,
+          baseZip,
+          relsXml,
+          'ppt/slideMasters',
+          existingMedia,
+          mediaCounter
+        )
+
+        // Discover theme
+        const rels = parseRels(relsXml)
+        const themeRel = findRel(rels, REL_THEME)
+        if (themeRel) {
+          const srcThemePath = resolveRelativePath('ppt/slideMasters', themeRel.target)
+          if (!structure.themeMap.has(srcThemePath)) {
+            themeCounter++
+            const newThemePath = `ppt/theme/theme${themeCounter}.xml`
+            structure.themeMap.set(srcThemePath, newThemePath)
+            await copyFile(srcZip, baseZip, srcThemePath, newThemePath)
+            contentTypes = addContentType(contentTypes, `/${newThemePath}`, CT_THEME)
+
+            // Copy theme rels (media only)
+            const srcThemeName = srcThemePath.replace('ppt/theme/', '')
+            const srcThemeRelsPath = `ppt/theme/_rels/${srcThemeName}.rels`
+            const themeRelsFile = srcZip.file(srcThemeRelsPath)
+            if (themeRelsFile) {
+              let themeRels = await themeRelsFile.async('string')
+              themeRels = await copyAndRemapMedia(
+                srcZip,
+                baseZip,
+                themeRels,
+                'ppt/theme',
+                existingMedia,
+                mediaCounter
+              )
+              const newThemeName = newThemePath.replace('ppt/theme/', '')
+              baseZip.file(`ppt/theme/_rels/${newThemeName}.rels`, themeRels)
+            }
+          }
+        }
+
+        masterRelsData.set(srcMasterPath, { relsXml })
+      }
+
+      // ── Phase D: Write layout rels (masterMap is now complete) ──
+      for (const [srcLayoutPath, data] of layoutRelsData) {
+        let relsXml = data.relsXml
+
+        // Remap master reference
+        if (data.masterSrcPath && data.masterRelId) {
+          const newMasterPath = structure.masterMap.get(data.masterSrcPath)
+          if (newMasterPath) {
+            const newTarget = computeRelativePath('ppt/slideLayouts', newMasterPath)
+            relsXml = remapRelTarget(relsXml, data.masterRelId, newTarget)
+          }
+        }
+
+        const newLayoutPath = structure.layoutMap.get(srcLayoutPath)!
+        const newLayoutName = newLayoutPath.replace('ppt/slideLayouts/', '')
+        baseZip.file(`ppt/slideLayouts/_rels/${newLayoutName}.rels`, relsXml)
+      }
+
+      // ── Phase E: Write master rels (layoutMap + themeMap are complete) ──
+      for (const [srcMasterPath, data] of masterRelsData) {
+        let relsXml = data.relsXml
+        const rels = parseRels(relsXml)
+
+        // Remap ALL layout references (layoutMap is now complete!)
+        const layoutRels = rels.filter((r) => r.type === REL_SLIDE_LAYOUT)
+        for (const lr of layoutRels) {
+          const srcLPath = resolveRelativePath('ppt/slideMasters', lr.target)
+          const newLPath = structure.layoutMap.get(srcLPath)
+          if (newLPath) {
+            const newTarget = computeRelativePath('ppt/slideMasters', newLPath)
+            relsXml = remapRelTarget(relsXml, lr.id, newTarget)
+          }
+        }
+
+        // Remap theme reference
+        const themeRel = findRel(rels, REL_THEME)
+        if (themeRel) {
+          const srcThemePath = resolveRelativePath('ppt/slideMasters', themeRel.target)
+          const newThemePath = structure.themeMap.get(srcThemePath)
+          if (newThemePath) {
+            const newTarget = computeRelativePath('ppt/slideMasters', newThemePath)
+            relsXml = remapRelTarget(relsXml, themeRel.id, newTarget)
+          }
+        }
+
+        const newMasterPath = structure.masterMap.get(srcMasterPath)!
+        const newMasterName = newMasterPath.replace('ppt/slideMasters/', '')
+        baseZip.file(`ppt/slideMasters/_rels/${newMasterName}.rels`, relsXml)
+
+        // Add master to presentation.xml.rels
+        presRidCounter++
+        const masterRelId = `rId${presRidCounter}`
+        presentationRels = addRelToXml(
+          presentationRels,
+          masterRelId,
+          REL_SLIDE_MASTER,
+          newMasterPath.replace('ppt/', '')
+        )
+
+        // Add to sldMasterIdLst in presentation.xml
+        masterIdCounter++
+        const masterIdEntry = `<p:sldMasterId id="${masterIdCounter}" r:id="${masterRelId}"/>`
+        if (presentationXml.includes('</p:sldMasterIdLst>')) {
+          presentationXml = presentationXml.replace(
+            '</p:sldMasterIdLst>',
+            `${masterIdEntry}\n</p:sldMasterIdLst>`
+          )
+        }
       }
 
       structureCache.set(fingerprint, structure)

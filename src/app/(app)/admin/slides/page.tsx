@@ -405,8 +405,11 @@ export default function SlideLibraryPage() {
             })
           )
         }
-        invalidateSlides()
+      } else {
+        const errData = await res.json().catch(() => ({}))
+        toast.error((errData as { error?: string }).error ?? 'Thumbnail generation failed')
       }
+      invalidateSlides()
     } finally {
       setRegenerating(false)
     }

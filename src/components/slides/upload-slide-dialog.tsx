@@ -5,6 +5,7 @@ import { FileX, Upload, X } from 'lucide-react'
 import JSZip from 'jszip'
 import { useTranslation } from 'react-i18next'
 import { parsePptxFields } from '@/lib/pptx-parser'
+import { getVisibleSlideIndices } from '@/lib/pptx-utils'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -48,18 +49,15 @@ function formatSize(bytes: number): string {
 // PPTX page counter (client-side, only works for .pptx)
 // ---------------------------------------------------------------------------
 
-async function countPptxPages(file: File): Promise<number> {
+async function countPptxPages(
+  file: File
+): Promise<{ pageCount: number; visibleIndices: number[] }> {
   const zip = await JSZip.loadAsync(file)
-  let count = 0
-  zip.forEach((path) => {
-    if (/^ppt\/slides\/slide\d+\.xml$/i.test(path)) {
-      count++
-    }
-  })
-  if (count === 0) {
+  const visibleIndices = await getVisibleSlideIndices(zip)
+  if (visibleIndices.length === 0) {
     throw new Error('No slides found in the file — is this a valid PowerPoint?')
   }
-  return count
+  return { pageCount: visibleIndices.length, visibleIndices }
 }
 
 // ---------------------------------------------------------------------------
@@ -220,11 +218,14 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
 
         let pptxUrl: string
         let pageCount: number
+        let visibleIndices: number[] | null = null
 
         if (isPptx) {
-          // --- PPTX: client-side page counting ---
+          // --- PPTX: client-side page counting (skips hidden slides) ---
           pptxUrl = urlData.signedUrl
-          pageCount = await countPptxPages(qf.file)
+          const result = await countPptxPages(qf.file)
+          pageCount = result.pageCount
+          visibleIndices = result.visibleIndices
         } else {
           // --- Non-PPTX: server-side conversion ---
           setQueue((prev) => prev.map((f, i) => (i === fi ? { ...f, status: 'converting' } : f)))
@@ -262,8 +263,14 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
 
         const fileSlideIds: string[] = []
 
-        for (let pi = 0; pi < pageCount; pi++) {
-          const slideTitle = pageCount > 1 ? `${title} — Slide ${pi + 1}` : title
+        // For PPTX: use visible indices (skips hidden slides)
+        // For converted: sequential 0..pageCount-1 (converted files have no hidden slides)
+        const indices = visibleIndices ?? Array.from({ length: pageCount }, (_, i) => i)
+
+        for (let idx = 0; idx < indices.length; idx++) {
+          const pi = indices[idx] // actual PPTX page index (for extractSinglePage)
+          const slideNum = idx + 1 // display number (1-based, visible only)
+          const slideTitle = indices.length > 1 ? `${title} — Slide ${slideNum}` : title
 
           // Auto-detect editable fields (only for PPTX, client-side)
           let editable_fields: {
@@ -297,7 +304,7 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
               status: 'standard',
               pptx_url: pptxUrl,
               page_index: pi,
-              page_count: pageCount,
+              page_count: indices.length,
               source_filename: qf.file.name,
               editable_fields,
             }),
@@ -306,7 +313,7 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
           if (!res.ok) {
             const data = await res.json().catch(() => ({}))
             throw new Error(
-              (data as { error?: string }).error ?? `Failed to create slide ${pi + 1}`
+              (data as { error?: string }).error ?? `Failed to create slide ${slideNum}`
             )
           }
 
@@ -318,7 +325,9 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
 
         // Update queue entry
         setQueue((prev) =>
-          prev.map((f, i) => (i === fi ? { ...f, status: 'done', slidesCreated: pageCount } : f))
+          prev.map((f, i) =>
+            i === fi ? { ...f, status: 'done', slidesCreated: indices.length } : f
+          )
         )
 
         // Trigger thumbnail generation for this file's slides

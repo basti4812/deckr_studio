@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import JSZip from 'jszip'
+import { getVisibleSlideIndices } from '@/lib/pptx-utils'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { createServiceClient } from '@/lib/supabase'
@@ -119,19 +120,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create signed URL' }, { status: 500 })
     }
 
-    // Count pages in the converted PPTX
+    // Count visible pages in the converted PPTX (skip hidden slides)
     const zip = await JSZip.loadAsync(pptxBuffer)
-    let pageCount = 0
-    zip.forEach((path) => {
-      if (/^ppt\/slides\/slide\d+\.xml$/i.test(path)) {
-        pageCount++
-      }
-    })
-    if (pageCount === 0) pageCount = 1 // fallback
+    const visibleIndices = await getVisibleSlideIndices(zip)
 
     return NextResponse.json({
       pptxUrl: urlData.signedUrl,
-      pageCount,
+      pageCount: visibleIndices.length,
     })
   } catch (err) {
     console.error('[convert-presentation] Error:', err)

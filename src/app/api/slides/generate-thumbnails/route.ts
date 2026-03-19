@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/auth-helpers'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { createServiceClient } from '@/lib/supabase'
 import { isAllowedStorageUrl } from '@/lib/url-validation'
+import { getVisibleSlideIndices } from '@/lib/pptx-utils'
 
 const RequestSchema = z.object({
   slideIds: z.array(z.string().uuid()).min(1).max(100),
@@ -101,22 +102,37 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // Call ConvertAPI: PPTX → PNG (all pages) with timeout
-      const convertRes = await fetch('https://v2.convertapi.com/convert/pptx/to/png', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${secret}`,
-        },
-        body: JSON.stringify({
-          Parameters: [
-            { Name: 'File', FileValue: { Url: pptxUrl } },
-            { Name: 'ImageHeight', Value: '1080' },
-            { Name: 'ImageWidth', Value: '1920' },
-          ],
+      // Download PPTX + call ConvertAPI in parallel
+      // We need the PPTX to detect hidden slides (ConvertAPI skips them)
+      const [pptxRes, convertRes] = await Promise.all([
+        fetch(pptxUrl, { signal: AbortSignal.timeout(30_000) }),
+        fetch('https://v2.convertapi.com/convert/pptx/to/png', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${secret}`,
+          },
+          body: JSON.stringify({
+            Parameters: [
+              { Name: 'File', FileValue: { Url: pptxUrl } },
+              { Name: 'ImageHeight', Value: '1080' },
+              { Name: 'ImageWidth', Value: '1920' },
+            ],
+          }),
+          signal: AbortSignal.timeout(CONVERTAPI_TIMEOUT_MS),
         }),
-        signal: AbortSignal.timeout(CONVERTAPI_TIMEOUT_MS),
-      })
+      ])
+
+      // Build visible-index mapping from downloaded PPTX
+      let visibleIndices: number[] | null = null
+      if (pptxRes.ok) {
+        try {
+          const pptxBuffer = await pptxRes.arrayBuffer()
+          visibleIndices = await getVisibleSlideIndices(pptxBuffer)
+        } catch (e) {
+          console.warn('[generate-thumbnails] Could not detect hidden slides:', e)
+        }
+      }
 
       if (!convertRes.ok) {
         const errText = await convertRes.text()
@@ -137,11 +153,31 @@ export async function POST(request: NextRequest) {
         Files: { FileName: string; FileData: string }[]
       }
 
-      // Each file in the response is a page PNG (0-indexed)
+      // Each file in the response is a VISIBLE page PNG (0-indexed among visible slides).
+      // Map each slide's page_index (full PPTX index) to the ConvertAPI file index.
       for (const slide of groupSlides) {
-        const pageFile = convertData.Files[slide.page_index ?? 0]
+        const fullIndex = slide.page_index ?? 0
+        let convertApiIndex: number
+
+        if (visibleIndices) {
+          // Find this slide's position among visible slides
+          const pos = visibleIndices.indexOf(fullIndex)
+          if (pos === -1) {
+            // This slide is hidden — it can't have a thumbnail
+            const err = 'Slide is hidden in the source PowerPoint file'
+            await markFailed(slide.id, err)
+            results.push({ slideId: slide.id, thumbnailUrl: null, error: err })
+            continue
+          }
+          convertApiIndex = pos
+        } else {
+          // Fallback: use page_index directly (no hidden slide info available)
+          convertApiIndex = fullIndex
+        }
+
+        const pageFile = convertData.Files[convertApiIndex]
         if (!pageFile) {
-          const err = `Page ${slide.page_index} not found in conversion result (${convertData.Files.length} pages returned)`
+          const err = `Page ${fullIndex} not found in conversion result (${convertData.Files.length} pages returned)`
           await markFailed(slide.id, err)
           results.push({ slideId: slide.id, thumbnailUrl: null, error: err })
           continue
