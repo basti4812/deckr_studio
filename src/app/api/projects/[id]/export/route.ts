@@ -677,7 +677,29 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
   )
   baseZip.file('ppt/_rels/presentation.xml.rels', presRelsTemp)
 
+  // Strip broken references from the base slide1.xml.rels
+  // (extractSinglePage copies the rels as-is, so they may reference
+  // notesSlides/comments that we just removed)
+  const baseSlideRelsFile = baseZip.file('ppt/slides/_rels/slide1.xml.rels')
+  if (baseSlideRelsFile) {
+    let baseSlideRels = await baseSlideRelsFile.async('string')
+    baseSlideRels = stripBrokenFileRefs(baseSlideRels, baseZip)
+    baseZip.file('ppt/slides/_rels/slide1.xml.rels', baseSlideRels)
+  }
+
+  // Remove notesMasterIdLst and handoutMasterIdLst from presentation.xml
+  // (these reference notesMasters/handoutMasters that we just removed)
   let presentationXml = await baseZip.file('ppt/presentation.xml')!.async('string')
+  presentationXml = presentationXml.replace(
+    /<p:notesMasterIdLst>[\s\S]*?<\/p:notesMasterIdLst>\s*/g,
+    ''
+  )
+  presentationXml = presentationXml.replace(
+    /<p:handoutMasterIdLst>[\s\S]*?<\/p:handoutMasterIdLst>\s*/g,
+    ''
+  )
+  baseZip.file('ppt/presentation.xml', presentationXml)
+
   let presentationRels = await baseZip.file('ppt/_rels/presentation.xml.rels')!.async('string')
   baseZip.file('[Content_Types].xml', contentTypes)
 
