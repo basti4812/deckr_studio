@@ -195,6 +195,9 @@ export async function POST(request: NextRequest, { params }: { params: Params })
     )
   }
 
+  // Debug mode: analyze PPTX structure instead of returning binary
+  const isAnalyze = request.nextUrl.searchParams.get('analyze') === '1'
+
   // Merge all processed slides into one .pptx
   let mergedBuffer: Uint8Array
   try {
@@ -206,6 +209,19 @@ export async function POST(request: NextRequest, { params }: { params: Params })
       { error: `Failed to assemble presentation: ${detail}` },
       { status: 500 }
     )
+  }
+
+  if (isAnalyze) {
+    // Analyze input buffers + merged output
+    const inputAnalyses = await Promise.all(
+      processedBuffers.map((buf, i) => analyzePptxStructure(buf, `input[${i}]`))
+    )
+    const mergedAnalysis = await analyzePptxStructure(mergedBuffer, 'merged')
+    return NextResponse.json({
+      inputCount: processedBuffers.length,
+      inputs: inputAnalyses,
+      merged: mergedAnalysis,
+    })
   }
 
   // Enforce 200 MB limit
@@ -796,4 +812,200 @@ function simpleHash(str: string): string {
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// ---------------------------------------------------------------------------
+// PPTX structure analyzer — for debugging merge issues
+// ---------------------------------------------------------------------------
+
+interface SlideAnalysis {
+  path: string
+  relsPath: string | null
+  layoutTarget: string | null
+  layoutResolved: string | null
+  layoutExists: boolean
+  relCount: number
+  brokenRels: string[]
+  hasSchemeClr: boolean
+  hasThemeFont: boolean
+  hasPlaceholderRef: boolean
+  xmlLength: number
+}
+
+interface PptxAnalysis {
+  label: string
+  totalFiles: number
+  slides: SlideAnalysis[]
+  layouts: string[]
+  masters: string[]
+  themes: string[]
+  presentationSlideIds: { id: string; rid: string }[]
+  presentationMasterIds: { id: string; rid: string }[]
+  presentationRels: { id: string; type: string; target: string }[]
+  contentTypeOverrides: { partName: string; contentType: string }[]
+  issues: string[]
+}
+
+async function analyzePptxStructure(buffer: Uint8Array, label: string): Promise<PptxAnalysis> {
+  const zip = await JSZip.loadAsync(buffer)
+  const allFiles = Object.keys(zip.files).sort()
+  const issues: string[] = []
+
+  // Parse Content Types
+  const ctFile = zip.file('[Content_Types].xml')
+  const ctXml = ctFile ? await ctFile.async('string') : ''
+  const overrides: { partName: string; contentType: string }[] = []
+  for (const m of ctXml.matchAll(/<Override\b[^>]*\/>/g)) {
+    const pn = m[0].match(/PartName="([^"]+)"/)?.[1]
+    const ct = m[0].match(/ContentType="([^"]+)"/)?.[1]
+    if (pn && ct) overrides.push({ partName: pn, contentType: ct })
+  }
+
+  // Parse presentation.xml
+  const presFile = zip.file('ppt/presentation.xml')
+  const presXml = presFile ? await presFile.async('string') : ''
+  const slideIds: { id: string; rid: string }[] = []
+  for (const m of presXml.matchAll(/<p:sldId\b[^>]*/g)) {
+    const el = m[0]
+    const id = el.match(/\bid="(\d+)"/)?.[1] ?? '?'
+    const rid = el.match(/r:id="([^"]+)"/)?.[1] ?? '?'
+    slideIds.push({ id, rid })
+  }
+  const masterIds: { id: string; rid: string }[] = []
+  for (const m of presXml.matchAll(/<p:sldMasterId\b[^>]*/g)) {
+    const el = m[0]
+    const id = el.match(/\bid="(\d+)"/)?.[1] ?? '?'
+    const rid = el.match(/r:id="([^"]+)"/)?.[1] ?? '?'
+    masterIds.push({ id, rid })
+  }
+
+  // Parse presentation.xml.rels
+  const presRelsFile = zip.file('ppt/_rels/presentation.xml.rels')
+  const presRelsXml = presRelsFile ? await presRelsFile.async('string') : ''
+  const presRels = parseRels(presRelsXml)
+
+  // Analyze slides
+  const slideFiles = allFiles
+    .filter((f) => /^ppt\/slides\/slide\d+\.xml$/.test(f))
+    .sort((a, b) => {
+      const na = parseInt(a.match(/slide(\d+)/)?.[1] ?? '0')
+      const nb = parseInt(b.match(/slide(\d+)/)?.[1] ?? '0')
+      return na - nb
+    })
+
+  const layouts = allFiles.filter((f) => /^ppt\/slideLayouts\/slideLayout\d+\.xml$/.test(f))
+  const masters = allFiles.filter((f) => /^ppt\/slideMasters\/slideMaster\d+\.xml$/.test(f))
+  const themes = allFiles.filter((f) => /^ppt\/theme\/theme\d+\.xml$/.test(f))
+
+  const slides: SlideAnalysis[] = []
+  for (const slidePath of slideFiles) {
+    const slideXml = await zip.file(slidePath)!.async('string')
+    const slideName = slidePath.split('/').pop()!
+    const relsPath = `ppt/slides/_rels/${slideName}.rels`
+    const relsFile = zip.file(relsPath)
+    let layoutTarget: string | null = null
+    let layoutResolved: string | null = null
+    let layoutExists = false
+    let relCount = 0
+    const brokenRels: string[] = []
+
+    if (relsFile) {
+      const relsXml = await relsFile.async('string')
+      const rels = parseRels(relsXml)
+      relCount = rels.length
+      const layoutRel = findRel(rels, REL_SLIDE_LAYOUT)
+      if (layoutRel) {
+        layoutTarget = layoutRel.target
+        layoutResolved = resolveRelativePath('ppt/slides', layoutRel.target)
+        layoutExists = !!zip.file(layoutResolved)
+        if (!layoutExists) issues.push(`${slidePath}: layout ${layoutResolved} not found in ZIP`)
+      } else {
+        issues.push(`${slidePath}: no slideLayout relationship found`)
+      }
+
+      // Check for broken rels
+      for (const rel of rels) {
+        if (/TargetMode\s*=\s*"External"/.test(JSON.stringify(rel))) continue
+        const resolved = resolveRelativePath('ppt/slides', rel.target)
+        if (!zip.file(resolved)) {
+          brokenRels.push(`${rel.id} → ${rel.target} (${resolved})`)
+        }
+      }
+    } else {
+      issues.push(`${slidePath}: missing rels file ${relsPath}`)
+    }
+
+    slides.push({
+      path: slidePath,
+      relsPath: relsFile ? relsPath : null,
+      layoutTarget,
+      layoutResolved,
+      layoutExists,
+      relCount,
+      brokenRels,
+      hasSchemeClr: /<a:schemeClr\b/.test(slideXml),
+      hasThemeFont: /typeface="\+m[jn]-/.test(slideXml),
+      hasPlaceholderRef: /<p:ph\b/.test(slideXml),
+      xmlLength: slideXml.length,
+    })
+  }
+
+  // Cross-check: every slideId in presentation.xml should have a matching rel
+  for (const sid of slideIds) {
+    const rel = presRels.find((r) => r.id === sid.rid)
+    if (!rel) {
+      issues.push(`presentation.xml sldId r:id="${sid.rid}" has no matching relationship`)
+    } else {
+      const slidePath = `ppt/${rel.target}`
+      if (!zip.file(slidePath)) {
+        issues.push(
+          `presentation.xml.rels ${sid.rid} → ${rel.target} but file ${slidePath} not in ZIP`
+        )
+      }
+    }
+  }
+
+  // Cross-check: every slide file should be in Content_Types
+  for (const sf of slideFiles) {
+    const partName = `/${sf}`
+    if (!overrides.some((o) => o.partName === partName)) {
+      issues.push(`${sf} not in [Content_Types].xml`)
+    }
+  }
+
+  // Check for duplicate IDs
+  const idSet = new Set<string>()
+  for (const sid of slideIds) {
+    if (idSet.has(sid.id)) issues.push(`Duplicate slide id="${sid.id}" in presentation.xml`)
+    idSet.add(sid.id)
+  }
+  const ridSet = new Set<string>()
+  for (const rel of presRels) {
+    if (ridSet.has(rel.id)) issues.push(`Duplicate rId="${rel.id}" in presentation.xml.rels`)
+    ridSet.add(rel.id)
+  }
+
+  return {
+    label,
+    totalFiles: allFiles.length,
+    slides,
+    layouts,
+    masters,
+    themes,
+    presentationSlideIds: slideIds,
+    presentationMasterIds: masterIds,
+    presentationRels: presRels.map((r) => ({
+      id: r.id,
+      type: r.type.split('/').pop()!,
+      target: r.target,
+    })),
+    contentTypeOverrides: overrides.filter(
+      (o) =>
+        o.partName.includes('/slides/') ||
+        o.partName.includes('/slideLayouts/') ||
+        o.partName.includes('/slideMasters/') ||
+        o.partName.includes('/theme/')
+    ),
+    issues,
+  }
 }
