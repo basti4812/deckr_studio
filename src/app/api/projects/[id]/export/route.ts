@@ -118,8 +118,10 @@ export async function POST(request: NextRequest, { params }: { params: Params })
 
   // Download and process each slide in tray order
   // Cache PPTX downloads by URL to avoid re-downloading the same multi-page file
+  // Track source key per buffer so we can group same-source slides together
   const pptxCache = new Map<string, ArrayBuffer>()
   const processedBuffers: Uint8Array[] = []
+  const sourceKeys: string[] = [] // parallel array: source key per buffer
 
   for (const item of trayItems) {
     // Personal slide: download from personal-slides bucket, no text edits
@@ -142,6 +144,7 @@ export async function POST(request: NextRequest, { params }: { params: Params })
 
       const buffer = await fileData.arrayBuffer()
       processedBuffers.push(new Uint8Array(buffer))
+      sourceKeys.push(`personal:${item.personal_slide_id}`)
       continue
     }
 
@@ -186,6 +189,7 @@ export async function POST(request: NextRequest, { params }: { params: Params })
 
     const processed = await applyTextEdits(slideBuffer, fields, instanceEdits)
     processedBuffers.push(processed)
+    sourceKeys.push(`library:${slide.pptx_url}`)
   }
 
   if (processedBuffers.length === 0) {
@@ -201,7 +205,7 @@ export async function POST(request: NextRequest, { params }: { params: Params })
   // Merge all processed slides into one .pptx
   let mergedBuffer: Uint8Array
   try {
-    mergedBuffer = await mergePptxFiles(processedBuffers)
+    mergedBuffer = await mergePptxFiles(processedBuffers, sourceKeys)
   } catch (err) {
     const detail = err instanceof Error ? err.message : 'Unknown error'
     console.error('[export] mergePptxFiles failed:', detail)
@@ -311,34 +315,210 @@ async function applyTextEdits(
 // ---------------------------------------------------------------------------
 // PPTX merge — multi-master approach via pptx-merger module
 //
-// Combines multiple single-slide PPTX files into one multi-slide PPTX.
-// Preserves all slide masters, layouts, and themes from every source.
-// Each input buffer is first cleaned (orphaned notesMasters, comments, etc.
-// removed) and then merged pairwise using the pptx-merger module.
+// Strategy:
+// 1. Group slides by source (same PPTX origin = same master/layouts/theme)
+// 2. Within each group: combine slides into one PPTX (simple slide addition,
+//    no master duplication since they share the same master)
+// 3. Between groups: merge with pptx-merger (preserves all masters)
+//
+// This ensures 2 source PPTXs → 2 masters, not N slides → N masters.
 // ---------------------------------------------------------------------------
 
 import { mergePptx } from '@/lib/pptx-merger'
 import { cleanSingleSlidePptx } from '@/lib/pptx-merger/cleanup-single-slide'
 
-async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
+/**
+ * Combines multiple single-slide PPTXs from the SAME source into one multi-slide PPTX.
+ * Since they share the same master/layouts/theme, we just add slide XML + media.
+ */
+async function combineSameSourceSlides(buffers: Buffer[]): Promise<Buffer> {
+  if (buffers.length === 1) return buffers[0]
+
+  const baseZip = await JSZip.loadAsync(buffers[0])
+  let contentTypes = (await baseZip.file('[Content_Types].xml')?.async('string')) ?? ''
+  let presentationXml = (await baseZip.file('ppt/presentation.xml')?.async('string')) ?? ''
+  let presentationRels =
+    (await baseZip.file('ppt/_rels/presentation.xml.rels')?.async('string')) ?? ''
+
+  // Find current max IDs
+  let slideCount = 1
+  let presRidMax = 0
+  for (const m of presentationRels.matchAll(/Id="rId(\d+)"/g)) {
+    presRidMax = Math.max(presRidMax, parseInt(m[1], 10))
+  }
+  let slideIdMax = 255
+  for (const m of presentationXml.matchAll(/<p:sldId[^>]+id="(\d+)"/g)) {
+    slideIdMax = Math.max(slideIdMax, parseInt(m[1], 10))
+  }
+
+  // Track existing media to avoid name collisions
+  const existingMedia = new Set(
+    Object.keys(baseZip.files).filter((f) => f.startsWith('ppt/media/'))
+  )
+  let mediaCounter = existingMedia.size
+
+  const REL_SLIDE = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide'
+  const CT_SLIDE = 'application/vnd.openxmlformats-officedocument.presentationml.slide+xml'
+
+  for (let i = 1; i < buffers.length; i++) {
+    const srcZip = await JSZip.loadAsync(buffers[i])
+    slideCount++
+    slideIdMax++
+    presRidMax++
+
+    // Copy slide XML
+    const slideFile = srcZip.file('ppt/slides/slide1.xml')
+    if (!slideFile) continue
+    const slideXml = await slideFile.async('string')
+    const newSlidePath = `ppt/slides/slide${slideCount}.xml`
+    baseZip.file(newSlidePath, slideXml)
+
+    // Copy and remap slide rels + media
+    const srcRelsFile = srcZip.file('ppt/slides/_rels/slide1.xml.rels')
+    if (srcRelsFile) {
+      let relsXml = await srcRelsFile.async('string')
+
+      // Copy media files and remap paths
+      for (const m of relsXml.matchAll(/<Relationship\b[^>]*\/>/g)) {
+        const el = m[0]
+        const target = el.match(/\bTarget="([^"]+)"/)?.[1]
+        if (!target) continue
+
+        // Resolve to absolute path
+        const parts = 'ppt/slides'.split('/')
+        for (const p of target.split('/')) {
+          if (p === '..') parts.pop()
+          else if (p !== '.') parts.push(p)
+        }
+        const resolvedPath = parts.join('/')
+
+        // Only remap media and embeddings
+        if (!resolvedPath.startsWith('ppt/media/') && !resolvedPath.startsWith('ppt/embeddings/'))
+          continue
+
+        const srcFile = srcZip.file(resolvedPath)
+        if (!srcFile) continue
+
+        const ext = resolvedPath.split('.').pop() ?? 'bin'
+        let newPath: string
+        do {
+          mediaCounter++
+          newPath = `ppt/media/onslide${mediaCounter}.${ext}`
+        } while (existingMedia.has(newPath))
+        existingMedia.add(newPath)
+
+        const data = await srcFile.async('uint8array')
+        baseZip.file(newPath, data)
+
+        // Compute new relative path from ppt/slides/
+        const newRelTarget = `../media/${newPath.split('/').pop()}`
+        const escaped = target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        relsXml = relsXml.replace(
+          new RegExp(`Target="${escaped}"`, 'g'),
+          `Target="${newRelTarget}"`
+        )
+      }
+
+      // Strip broken refs (notesSlides, comments that don't exist in base)
+      relsXml = relsXml.replace(/<Relationship\b[^>]*\/>\s*/g, (match) => {
+        if (/TargetMode\s*=\s*"External"/.test(match)) return match
+        const target = match.match(/\bTarget="([^"]+)"/)?.[1]
+        if (!target) return match
+        const parts = 'ppt/slides'.split('/')
+        for (const p of target.split('/')) {
+          if (p === '..') parts.pop()
+          else if (p !== '.') parts.push(p)
+        }
+        return baseZip.file(parts.join('/')) ? match : ''
+      })
+
+      baseZip.file(`ppt/slides/_rels/slide${slideCount}.xml.rels`, relsXml)
+    }
+
+    // Register slide in presentation
+    const rId = `rId${presRidMax}`
+    presentationRels = presentationRels.replace(
+      '</Relationships>',
+      `<Relationship Id="${rId}" Type="${REL_SLIDE}" Target="slides/slide${slideCount}.xml"/>\n</Relationships>`
+    )
+    presentationXml = presentationXml.replace(
+      '</p:sldIdLst>',
+      `<p:sldId id="${slideIdMax}" r:id="${rId}"/>\n</p:sldIdLst>`
+    )
+
+    // Add content type
+    const partName = `/${newSlidePath}`
+    if (!contentTypes.includes(`PartName="${partName}"`)) {
+      contentTypes = contentTypes.replace(
+        '</Types>',
+        `<Override PartName="${partName}" ContentType="${CT_SLIDE}"/>\n</Types>`
+      )
+    }
+  }
+
+  baseZip.file('ppt/presentation.xml', presentationXml)
+  baseZip.file('ppt/_rels/presentation.xml.rels', presentationRels)
+  baseZip.file('[Content_Types].xml', contentTypes)
+
+  return baseZip.generateAsync({
+    type: 'nodebuffer',
+    compression: 'DEFLATE',
+    compressionOptions: { level: 6 },
+  }) as Promise<Buffer>
+}
+
+async function mergePptxFiles(buffers: Uint8Array[], sourceKeys: string[]): Promise<Uint8Array> {
   if (buffers.length === 0) throw new Error('No slides to merge')
   if (buffers.length === 1) {
-    // Still clean orphans for single-slide exports
     return cleanSingleSlidePptx(buffers[0])
   }
 
-  console.log(`[merge] Starting multi-master merge of ${buffers.length} slides`)
+  console.log(`[merge] Starting merge of ${buffers.length} slides`)
 
   // Clean each buffer (remove orphaned notesMasters, comments, etc.)
   const cleanedBuffers = await Promise.all(buffers.map((buf) => cleanSingleSlidePptx(buf)))
 
-  console.log(`[merge] Cleaned ${cleanedBuffers.length} buffers, starting pairwise merge`)
+  // Group slides by source, preserving tray order within each group
+  const groupOrder: string[] = [] // unique source keys in order of first appearance
+  const groups = new Map<string, Buffer[]>()
+  for (let i = 0; i < cleanedBuffers.length; i++) {
+    const key = sourceKeys[i] ?? `unique:${i}`
+    if (!groups.has(key)) {
+      groups.set(key, [])
+      groupOrder.push(key)
+    }
+    groups.get(key)!.push(cleanedBuffers[i])
+  }
 
-  // Sequential fold: merge left to right
-  let result: Buffer = cleanedBuffers[0]
-  for (let i = 1; i < cleanedBuffers.length; i++) {
-    console.log(`[merge] Merging slide ${i + 1}/${cleanedBuffers.length}`)
-    result = await mergePptx(result, cleanedBuffers[i])
+  console.log(
+    `[merge] ${groups.size} source group(s): ${groupOrder.map((k) => `${k.split(':')[0]}(${groups.get(k)!.length})`).join(', ')}`
+  )
+
+  // Step 1: Combine slides within each source group (no master duplication)
+  const groupBuffers: Buffer[] = []
+  for (const key of groupOrder) {
+    const groupSlides = groups.get(key)!
+    if (groupSlides.length === 1) {
+      groupBuffers.push(groupSlides[0])
+    } else {
+      console.log(
+        `[merge] Combining ${groupSlides.length} slides from same source: ${key.substring(0, 50)}`
+      )
+      const combined = await combineSameSourceSlides(groupSlides)
+      groupBuffers.push(combined)
+    }
+  }
+
+  // Step 2: Merge different source groups with multi-master merge
+  if (groupBuffers.length === 1) {
+    console.log(`[merge] Single source group, no cross-source merge needed`)
+    return new Uint8Array(groupBuffers[0])
+  }
+
+  let result: Buffer = groupBuffers[0]
+  for (let i = 1; i < groupBuffers.length; i++) {
+    console.log(`[merge] Cross-source merge: group ${i + 1}/${groupBuffers.length}`)
+    result = await mergePptx(result, groupBuffers[i])
   }
 
   console.log(`[merge] Merge complete: ${result.length} bytes`)
