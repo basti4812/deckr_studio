@@ -438,34 +438,61 @@ function parseThemeFonts(themeXml: string): Record<string, string> {
   return fonts
 }
 
+/** OOXML scheme color aliases — map to their canonical names */
+const SCHEME_COLOR_ALIASES: Record<string, string> = {
+  bg1: 'lt1',
+  bg2: 'lt2',
+  tx1: 'dk1',
+  tx2: 'dk2',
+}
+
 /**
  * Replace all <a:schemeClr> references in XML with <a:srgbClr>.
  * Child modifiers (lumMod, tint, shade, alpha, etc.) are preserved —
  * they are valid children of both schemeClr and srgbClr.
+ * Also handles aliases (bg1→lt1, tx1→dk1, bg2→lt2, tx2→dk2) and phClr.
  */
 function flattenSchemeColors(xml: string, colorMap: Map<string, string>): string {
+  const resolve = (name: string): string | undefined => {
+    return colorMap.get(name) ?? colorMap.get(SCHEME_COLOR_ALIASES[name] ?? '')
+  }
   // Self-closing: <a:schemeClr val="accent1"/>
   let result = xml.replace(/<a:schemeClr\s+val="([^"]+)"\s*\/>/g, (full, name: string) => {
-    const hex = colorMap.get(name)
+    if (name === 'phClr') return full // phClr is context-dependent, leave for PowerPoint
+    const hex = resolve(name)
     return hex ? `<a:srgbClr val="${hex}"/>` : full
   })
   // With children: <a:schemeClr val="accent1">…</a:schemeClr>
   result = result.replace(
     /<a:schemeClr\s+val="([^"]+)">([\s\S]*?)<\/a:schemeClr>/g,
     (full, name: string, children: string) => {
-      const hex = colorMap.get(name)
+      if (name === 'phClr') return full
+      const hex = resolve(name)
       return hex ? `<a:srgbClr val="${hex}">${children}</a:srgbClr>` : full
     }
   )
   return result
 }
 
-/** Replace theme font references (+mj-lt, +mn-lt, etc.) with actual names. */
+/**
+ * Replace theme font references (+mj-lt, +mn-lt, etc.) with actual names.
+ * When the theme defines an empty font for a script (e.g., East Asian),
+ * remove the reference entirely to let PowerPoint use its system default.
+ */
 function flattenThemeFonts(xml: string, fonts: Record<string, string>): string {
   let result = xml
-  for (const [ref, actual] of Object.entries(fonts)) {
-    if (!actual) continue
-    result = result.replace(new RegExp(`typeface="\\${ref}"`, 'g'), `typeface="${actual}"`)
+  // All possible theme font references
+  const allRefs = ['+mj-lt', '+mn-lt', '+mj-ea', '+mn-ea', '+mj-cs', '+mn-cs']
+  for (const ref of allRefs) {
+    const actual = fonts[ref]
+    if (actual) {
+      // Replace with the actual font name
+      result = result.replace(new RegExp(`typeface="\\${ref}"`, 'g'), `typeface="${actual}"`)
+    } else {
+      // Empty font → remove the typeface attribute so PowerPoint uses its default
+      // This handles +mj-ea, +mn-ea, +mj-cs, +mn-cs when the theme doesn't define them
+      result = result.replace(new RegExp(`\\s*typeface="\\${ref}"`, 'g'), '')
+    }
   }
   return result
 }
@@ -617,9 +644,42 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
   // ── Step 1: Initialize base ZIP from first slide ──────────────────────
   const baseZip = await JSZip.loadAsync(buffers[0])
 
+  // ── Step 1a: Clean orphaned files from extractSinglePage ──────────────
+  // extractSinglePage keeps ALL files from the original multi-page PPTX.
+  // Remove orphaned notesSlides, comments, handoutMasters, notesMasters,
+  // etc. that reference deleted slides — these trigger PowerPoint's repair.
+  let contentTypes = await baseZip.file('[Content_Types].xml')!.async('string')
+  const orphanPrefixes = [
+    'ppt/notesSlides/',
+    'ppt/notesSlides/_rels/',
+    'ppt/comments/',
+    'ppt/comments/_rels/',
+    'ppt/notesMasters/',
+    'ppt/notesMasters/_rels/',
+    'ppt/handoutMasters/',
+    'ppt/handoutMasters/_rels/',
+  ]
+  for (const prefix of orphanPrefixes) {
+    for (const f of Object.keys(baseZip.files).filter((p) => p.startsWith(prefix))) {
+      baseZip.remove(f)
+      contentTypes = contentTypes.replace(
+        new RegExp(`<Override[^>]*PartName="${escapeRegex('/' + f)}"[^>]*/>\\s*`, 'g'),
+        ''
+      )
+    }
+  }
+  // Also strip notes/handout master relationships from presentation.xml.rels
+  // (these reference the notesMaster/handoutMaster files we just removed)
+  let presRelsTemp = await baseZip.file('ppt/_rels/presentation.xml.rels')!.async('string')
+  presRelsTemp = presRelsTemp.replace(
+    /<Relationship[^>]*Type="[^"]*\/(notesMaster|handoutMaster)"[^>]*\/>\s*/g,
+    ''
+  )
+  baseZip.file('ppt/_rels/presentation.xml.rels', presRelsTemp)
+
   let presentationXml = await baseZip.file('ppt/presentation.xml')!.async('string')
   let presentationRels = await baseZip.file('ppt/_rels/presentation.xml.rels')!.async('string')
-  let contentTypes = await baseZip.file('[Content_Types].xml')!.async('string')
+  baseZip.file('[Content_Types].xml', contentTypes)
 
   let slideCount = 1
   let presRidCounter = getMaxRid(presentationRels)
@@ -641,11 +701,82 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
     .filter((f) => /^ppt\/slideLayouts\/slideLayout\d+\.xml$/.test(f))
     .sort()
   const baseLayoutHashes = new Map<string, string>()
-  let baseBlankLayoutPath = baseLayoutFiles[0] ?? 'ppt/slideLayouts/slideLayout1.xml'
+  let baseBlankLayoutPath: string | null = null
   for (const lf of baseLayoutFiles) {
     const content = await baseZip.file(lf)!.async('string')
     baseLayoutHashes.set(lf, simpleHash(content))
     if (/type="blank"/.test(content)) baseBlankLayoutPath = lf
+  }
+
+  // If no blank layout exists, create a minimal one (Fix: some PPTXs don't have type="blank")
+  if (!baseBlankLayoutPath) {
+    const nextLayoutNum =
+      Math.max(
+        0,
+        ...baseLayoutFiles.map((f) => parseInt(f.match(/slideLayout(\d+)/)?.[1] ?? '0'))
+      ) + 1
+    baseBlankLayoutPath = `ppt/slideLayouts/slideLayout${nextLayoutNum}.xml`
+
+    // Find the master and its rId for layouts
+    const masterPath = Object.keys(baseZip.files).find((f) =>
+      /^ppt\/slideMasters\/slideMaster1\.xml$/.test(f)
+    )
+    const masterRelsPath = 'ppt/slideMasters/_rels/slideMaster1.xml.rels'
+    const masterRelsFile = baseZip.file(masterRelsPath)
+    let masterRelsXml = masterRelsFile ? await masterRelsFile.async('string') : ''
+    const masterMaxRid = getMaxRid(masterRelsXml)
+    const blankLayoutRid = `rId${masterMaxRid + 1}`
+
+    // Minimal blank layout XML referencing slideMaster1
+    const blankLayoutXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sldLayout xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" type="blank" preserve="1">
+  <p:cSld name="Blank"><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/></p:spTree></p:cSld>
+</p:sldLayout>`
+
+    baseZip.file(baseBlankLayoutPath, blankLayoutXml)
+
+    // Add layout rels file pointing to slideMaster1
+    const blankLayoutRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="../slideMasters/slideMaster1.xml"/>
+</Relationships>`
+    baseZip.file(`ppt/slideLayouts/_rels/slideLayout${nextLayoutNum}.xml.rels`, blankLayoutRels)
+
+    // Add to master's rels
+    if (masterRelsXml) {
+      masterRelsXml = addRelToXml(
+        masterRelsXml,
+        blankLayoutRid,
+        REL_SLIDE_LAYOUT,
+        `../slideLayouts/slideLayout${nextLayoutNum}.xml`
+      )
+      baseZip.file(masterRelsPath, masterRelsXml)
+    }
+
+    // Add to master's sldLayoutIdLst
+    if (masterPath) {
+      let masterXml = await baseZip.file(masterPath)!.async('string')
+      // Find max layout ID
+      let maxLayoutId = 2147483648
+      for (const m of masterXml.matchAll(/<p:sldLayoutId\b[^>]*\bid="(\d+)"/g)) {
+        maxLayoutId = Math.max(maxLayoutId, parseInt(m[1], 10))
+      }
+      masterXml = masterXml.replace(
+        '</p:sldLayoutIdLst>',
+        `<p:sldLayoutId id="${maxLayoutId + 1}" r:id="${blankLayoutRid}"/></p:sldLayoutIdLst>`
+      )
+      baseZip.file(masterPath, masterXml)
+    }
+
+    // Add to [Content_Types].xml
+    contentTypes = addContentType(
+      contentTypes,
+      `/${baseBlankLayoutPath}`,
+      'application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml'
+    )
+    baseZip.file('[Content_Types].xml', contentTypes)
+
+    console.log(`[merge] Created blank layout: ${baseBlankLayoutPath}`)
   }
 
   console.log(`[merge] Base has ${baseLayoutFiles.length} layouts, blank: ${baseBlankLayoutPath}`)
