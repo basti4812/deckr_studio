@@ -293,13 +293,15 @@ async function applyTextEdits(
 }
 
 // ---------------------------------------------------------------------------
-// PPTX merge — full OOXML-aware merge with slide master/layout/theme handling
+// PPTX merge — theme-flattening approach
 //
 // Combines multiple single-slide PPTX files into one multi-slide PPTX.
-// Each source buffer may originate from a different PowerPoint file with its
-// own slide masters, layouts, and themes.  The merge copies all referenced
-// structures into the output ZIP, remapping every relationship so that
-// PowerPoint can open the result without a repair dialog.
+// Slides from the same source as the base keep their original references.
+// Slides from different sources get "flattened": all theme-dependent
+// references (scheme colors, theme fonts) are resolved to hardcoded values
+// in the slide XML, and the slide is pointed to the base blank layout.
+// This avoids the multi-master merge complexity that causes PowerPoint
+// repair issues and layout corruption.
 // ---------------------------------------------------------------------------
 
 /** Relationship types used in OOXML */
@@ -312,9 +314,6 @@ const REL_THEME = 'http://schemas.openxmlformats.org/officeDocument/2006/relatio
 
 /** Content types */
 const CT_SLIDE = 'application/vnd.openxmlformats-officedocument.presentationml.slide+xml'
-const CT_LAYOUT = 'application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml'
-const CT_MASTER = 'application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml'
-const CT_THEME = 'application/vnd.openxmlformats-officedocument.drawingml.theme+xml'
 
 /** Parse all Relationship elements from a .rels XML string */
 function parseRels(xml: string): { id: string; type: string; target: string }[] {
@@ -352,52 +351,130 @@ function getMaxSlideId(xml: string): number {
   return max
 }
 
-/** Get max sldMasterId in presentation.xml */
-function getMaxMasterId(xml: string): number {
-  let max = 2147483647 // start high to avoid collisions
-  for (const match of xml.matchAll(/<p:sldMasterId[^>]+id="(\d+)"/g)) {
-    max = Math.max(max, parseInt(match[1], 10))
-  }
-  return max
-}
+// ── Theme Flattening ────────────────────────────────────────────────────
+// Instead of copying multiple slide masters/layouts/themes (which causes
+// PowerPoint repair issues), we "flatten" slides from non-base sources:
+// resolve all theme-dependent references (colors, fonts) directly into
+// the slide XML so they become master-independent.
+// ─────────────────────────────────────────────────────────────────────────
 
-/** Scan all slide masters in a ZIP for the highest sldLayoutId value */
-async function getMaxLayoutId(zip: JSZip): Promise<number> {
-  let max = 2147483648 // OOXML sldLayoutId values start here
-  const masterFiles = Object.keys(zip.files).filter((f) =>
-    /^ppt\/slideMasters\/slideMaster\d+\.xml$/.test(f)
-  )
-  for (const mf of masterFiles) {
-    const xml = await zip.file(mf)!.async('string')
-    for (const m of xml.matchAll(/<p:sldLayoutId\b[^>]*\bid="(\d+)"/g)) {
-      max = Math.max(max, parseInt(m[1], 10))
+/** Standard OOXML scheme color names */
+const SCHEME_COLOR_NAMES = [
+  'dk1',
+  'lt1',
+  'dk2',
+  'lt2',
+  'accent1',
+  'accent2',
+  'accent3',
+  'accent4',
+  'accent5',
+  'accent6',
+  'hlink',
+  'folHlink',
+] as const
+
+/**
+ * Parse a theme XML and extract the 12 scheme colors as name → hex RGB.
+ * Handles both srgbClr and sysClr (system colors like dk1/lt1).
+ */
+function parseThemeColors(themeXml: string): Map<string, string> {
+  const colorMap = new Map<string, string>()
+  for (const name of SCHEME_COLOR_NAMES) {
+    const pattern = new RegExp(`<a:${name}>([\\s\\S]*?)<\\/a:${name}>`)
+    const match = themeXml.match(pattern)
+    if (!match) continue
+    const inner = match[1]
+    const srgb = inner.match(/<a:srgbClr\s+val="([A-Fa-f0-9]{6})"/)
+    if (srgb) {
+      colorMap.set(name, srgb[1].toUpperCase())
+      continue
+    }
+    const sys = inner.match(/<a:sysClr[^>]*lastClr="([A-Fa-f0-9]{6})"/)
+    if (sys) {
+      colorMap.set(name, sys[1].toUpperCase())
+      continue
+    }
+    const sysVal = inner.match(/<a:sysClr\s+val="(\w+)"/)
+    if (sysVal) {
+      const defaults: Record<string, string> = { windowText: '000000', window: 'FFFFFF' }
+      colorMap.set(name, defaults[sysVal[1]] ?? '000000')
     }
   }
-  return max
+  return colorMap
 }
 
-/** Remap sldLayoutId id values in a slide master XML to avoid collisions across masters */
-function remapMasterLayoutIds(masterXml: string, counter: { value: number }): string {
-  return masterXml.replace(/<p:sldLayoutId\b([^>]*)\/>/g, (match, attrs: string) => {
-    counter.value++
-    // Replace the id="..." value with the new unique ID
-    const newAttrs = attrs.replace(/\bid="(\d+)"/, `id="${counter.value}"`)
-    return `<p:sldLayoutId${newAttrs}/>`
+/** Parse theme font families (major = heading, minor = body). */
+function parseThemeFonts(themeXml: string): Record<string, string> {
+  const fonts: Record<string, string> = {}
+  const get = (section: string, script: string, key: string) => {
+    const sec = themeXml.match(new RegExp(`<a:${section}Font>[\\s\\S]*?<\\/a:${section}Font>`))
+    if (!sec) return
+    const tf = sec[0].match(new RegExp(`<a:${script}\\s+typeface="([^"]*)"`))
+    if (tf) fonts[key] = tf[1]
+  }
+  get('major', 'latin', '+mj-lt')
+  get('minor', 'latin', '+mn-lt')
+  get('major', 'ea', '+mj-ea')
+  get('minor', 'ea', '+mn-ea')
+  get('major', 'cs', '+mj-cs')
+  get('minor', 'cs', '+mn-cs')
+  return fonts
+}
+
+/**
+ * Replace all <a:schemeClr> references in XML with <a:srgbClr>.
+ * Child modifiers (lumMod, tint, shade, alpha, etc.) are preserved —
+ * they are valid children of both schemeClr and srgbClr.
+ */
+function flattenSchemeColors(xml: string, colorMap: Map<string, string>): string {
+  // Self-closing: <a:schemeClr val="accent1"/>
+  let result = xml.replace(/<a:schemeClr\s+val="([^"]+)"\s*\/>/g, (full, name: string) => {
+    const hex = colorMap.get(name)
+    return hex ? `<a:srgbClr val="${hex}"/>` : full
   })
+  // With children: <a:schemeClr val="accent1">…</a:schemeClr>
+  result = result.replace(
+    /<a:schemeClr\s+val="([^"]+)">([\s\S]*?)<\/a:schemeClr>/g,
+    (full, name: string, children: string) => {
+      const hex = colorMap.get(name)
+      return hex ? `<a:srgbClr val="${hex}">${children}</a:srgbClr>` : full
+    }
+  )
+  return result
 }
 
-/** Copy a file from src to dest ZIP, returning the data (or null if missing) */
-async function copyFile(
-  src: JSZip,
-  dest: JSZip,
-  srcPath: string,
-  destPath: string
-): Promise<Uint8Array | null> {
-  const file = src.file(srcPath)
-  if (!file) return null
-  const data = await file.async('uint8array')
-  dest.file(destPath, data)
-  return data
+/** Replace theme font references (+mj-lt, +mn-lt, etc.) with actual names. */
+function flattenThemeFonts(xml: string, fonts: Record<string, string>): string {
+  let result = xml
+  for (const [ref, actual] of Object.entries(fonts)) {
+    if (!actual) continue
+    result = result.replace(new RegExp(`typeface="\\${ref}"`, 'g'), `typeface="${actual}"`)
+  }
+  return result
+}
+
+/**
+ * Extract background from source layout/master and inject into slide XML.
+ * Only adds if the slide doesn't already have one.
+ * Skips image-based backgrounds (blipFill) since they reference external rels.
+ */
+function bakeInBackground(slideXml: string, layoutXml: string, masterXml: string): string {
+  if (/<p:bg\b/.test(slideXml)) return slideXml
+  let bg: string | null = null
+  const lm = layoutXml.match(/<p:bg\b[\s\S]*?<\/p:bg>/)
+  if (lm) bg = lm[0]
+  else {
+    const mm = masterXml.match(/<p:bg\b[\s\S]*?<\/p:bg>/)
+    if (mm) bg = mm[0]
+  }
+  if (!bg || /<a:blip\b/.test(bg)) return slideXml
+  return slideXml.replace(/<p:cSld\b([^>]*)>/, (m) => `${m}${bg}`)
+}
+
+/** Remove placeholder references so shapes don't inherit from the base layout. */
+function stripPlaceholderRefs(slideXml: string): string {
+  return slideXml.replace(/<p:ph\b[^>]*\/>/g, '').replace(/<p:ph\b[^>]*>[\s\S]*?<\/p:ph>/g, '')
 }
 
 /** Copy all media files referenced in a rels string, remapping paths.
@@ -500,19 +577,6 @@ function remapRelTarget(relsXml: string, relId: string, newTarget: string): stri
   )
 }
 
-/**
- * A "structure fingerprint" identifies a unique source PPTX's layout/master/theme
- * combination so we can reuse already-copied structures for slides from the same source.
- */
-interface CopiedStructure {
-  /** Map from original layout path → new layout path in the output */
-  layoutMap: Map<string, string>
-  /** Map from original master path → new master path */
-  masterMap: Map<string, string>
-  /** Map from original theme path → new theme path */
-  themeMap: Map<string, string>
-}
-
 async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
   if (buffers.length === 0) throw new Error('No slides to merge')
   if (buffers.length === 1) return buffers[0]
@@ -527,73 +591,31 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
   let slideCount = 1
   let presRidCounter = getMaxRid(presentationRels)
   let slideIdCounter = getMaxSlideId(presentationXml)
-  let masterIdCounter = getMaxMasterId(presentationXml)
 
-  // Track the highest sldLayoutId across ALL masters to avoid collisions (Bug fix)
-  let layoutIdCounter = await getMaxLayoutId(baseZip)
-
-  // Track existing file paths to avoid collisions
   const existingMedia = new Set(
     Object.keys(baseZip.files).filter((f) => f.startsWith('ppt/media/'))
   )
   const mediaCounter = { value: existingMedia.size }
 
-  // Count existing structures in base
-  let layoutCounter = Object.keys(baseZip.files).filter((f) =>
-    /^ppt\/slideLayouts\/slideLayout\d+\.xml$/.test(f)
-  ).length
-  let masterCounter = Object.keys(baseZip.files).filter((f) =>
-    /^ppt\/slideMasters\/slideMaster\d+\.xml$/.test(f)
-  ).length
-  let themeCounter = Object.keys(baseZip.files).filter((f) =>
+  // ── Step 2: Parse base theme for same-source detection ────────────────
+  const baseThemeFile = Object.keys(baseZip.files).find((f) =>
     /^ppt\/theme\/theme\d+\.xml$/.test(f)
-  ).length
+  )
+  const baseThemeXml = baseThemeFile ? await baseZip.file(baseThemeFile)!.async('string') : ''
+  const baseFingerprint = simpleHash(baseThemeXml.slice(0, 1000))
 
-  // ── Step 2: Fingerprint cache for deduplication ───────────────────────
-  // Key = fingerprint of the source's master+layout+theme structure
-  // We build the fingerprint from the set of master XML file paths in the source
-  const structureCache = new Map<string, CopiedStructure>()
-
-  /** Build a fingerprint for a source ZIP's slide structure */
-  async function getFingerprint(srcZip: JSZip): Promise<string> {
-    const masterFiles = Object.keys(srcZip.files)
-      .filter((f) => /^ppt\/slideMasters\/slideMaster\d+\.xml$/.test(f))
-      .sort()
-    const parts: string[] = []
-    for (const mf of masterFiles) {
-      const content = await srcZip.file(mf)!.async('string')
-      // Use a simple hash of first 500 chars + filename for identification
-      parts.push(`${mf}:${simpleHash(content.slice(0, 500))}`)
-    }
-    const themeFiles = Object.keys(srcZip.files)
-      .filter((f) => /^ppt\/theme\/theme\d+\.xml$/.test(f))
-      .sort()
-    for (const tf of themeFiles) {
-      const content = await srcZip.file(tf)!.async('string')
-      parts.push(`${tf}:${simpleHash(content.slice(0, 500))}`)
-    }
-    return parts.join('|')
-  }
-
-  // ── Step 2b: Cache base ZIP fingerprint to avoid duplicating structures ──
-  const baseFingerprint = await getFingerprint(baseZip)
-  const baseStructure: CopiedStructure = {
-    layoutMap: new Map(),
-    masterMap: new Map(),
-    themeMap: new Map(),
-  }
-  for (const f of Object.keys(baseZip.files)) {
-    if (/^ppt\/slideLayouts\/slideLayout\d+\.xml$/.test(f)) {
-      baseStructure.layoutMap.set(f, f)
-    }
-    if (/^ppt\/slideMasters\/slideMaster\d+\.xml$/.test(f)) {
-      baseStructure.masterMap.set(f, f)
-    }
-    if (/^ppt\/theme\/theme\d+\.xml$/.test(f)) {
-      baseStructure.themeMap.set(f, f)
+  // Find the base blank layout (for flattened slides to reference)
+  const baseLayoutFiles = Object.keys(baseZip.files)
+    .filter((f) => /^ppt\/slideLayouts\/slideLayout\d+\.xml$/.test(f))
+    .sort()
+  let baseBlankLayoutPath = baseLayoutFiles[0] ?? 'ppt/slideLayouts/slideLayout1.xml'
+  for (const lf of baseLayoutFiles) {
+    const lxml = await baseZip.file(lf)!.async('string')
+    if (/type="blank"/.test(lxml)) {
+      baseBlankLayoutPath = lf
+      break
     }
   }
-  structureCache.set(baseFingerprint, baseStructure)
 
   // ── Step 3: Process each subsequent slide ─────────────────────────────
   for (let i = 1; i < buffers.length; i++) {
@@ -601,230 +623,72 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
     slideCount++
     slideIdCounter++
 
-    // ─ 3a: Copy slide XML ─
+    // Detect same source via theme fingerprint
+    const srcThemeFile = Object.keys(srcZip.files).find((f) =>
+      /^ppt\/theme\/theme\d+\.xml$/.test(f)
+    )
+    const srcThemeXml = srcThemeFile ? await srcZip.file(srcThemeFile)!.async('string') : ''
+    const isSameSource = simpleHash(srcThemeXml.slice(0, 1000)) === baseFingerprint
+
+    // Read source slide
     const slideFile = srcZip.file('ppt/slides/slide1.xml')
     if (!slideFile) throw new Error(`Slide ${i + 1} is missing ppt/slides/slide1.xml`)
-    const slideXml = await slideFile.async('string')
-    const newSlidePath = `ppt/slides/slide${slideCount}.xml`
-    baseZip.file(newSlidePath, slideXml)
+    let slideXml = await slideFile.async('string')
 
-    // ─ 3b: Read slide rels ─
     const srcSlideRelsFile = srcZip.file('ppt/slides/_rels/slide1.xml.rels')
     let slideRels = srcSlideRelsFile ? await srcSlideRelsFile.async('string') : null
 
-    // ─ 3c: Check fingerprint and copy structure if needed ─
-    const fingerprint = await getFingerprint(srcZip)
-    let structure = structureCache.get(fingerprint)
+    if (!isSameSource) {
+      // ── FLATTEN: resolve theme references into slide XML ──────────────
+      const srcColors = parseThemeColors(srcThemeXml)
+      const srcFonts = parseThemeFonts(srcThemeXml)
 
-    if (!structure) {
-      // New source structure — copy layouts, masters, themes using a phased
-      // approach so that ALL paths are known before writing .rels files.
-      structure = {
-        layoutMap: new Map(),
-        masterMap: new Map(),
-        themeMap: new Map(),
-      }
+      slideXml = flattenSchemeColors(slideXml, srcColors)
+      slideXml = flattenThemeFonts(slideXml, srcFonts)
+      slideXml = stripPlaceholderRefs(slideXml)
 
-      // ── Phase A: Copy all layout XMLs and build complete layoutMap ──
-      const srcLayoutFiles = Object.keys(srcZip.files).filter((f) =>
-        /^ppt\/slideLayouts\/slideLayout\d+\.xml$/.test(f)
-      )
-
-      for (const srcLayoutPath of srcLayoutFiles) {
-        layoutCounter++
-        const newLayoutPath = `ppt/slideLayouts/slideLayout${layoutCounter}.xml`
-        structure.layoutMap.set(srcLayoutPath, newLayoutPath)
-        await copyFile(srcZip, baseZip, srcLayoutPath, newLayoutPath)
-        contentTypes = addContentType(contentTypes, `/${newLayoutPath}`, CT_LAYOUT)
-      }
-
-      // ── Phase B: Read layout rels to discover masters; copy master XMLs ──
-      // Store layout rels data for later writing (Phase D)
-      const layoutRelsData = new Map<
-        string,
-        { relsXml: string; masterSrcPath: string | null; masterRelId: string | null }
-      >()
-
-      for (const srcLayoutPath of srcLayoutFiles) {
-        const srcLayoutName = srcLayoutPath.replace('ppt/slideLayouts/', '')
-        const srcRelsPath = `ppt/slideLayouts/_rels/${srcLayoutName}.rels`
-        const relsFile = srcZip.file(srcRelsPath)
-        if (!relsFile) continue
-
-        let relsXml = await relsFile.async('string')
-        relsXml = await copyAndRemapMedia(
-          srcZip,
-          baseZip,
-          relsXml,
-          'ppt/slideLayouts',
-          existingMedia,
-          mediaCounter
-        )
-
-        // Discover master
-        const rels = parseRels(relsXml)
-        const masterRel = findRel(rels, REL_SLIDE_MASTER)
-        let masterSrcPath: string | null = null
-        let masterRelId: string | null = null
-
-        if (masterRel) {
-          masterSrcPath = resolveRelativePath('ppt/slideLayouts', masterRel.target)
-          masterRelId = masterRel.id
-          if (!structure.masterMap.has(masterSrcPath)) {
-            masterCounter++
-            const newMasterPath = `ppt/slideMasters/slideMaster${masterCounter}.xml`
-            structure.masterMap.set(masterSrcPath, newMasterPath)
-            await copyFile(srcZip, baseZip, masterSrcPath, newMasterPath)
-
-            // Bug fix: Remap sldLayoutId IDs in the master XML to avoid collisions
-            // with IDs from other masters already in the presentation
-            const masterFile = baseZip.file(newMasterPath)
-            if (masterFile) {
-              let masterXml = await masterFile.async('string')
-              const idCounter = { value: layoutIdCounter }
-              masterXml = remapMasterLayoutIds(masterXml, idCounter)
-              layoutIdCounter = idCounter.value
-              baseZip.file(newMasterPath, masterXml)
-            }
-
-            contentTypes = addContentType(contentTypes, `/${newMasterPath}`, CT_MASTER)
-          }
-        }
-
-        layoutRelsData.set(srcLayoutPath, { relsXml, masterSrcPath, masterRelId })
-      }
-
-      // ── Phase C: Read master rels to discover themes; copy theme XMLs ──
-      // Store master rels data for later writing (Phase E)
-      const masterRelsData = new Map<string, { relsXml: string }>()
-
-      for (const [srcMasterPath] of structure.masterMap) {
-        const srcMasterName = srcMasterPath.replace('ppt/slideMasters/', '')
-        const srcRelsPath = `ppt/slideMasters/_rels/${srcMasterName}.rels`
-        const relsFile = srcZip.file(srcRelsPath)
-        if (!relsFile) continue
-
-        let relsXml = await relsFile.async('string')
-        relsXml = await copyAndRemapMedia(
-          srcZip,
-          baseZip,
-          relsXml,
-          'ppt/slideMasters',
-          existingMedia,
-          mediaCounter
-        )
-
-        // Discover theme
-        const rels = parseRels(relsXml)
-        const themeRel = findRel(rels, REL_THEME)
-        if (themeRel) {
-          const srcThemePath = resolveRelativePath('ppt/slideMasters', themeRel.target)
-          if (!structure.themeMap.has(srcThemePath)) {
-            themeCounter++
-            const newThemePath = `ppt/theme/theme${themeCounter}.xml`
-            structure.themeMap.set(srcThemePath, newThemePath)
-            await copyFile(srcZip, baseZip, srcThemePath, newThemePath)
-            contentTypes = addContentType(contentTypes, `/${newThemePath}`, CT_THEME)
-
-            // Copy theme rels (media only)
-            const srcThemeName = srcThemePath.replace('ppt/theme/', '')
-            const srcThemeRelsPath = `ppt/theme/_rels/${srcThemeName}.rels`
-            const themeRelsFile = srcZip.file(srcThemeRelsPath)
-            if (themeRelsFile) {
-              let themeRels = await themeRelsFile.async('string')
-              themeRels = await copyAndRemapMedia(
-                srcZip,
-                baseZip,
-                themeRels,
-                'ppt/theme',
-                existingMedia,
-                mediaCounter
-              )
-              const newThemeName = newThemePath.replace('ppt/theme/', '')
-              baseZip.file(`ppt/theme/_rels/${newThemeName}.rels`, themeRels)
+      // Bake in background from source layout/master
+      if (slideRels) {
+        const srcSlideRelsParsed = parseRels(slideRels)
+        const layoutRel = findRel(srcSlideRelsParsed, REL_SLIDE_LAYOUT)
+        if (layoutRel) {
+          const layoutPath = resolveRelativePath('ppt/slides', layoutRel.target)
+          const layoutFile = srcZip.file(layoutPath)
+          let srcLayoutXml = ''
+          let srcMasterXml = ''
+          if (layoutFile) {
+            srcLayoutXml = await layoutFile.async('string')
+            srcLayoutXml = flattenSchemeColors(srcLayoutXml, srcColors)
+            const layoutName = layoutPath.split('/').pop()!
+            const layoutRelsFile = srcZip.file(`ppt/slideLayouts/_rels/${layoutName}.rels`)
+            if (layoutRelsFile) {
+              const lRels = parseRels(await layoutRelsFile.async('string'))
+              const masterRel = findRel(lRels, REL_SLIDE_MASTER)
+              if (masterRel) {
+                const masterPath = resolveRelativePath('ppt/slideLayouts', masterRel.target)
+                const masterFile = srcZip.file(masterPath)
+                if (masterFile) {
+                  srcMasterXml = await masterFile.async('string')
+                  srcMasterXml = flattenSchemeColors(srcMasterXml, srcColors)
+                }
+              }
             }
           }
-        }
+          slideXml = bakeInBackground(slideXml, srcLayoutXml, srcMasterXml)
 
-        masterRelsData.set(srcMasterPath, { relsXml })
-      }
-
-      // ── Phase D: Write layout rels (masterMap is now complete) ──
-      for (const [srcLayoutPath, data] of layoutRelsData) {
-        let relsXml = data.relsXml
-
-        // Remap master reference
-        if (data.masterSrcPath && data.masterRelId) {
-          const newMasterPath = structure.masterMap.get(data.masterSrcPath)
-          if (newMasterPath) {
-            const newTarget = computeRelativePath('ppt/slideLayouts', newMasterPath)
-            relsXml = remapRelTarget(relsXml, data.masterRelId, newTarget)
-          }
-        }
-
-        const newLayoutPath = structure.layoutMap.get(srcLayoutPath)!
-        const newLayoutName = newLayoutPath.replace('ppt/slideLayouts/', '')
-        baseZip.file(`ppt/slideLayouts/_rels/${newLayoutName}.rels`, relsXml)
-      }
-
-      // ── Phase E: Write master rels (layoutMap + themeMap are complete) ──
-      for (const [srcMasterPath, data] of masterRelsData) {
-        let relsXml = data.relsXml
-        const rels = parseRels(relsXml)
-
-        // Remap ALL layout references (layoutMap is now complete!)
-        const layoutRels = rels.filter((r) => r.type === REL_SLIDE_LAYOUT)
-        for (const lr of layoutRels) {
-          const srcLPath = resolveRelativePath('ppt/slideMasters', lr.target)
-          const newLPath = structure.layoutMap.get(srcLPath)
-          if (newLPath) {
-            const newTarget = computeRelativePath('ppt/slideMasters', newLPath)
-            relsXml = remapRelTarget(relsXml, lr.id, newTarget)
-          }
-        }
-
-        // Remap theme reference
-        const themeRel = findRel(rels, REL_THEME)
-        if (themeRel) {
-          const srcThemePath = resolveRelativePath('ppt/slideMasters', themeRel.target)
-          const newThemePath = structure.themeMap.get(srcThemePath)
-          if (newThemePath) {
-            const newTarget = computeRelativePath('ppt/slideMasters', newThemePath)
-            relsXml = remapRelTarget(relsXml, themeRel.id, newTarget)
-          }
-        }
-
-        const newMasterPath = structure.masterMap.get(srcMasterPath)!
-        const newMasterName = newMasterPath.replace('ppt/slideMasters/', '')
-        baseZip.file(`ppt/slideMasters/_rels/${newMasterName}.rels`, relsXml)
-
-        // Add master to presentation.xml.rels
-        presRidCounter++
-        const masterRelId = `rId${presRidCounter}`
-        presentationRels = addRelToXml(
-          presentationRels,
-          masterRelId,
-          REL_SLIDE_MASTER,
-          newMasterPath.replace('ppt/', '')
-        )
-
-        // Add to sldMasterIdLst in presentation.xml
-        masterIdCounter++
-        const masterIdEntry = `<p:sldMasterId id="${masterIdCounter}" r:id="${masterRelId}"/>`
-        if (presentationXml.includes('</p:sldMasterIdLst>')) {
-          presentationXml = presentationXml.replace(
-            '</p:sldMasterIdLst>',
-            `${masterIdEntry}\n</p:sldMasterIdLst>`
-          )
+          // Point slide to base blank layout instead of its original
+          const newTarget = computeRelativePath('ppt/slides', baseBlankLayoutPath)
+          slideRels = remapRelTarget(slideRels, layoutRel.id, newTarget)
         }
       }
-
-      structureCache.set(fingerprint, structure)
     }
 
-    // ─ 3d: Remap slide rels ─
+    // Write slide XML
+    const newSlidePath = `ppt/slides/slide${slideCount}.xml`
+    baseZip.file(newSlidePath, slideXml)
+
+    // Copy media and write slide rels
     if (slideRels) {
-      // Remap media references
       slideRels = await copyAndRemapMedia(
         srcZip,
         baseZip,
@@ -833,23 +697,10 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
         existingMedia,
         mediaCounter
       )
-
-      // Remap slideLayout reference to the new layout path
-      const slideRelsParsed = parseRels(slideRels)
-      const layoutRel = findRel(slideRelsParsed, REL_SLIDE_LAYOUT)
-      if (layoutRel) {
-        const srcLayoutPath = resolveRelativePath('ppt/slides', layoutRel.target)
-        const newLayoutPath = structure.layoutMap.get(srcLayoutPath)
-        if (newLayoutPath) {
-          const newTarget = computeRelativePath('ppt/slides', newLayoutPath)
-          slideRels = remapRelTarget(slideRels, layoutRel.id, newTarget)
-        }
-      }
-
       baseZip.file(`ppt/slides/_rels/slide${slideCount}.xml.rels`, slideRels)
     }
 
-    // ─ 3e: Add slide to presentation ─
+    // Add slide to presentation
     presRidCounter++
     const slideRelId = `rId${presRidCounter}`
     presentationRels = addRelToXml(
@@ -858,14 +709,14 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
       REL_SLIDE,
       `slides/slide${slideCount}.xml`
     )
-
-    const newSldId = `<p:sldId id="${slideIdCounter}" r:id="${slideRelId}"/>`
-    presentationXml = presentationXml.replace('</p:sldIdLst>', `${newSldId}\n</p:sldIdLst>`)
-
+    presentationXml = presentationXml.replace(
+      '</p:sldIdLst>',
+      `<p:sldId id="${slideIdCounter}" r:id="${slideRelId}"/>\n</p:sldIdLst>`
+    )
     contentTypes = addContentType(contentTypes, `/ppt/slides/slide${slideCount}.xml`, CT_SLIDE)
   }
 
-  // ── Step 4: Write updated XML files and generate output ───────────────
+  // ── Step 4: Write updated files and generate output ───────────────────
   baseZip.file('ppt/presentation.xml', presentationXml)
   baseZip.file('ppt/_rels/presentation.xml.rels', presentationRels)
   baseZip.file('[Content_Types].xml', contentTypes)
