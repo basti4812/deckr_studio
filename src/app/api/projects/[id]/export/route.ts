@@ -577,6 +577,21 @@ function remapRelTarget(relsXml: string, relId: string, newTarget: string): stri
   )
 }
 
+/** Remove relationships pointing to files that don't exist in the output ZIP.
+ *  Keeps external rels (hyperlinks) and rels whose targets exist. */
+function stripBrokenFileRefs(relsXml: string, zip: JSZip): string {
+  return relsXml.replace(/<Relationship\b[^>]*\/>\s*/g, (match) => {
+    // Keep external relationships (hyperlinks, action URLs)
+    if (/TargetMode\s*=\s*"External"/.test(match)) return match
+    const target = match.match(/\bTarget="([^"]+)"/)?.[1]
+    if (!target) return match
+    const resolvedPath = resolveRelativePath('ppt/slides', target)
+    if (zip.file(resolvedPath)) return match
+    // File doesn't exist in output — strip this relationship
+    return ''
+  })
+}
+
 async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
   if (buffers.length === 0) throw new Error('No slides to merge')
   if (buffers.length === 1) return buffers[0]
@@ -597,24 +612,18 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
   )
   const mediaCounter = { value: existingMedia.size }
 
-  // ── Step 2: Parse base theme for same-source detection ────────────────
-  const baseThemeFile = Object.keys(baseZip.files).find((f) =>
-    /^ppt\/theme\/theme\d+\.xml$/.test(f)
-  )
-  const baseThemeXml = baseThemeFile ? await baseZip.file(baseThemeFile)!.async('string') : ''
-  const baseFingerprint = simpleHash(baseThemeXml.slice(0, 1000))
-
-  // Find the base blank layout (for flattened slides to reference)
+  // ── Step 2: Build layout content hash map for compatibility check ─────
+  // A slide is "compatible" if its referenced layout exists in the base
+  // with identical content. Otherwise it needs flattening.
   const baseLayoutFiles = Object.keys(baseZip.files)
     .filter((f) => /^ppt\/slideLayouts\/slideLayout\d+\.xml$/.test(f))
     .sort()
+  const baseLayoutHashes = new Map<string, string>()
   let baseBlankLayoutPath = baseLayoutFiles[0] ?? 'ppt/slideLayouts/slideLayout1.xml'
   for (const lf of baseLayoutFiles) {
-    const lxml = await baseZip.file(lf)!.async('string')
-    if (/type="blank"/.test(lxml)) {
-      baseBlankLayoutPath = lf
-      break
-    }
+    const content = await baseZip.file(lf)!.async('string')
+    baseLayoutHashes.set(lf, simpleHash(content))
+    if (/type="blank"/.test(content)) baseBlankLayoutPath = lf
   }
 
   // ── Step 3: Process each subsequent slide ─────────────────────────────
@@ -623,14 +632,6 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
     slideCount++
     slideIdCounter++
 
-    // Detect same source via theme fingerprint
-    const srcThemeFile = Object.keys(srcZip.files).find((f) =>
-      /^ppt\/theme\/theme\d+\.xml$/.test(f)
-    )
-    const srcThemeXml = srcThemeFile ? await srcZip.file(srcThemeFile)!.async('string') : ''
-    const isSameSource = simpleHash(srcThemeXml.slice(0, 1000)) === baseFingerprint
-
-    // Read source slide
     const slideFile = srcZip.file('ppt/slides/slide1.xml')
     if (!slideFile) throw new Error(`Slide ${i + 1} is missing ppt/slides/slide1.xml`)
     let slideXml = await slideFile.async('string')
@@ -638,8 +639,27 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
     const srcSlideRelsFile = srcZip.file('ppt/slides/_rels/slide1.xml.rels')
     let slideRels = srcSlideRelsFile ? await srcSlideRelsFile.async('string') : null
 
-    if (!isSameSource) {
+    // Check if the slide's layout exists in the base with identical content
+    let needsFlatten = true
+    if (slideRels) {
+      const rels = parseRels(slideRels)
+      const layoutRel = findRel(rels, REL_SLIDE_LAYOUT)
+      if (layoutRel) {
+        const layoutPath = resolveRelativePath('ppt/slides', layoutRel.target)
+        const srcLayoutFile = srcZip.file(layoutPath)
+        if (srcLayoutFile && baseLayoutHashes.has(layoutPath)) {
+          const srcContent = await srcLayoutFile.async('string')
+          needsFlatten = simpleHash(srcContent) !== baseLayoutHashes.get(layoutPath)
+        }
+      }
+    }
+
+    if (needsFlatten) {
       // ── FLATTEN: resolve theme references into slide XML ──────────────
+      const srcThemeFile = Object.keys(srcZip.files).find((f) =>
+        /^ppt\/theme\/theme\d+\.xml$/.test(f)
+      )
+      const srcThemeXml = srcThemeFile ? await srcZip.file(srcThemeFile)!.async('string') : ''
       const srcColors = parseThemeColors(srcThemeXml)
       const srcFonts = parseThemeFonts(srcThemeXml)
 
@@ -687,7 +707,7 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
     const newSlidePath = `ppt/slides/slide${slideCount}.xml`
     baseZip.file(newSlidePath, slideXml)
 
-    // Copy media and write slide rels
+    // Copy media, strip broken refs, write slide rels
     if (slideRels) {
       slideRels = await copyAndRemapMedia(
         srcZip,
@@ -697,6 +717,9 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
         existingMedia,
         mediaCounter
       )
+      // Remove relationships to files that don't exist in the output
+      // (e.g. notesSlides, comments, vmlDrawings from different sources)
+      slideRels = stripBrokenFileRefs(slideRels, baseZip)
       baseZip.file(`ppt/slides/_rels/slide${slideCount}.xml.rels`, slideRels)
     }
 
