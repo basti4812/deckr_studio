@@ -361,6 +361,31 @@ function getMaxMasterId(xml: string): number {
   return max
 }
 
+/** Scan all slide masters in a ZIP for the highest sldLayoutId value */
+async function getMaxLayoutId(zip: JSZip): Promise<number> {
+  let max = 2147483648 // OOXML sldLayoutId values start here
+  const masterFiles = Object.keys(zip.files).filter((f) =>
+    /^ppt\/slideMasters\/slideMaster\d+\.xml$/.test(f)
+  )
+  for (const mf of masterFiles) {
+    const xml = await zip.file(mf)!.async('string')
+    for (const m of xml.matchAll(/<p:sldLayoutId\b[^>]*\bid="(\d+)"/g)) {
+      max = Math.max(max, parseInt(m[1], 10))
+    }
+  }
+  return max
+}
+
+/** Remap sldLayoutId id values in a slide master XML to avoid collisions across masters */
+function remapMasterLayoutIds(masterXml: string, counter: { value: number }): string {
+  return masterXml.replace(/<p:sldLayoutId\b([^>]*)\/>/g, (match, attrs: string) => {
+    counter.value++
+    // Replace the id="..." value with the new unique ID
+    const newAttrs = attrs.replace(/\bid="(\d+)"/, `id="${counter.value}"`)
+    return `<p:sldLayoutId${newAttrs}/>`
+  })
+}
+
 /** Copy a file from src to dest ZIP, returning the data (or null if missing) */
 async function copyFile(
   src: JSZip,
@@ -503,6 +528,9 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
   let presRidCounter = getMaxRid(presentationRels)
   let slideIdCounter = getMaxSlideId(presentationXml)
   let masterIdCounter = getMaxMasterId(presentationXml)
+
+  // Track the highest sldLayoutId across ALL masters to avoid collisions (Bug fix)
+  let layoutIdCounter = await getMaxLayoutId(baseZip)
 
   // Track existing file paths to avoid collisions
   const existingMedia = new Set(
@@ -647,6 +675,18 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
             const newMasterPath = `ppt/slideMasters/slideMaster${masterCounter}.xml`
             structure.masterMap.set(masterSrcPath, newMasterPath)
             await copyFile(srcZip, baseZip, masterSrcPath, newMasterPath)
+
+            // Bug fix: Remap sldLayoutId IDs in the master XML to avoid collisions
+            // with IDs from other masters already in the presentation
+            const masterFile = baseZip.file(newMasterPath)
+            if (masterFile) {
+              let masterXml = await masterFile.async('string')
+              const idCounter = { value: layoutIdCounter }
+              masterXml = remapMasterLayoutIds(masterXml, idCounter)
+              layoutIdCounter = idCounter.value
+              baseZip.file(newMasterPath, masterXml)
+            }
+
             contentTypes = addContentType(contentTypes, `/${newMasterPath}`, CT_MASTER)
           }
         }

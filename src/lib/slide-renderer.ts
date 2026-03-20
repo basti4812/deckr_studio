@@ -254,19 +254,26 @@ export async function extractSinglePage(
     outZip.file('ppt/slides/_rels/slide1.xml.rels', relsContent)
   }
 
-  const newPresXml = presXml.replace(
-    /<p:sldIdLst>[\s\S]*?<\/p:sldIdLst>/,
-    '<p:sldIdLst><p:sldId id="256" r:id="rId2"/></p:sldIdLst>'
-  )
-  outZip.file('ppt/presentation.xml', newPresXml)
-
+  // Remove all slide relationships, then add one for slide1.xml using a SAFE rId
+  // (Bug fix: hardcoded rId2 could collide with an existing non-slide relationship)
   let newPresRels = presRelsXml.replace(/<Relationship[^>]*Type="[^"]*\/slide"[^>]*\/>\s*/g, '')
+  let maxRid = 0
+  for (const m of newPresRels.matchAll(/Id="rId(\d+)"/g)) {
+    maxRid = Math.max(maxRid, parseInt(m[1], 10))
+  }
+  const slideRid = `rId${maxRid + 1}`
   const slideRelType = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide'
   newPresRels = newPresRels.replace(
     '</Relationships>',
-    `<Relationship Id="rId2" Type="${slideRelType}" Target="slides/slide1.xml"/>\n</Relationships>`
+    `<Relationship Id="${slideRid}" Type="${slideRelType}" Target="slides/slide1.xml"/>\n</Relationships>`
   )
   outZip.file('ppt/_rels/presentation.xml.rels', newPresRels)
+
+  const newPresXml = presXml.replace(
+    /<p:sldIdLst>[\s\S]*?<\/p:sldIdLst>/,
+    `<p:sldIdLst><p:sldId id="256" r:id="${slideRid}"/></p:sldIdLst>`
+  )
+  outZip.file('ppt/presentation.xml', newPresXml)
 
   let contentTypes = await outZip.file('[Content_Types].xml')!.async('string')
   contentTypes = contentTypes.replace(
