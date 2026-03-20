@@ -103,6 +103,16 @@ export function mergePresentation(
     }
   }
 
+  // --- Themes aus B hinzufügen ---
+  const themesInB = pkgB.getRelationships(PRESENTATION_RELS_PATH, REL_TYPES.theme)
+  for (const theme of themesInB) {
+    const newThemePath = mapping.pathMap.get(theme.resolvedTarget)
+    if (!newThemePath) continue
+
+    const relTarget = makeRelativePath(PRESENTATION_RELS_PATH, newThemePath)
+    addRelationship(presRelsDoc, relTarget, REL_TYPES.theme)
+  }
+
   // --- Masters aus B hinzufügen ---
   const mastersInB = pkgB.getRelationships(PRESENTATION_RELS_PATH, REL_TYPES.slideMaster)
   for (const master of mastersInB) {

@@ -6,6 +6,7 @@ import { createMergeMapping } from './merge-mapping'
 import { updateRelsTargets } from './update-rels'
 import { mergePresentation } from './merge-presentation'
 import { mergeContentTypes } from './merge-content-types'
+import { remapLayoutIds } from './remap-layout-ids'
 import { CONTENT_TYPES_PATH, PRESENTATION_PATH, PRESENTATION_RELS_PATH } from './namespaces'
 
 export interface MergeOptions {
@@ -56,12 +57,33 @@ export async function mergePptx(
     }
   }
 
-  // 5. presentation.xml und presentation.xml.rels mergen
+  // 5. Remap sldLayoutIdLst IDs in copied masters to avoid collisions
+  //    Collect all existing layout IDs from A's masters
+  const existingLayoutIds = new Set<number>()
+  for (const [path, content] of pkgA.files) {
+    if (path.match(/^ppt\/slideMasters\/slideMaster\d+\.xml$/)) {
+      const matches = content.toString('utf-8').matchAll(/sldLayoutId[^>]*\bid="(\d+)"/g)
+      for (const m of matches) {
+        existingLayoutIds.add(parseInt(m[1], 10))
+      }
+    }
+  }
+
+  // Remap layout IDs in each copied master from B
+  for (const [oldPath, newPath] of mapping.pathMap) {
+    if (oldPath.match(/^ppt\/slideMasters\/slideMaster\d+\.xml$/) && mergedFiles.has(newPath)) {
+      const masterXml = mergedFiles.get(newPath)!.toString('utf-8')
+      const remapped = remapLayoutIds(masterXml, existingLayoutIds)
+      mergedFiles.set(newPath, Buffer.from(remapped, 'utf-8'))
+    }
+  }
+
+  // 6. presentation.xml und presentation.xml.rels mergen (inkl. Theme-Rels für B)
   const { presentationXml, presentationRelsXml } = mergePresentation(pkgA, pkgB, mapping)
   mergedFiles.set(PRESENTATION_PATH, Buffer.from(presentationXml, 'utf-8'))
   mergedFiles.set(PRESENTATION_RELS_PATH, Buffer.from(presentationRelsXml, 'utf-8'))
 
-  // 6. [Content_Types].xml mergen
+  // 7. [Content_Types].xml mergen
   const ctContent = mergedFiles.get(CONTENT_TYPES_PATH)?.toString('utf-8') || ''
   const newXmlPaths = [...mapping.pathMap.values()].filter(
     (p) => p.endsWith('.xml') && !p.endsWith('.rels')
@@ -69,7 +91,7 @@ export async function mergePptx(
   const updatedCt = mergeContentTypes(ctContent, newXmlPaths)
   mergedFiles.set(CONTENT_TYPES_PATH, Buffer.from(updatedCt, 'utf-8'))
 
-  // 7. Als ZIP (= PPTX) schreiben
+  // 8. Als ZIP (= PPTX) schreiben
   const zip = new JSZip()
   for (const [path, data] of mergedFiles) {
     zip.file(path, data)
