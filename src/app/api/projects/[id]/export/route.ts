@@ -479,50 +479,126 @@ async function mergePptxFiles(buffers: Uint8Array[], sourceKeys: string[]): Prom
   const cleanedBuffers = await Promise.all(buffers.map((buf) => cleanSingleSlidePptx(buf)))
 
   // Group slides by source, preserving tray order within each group
+  // Also track the tray index of each slide within its group
   const groupOrder: string[] = [] // unique source keys in order of first appearance
-  const groups = new Map<string, Buffer[]>()
+  const groups = new Map<string, { buffers: Buffer[]; trayIndices: number[] }>()
   for (let i = 0; i < cleanedBuffers.length; i++) {
     const key = sourceKeys[i] ?? `unique:${i}`
     if (!groups.has(key)) {
-      groups.set(key, [])
+      groups.set(key, { buffers: [], trayIndices: [] })
       groupOrder.push(key)
     }
-    groups.get(key)!.push(cleanedBuffers[i])
+    const group = groups.get(key)!
+    group.buffers.push(cleanedBuffers[i])
+    group.trayIndices.push(i)
   }
 
   console.log(
-    `[merge] ${groups.size} source group(s): ${groupOrder.map((k) => `${k.split(':')[0]}(${groups.get(k)!.length})`).join(', ')}`
+    `[merge] ${groups.size} source group(s): ${groupOrder.map((k) => `${k.split(':')[0]}(${groups.get(k)!.buffers.length})`).join(', ')}`
   )
 
   // Step 1: Combine slides within each source group (no master duplication)
   const groupBuffers: Buffer[] = []
   for (const key of groupOrder) {
-    const groupSlides = groups.get(key)!
-    if (groupSlides.length === 1) {
-      groupBuffers.push(groupSlides[0])
+    const group = groups.get(key)!
+    if (group.buffers.length === 1) {
+      groupBuffers.push(group.buffers[0])
     } else {
       console.log(
-        `[merge] Combining ${groupSlides.length} slides from same source: ${key.substring(0, 50)}`
+        `[merge] Combining ${group.buffers.length} slides from same source: ${key.substring(0, 50)}`
       )
-      const combined = await combineSameSourceSlides(groupSlides)
+      const combined = await combineSameSourceSlides(group.buffers)
       groupBuffers.push(combined)
     }
   }
 
   // Step 2: Merge different source groups with multi-master merge
+  let result: Buffer
   if (groupBuffers.length === 1) {
     console.log(`[merge] Single source group, no cross-source merge needed`)
-    return new Uint8Array(groupBuffers[0])
+    result = groupBuffers[0]
+  } else {
+    result = groupBuffers[0]
+    for (let i = 1; i < groupBuffers.length; i++) {
+      console.log(`[merge] Cross-source merge: group ${i + 1}/${groupBuffers.length}`)
+      result = await mergePptx(result, groupBuffers[i])
+    }
   }
 
-  let result: Buffer = groupBuffers[0]
-  for (let i = 1; i < groupBuffers.length; i++) {
-    console.log(`[merge] Cross-source merge: group ${i + 1}/${groupBuffers.length}`)
-    result = await mergePptx(result, groupBuffers[i])
+  // Step 3: Reorder slides to match original tray order
+  // After merge, slides are ordered: [all group0 slides, all group1 slides, ...]
+  // We need to reorder them to match the original tray order.
+  //
+  // Build mapping: mergedSlidePosition (0-based) → trayIndex
+  // Then sort by trayIndex to get the desired order.
+  const mergedPositionToTray: { mergedPos: number; trayIndex: number }[] = []
+  let mergedOffset = 0
+  for (const key of groupOrder) {
+    const group = groups.get(key)!
+    for (let j = 0; j < group.trayIndices.length; j++) {
+      mergedPositionToTray.push({
+        mergedPos: mergedOffset + j,
+        trayIndex: group.trayIndices[j],
+      })
+    }
+    mergedOffset += group.trayIndices.length
+  }
+
+  // Check if reorder is needed (skip if already in correct order)
+  const needsReorder = mergedPositionToTray.some((m, i) => m.trayIndex !== i)
+
+  if (needsReorder) {
+    console.log(`[merge] Reordering slides to match tray order`)
+    result = await reorderSlides(result, mergedPositionToTray)
   }
 
   console.log(`[merge] Merge complete: ${result.length} bytes`)
   return new Uint8Array(result)
+}
+
+/**
+ * Reorders slides in a PPTX to match the desired order.
+ * Only modifies <p:sldIdLst> in presentation.xml — the actual slide files stay in place.
+ */
+async function reorderSlides(
+  buffer: Buffer,
+  positionMap: { mergedPos: number; trayIndex: number }[]
+): Promise<Buffer> {
+  const zip = await JSZip.loadAsync(buffer)
+  let presXml = (await zip.file('ppt/presentation.xml')?.async('string')) ?? ''
+
+  // Extract all <p:sldId> entries in current order
+  const sldIdEntries: string[] = []
+  const sldIdRegex = /<p:sldId\b[^>]*\/>/g
+  let match
+  while ((match = sldIdRegex.exec(presXml)) !== null) {
+    sldIdEntries.push(match[0])
+  }
+
+  if (sldIdEntries.length !== positionMap.length) {
+    console.warn(
+      `[merge] Reorder skipped: sldId count (${sldIdEntries.length}) !== position map (${positionMap.length})`
+    )
+    return buffer
+  }
+
+  // Sort by trayIndex to get desired order
+  const sorted = [...positionMap].sort((a, b) => a.trayIndex - b.trayIndex)
+  const reorderedEntries = sorted.map((s) => sldIdEntries[s.mergedPos])
+
+  // Replace the entire <p:sldIdLst> content
+  presXml = presXml.replace(
+    /<p:sldIdLst>[\s\S]*?<\/p:sldIdLst>/,
+    `<p:sldIdLst>${reorderedEntries.join('')}</p:sldIdLst>`
+  )
+
+  zip.file('ppt/presentation.xml', presXml)
+
+  return zip.generateAsync({
+    type: 'nodebuffer',
+    compression: 'DEFLATE',
+    compressionOptions: { level: 6 },
+  }) as Promise<Buffer>
 }
 
 // ---------------------------------------------------------------------------
