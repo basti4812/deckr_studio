@@ -596,6 +596,8 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
   if (buffers.length === 0) throw new Error('No slides to merge')
   if (buffers.length === 1) return buffers[0]
 
+  console.log(`[merge] Starting merge of ${buffers.length} slides`)
+
   // ── Step 1: Initialize base ZIP from first slide ──────────────────────
   const baseZip = await JSZip.loadAsync(buffers[0])
 
@@ -612,6 +614,10 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
   )
   const mediaCounter = { value: existingMedia.size }
 
+  console.log(
+    `[merge] Base ZIP files: ${Object.keys(baseZip.files).length}, media: ${existingMedia.size}`
+  )
+
   // ── Step 2: Build layout content hash map for compatibility check ─────
   // A slide is "compatible" if its referenced layout exists in the base
   // with identical content. Otherwise it needs flattening.
@@ -625,6 +631,8 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
     baseLayoutHashes.set(lf, simpleHash(content))
     if (/type="blank"/.test(content)) baseBlankLayoutPath = lf
   }
+
+  console.log(`[merge] Base has ${baseLayoutFiles.length} layouts, blank: ${baseBlankLayoutPath}`)
 
   // ── Step 3: Process each subsequent slide ─────────────────────────────
   for (let i = 1; i < buffers.length; i++) {
@@ -641,11 +649,13 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
 
     // Check if the slide's layout exists in the base with identical content
     let needsFlatten = true
+    let detectedLayoutPath = '(unknown)'
     if (slideRels) {
       const rels = parseRels(slideRels)
       const layoutRel = findRel(rels, REL_SLIDE_LAYOUT)
       if (layoutRel) {
         const layoutPath = resolveRelativePath('ppt/slides', layoutRel.target)
+        detectedLayoutPath = layoutPath
         const srcLayoutFile = srcZip.file(layoutPath)
         if (srcLayoutFile && baseLayoutHashes.has(layoutPath)) {
           const srcContent = await srcLayoutFile.async('string')
@@ -653,6 +663,10 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
         }
       }
     }
+
+    console.log(
+      `[merge] Slide ${i + 1}/${buffers.length}: layout=${detectedLayoutPath}, needsFlatten=${needsFlatten}`
+    )
 
     if (needsFlatten) {
       // ── FLATTEN: resolve theme references into slide XML ──────────────
@@ -663,9 +677,16 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
       const srcColors = parseThemeColors(srcThemeXml)
       const srcFonts = parseThemeFonts(srcThemeXml)
 
+      console.log(
+        `[merge]   Theme: ${srcColors.size} colors [${[...srcColors.entries()].map(([k, v]) => `${k}=#${v}`).join(', ')}]`
+      )
+      console.log(`[merge]   Fonts: ${JSON.stringify(srcFonts)}`)
+
+      const xmlLenBefore = slideXml.length
       slideXml = flattenSchemeColors(slideXml, srcColors)
       slideXml = flattenThemeFonts(slideXml, srcFonts)
       slideXml = stripPlaceholderRefs(slideXml)
+      console.log(`[merge]   Flattened XML: ${xmlLenBefore} → ${slideXml.length} chars`)
 
       // Bake in background from source layout/master
       if (slideRels) {
@@ -719,7 +740,14 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
       )
       // Remove relationships to files that don't exist in the output
       // (e.g. notesSlides, comments, vmlDrawings from different sources)
+      const relsBeforeStrip = parseRels(slideRels).length
       slideRels = stripBrokenFileRefs(slideRels, baseZip)
+      const relsAfterStrip = parseRels(slideRels).length
+      if (relsBeforeStrip !== relsAfterStrip) {
+        console.log(
+          `[merge]   Stripped ${relsBeforeStrip - relsAfterStrip} broken rels (${relsBeforeStrip} → ${relsAfterStrip})`
+        )
+      }
       baseZip.file(`ppt/slides/_rels/slide${slideCount}.xml.rels`, slideRels)
     }
 
@@ -740,6 +768,9 @@ async function mergePptxFiles(buffers: Uint8Array[]): Promise<Uint8Array> {
   }
 
   // ── Step 4: Write updated files and generate output ───────────────────
+  console.log(
+    `[merge] Final output: ${slideCount} slides, ${Object.keys(baseZip.files).length} files in ZIP`
+  )
   baseZip.file('ppt/presentation.xml', presentationXml)
   baseZip.file('ppt/_rels/presentation.xml.rels', presentationRels)
   baseZip.file('[Content_Types].xml', contentTypes)
