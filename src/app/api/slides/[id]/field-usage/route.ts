@@ -42,6 +42,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     .select('id, owner_id, text_edits, slide_order')
     .eq('tenant_id', auth.profile.tenant_id)
     .contains('slide_order', [{ slide_id: id }])
+    .limit(500)
 
   if (!projects || projects.length === 0) {
     return NextResponse.json({ fields: [] })

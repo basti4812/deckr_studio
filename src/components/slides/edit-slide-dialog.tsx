@@ -247,9 +247,13 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
         if (f.shapeName) existingByShape.set(f.shapeName, f)
       }
 
+      // Track which existing fields were matched
+      const matchedShapeNames = new Set<string>()
+
       const newFields: DetectedFieldConfig[] = detected.map((f) => {
         const existing = existingByShape.get(f.shapeName)
         if (existing) {
+          matchedShapeNames.add(f.shapeName)
           // Preserve admin settings for known fields
           return {
             ...existing,
@@ -266,6 +270,17 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
           editable_state: 'locked' as const,
         }
       })
+
+      // Soft-delete: keep fields that were in the old PPTX but not in the new one.
+      // Only keep non-locked fields (locked fields with no data can be silently dropped).
+      for (const oldField of detectedFields) {
+        if (oldField.shapeName && !matchedShapeNames.has(oldField.shapeName)) {
+          if (oldField.editable_state !== 'locked') {
+            // Preserve as locked so admin sees it and can confirm removal
+            newFields.push({ ...oldField, editable_state: 'locked' })
+          }
+        }
+      }
 
       setDetectedFields(newFields)
 

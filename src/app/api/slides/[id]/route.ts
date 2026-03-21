@@ -14,14 +14,19 @@ const EditableFieldSchema = z.object({
   required: z.boolean(),
 })
 
-const DetectedFieldSchema = z.object({
-  id: z.string().min(1),
-  label: z.string().max(100).default(''),
-  placeholder: z.string().max(500).default(''),
-  shapeName: z.string().default(''),
-  phType: z.string().nullable().default(null),
-  editable_state: z.enum(['locked', 'optional', 'required']),
-})
+const DetectedFieldSchema = z
+  .object({
+    id: z.string().min(1),
+    label: z.string().max(100).default(''),
+    placeholder: z.string().max(500).default(''),
+    shapeName: z.string().default(''),
+    phType: z.string().nullable().default(null),
+    editable_state: z.enum(['locked', 'optional', 'required']),
+  })
+  .refine((f) => f.editable_state === 'locked' || f.label.trim().length > 0, {
+    message: 'Label is required for editable fields',
+    path: ['label'],
+  })
 
 const PatchSlideSchema = z.object({
   title: z.string().min(1).max(255).optional(),
