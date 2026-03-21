@@ -933,7 +933,14 @@
     "close": "Schließen",
     "only_pptx_accepted": "Nur .pptx-Dateien werden akzeptiert",
     "fields_one": "{{count}} bearbeitbares Feld",
-    "fields_other": "{{count}} bearbeitbare Felder"
+    "fields_other": "{{count}} bearbeitbare Felder",
+    "hidden_slides_hint": "Hinweis: Ausgeblendete Folien werden beim Upload übersprungen.",
+    "processing_warning": "Deine Folien werden gerade umgewandelt — bitte schließe dieses Fenster nicht, bis der Vorgang abgeschlossen ist.",
+    "upload_finished_heading": "Upload abgeschlossen!",
+    "upload_finished_subheading": "Du kannst jetzt deine Textfelder konfigurieren oder weitere Dateien hochladen.",
+    "upload_mixed_result": "{{success}} Dateien erfolgreich hochgeladen. {{failed}} Dateien fehlgeschlagen.",
+    "upload_more_files": "Weitere Dateien hochladen",
+    "go_to_slides": "Zu den Folien"
   },
   "landing": {
     "stop_copying_slides": "Hören Sie auf, Folien zu kopieren.",

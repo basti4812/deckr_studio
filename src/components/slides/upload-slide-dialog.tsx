@@ -1,11 +1,12 @@
 'use client'
 
-import { useRef, useState } from 'react'
-import { FileX, Upload, X } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { CheckCircle2, FileX, Info, Loader2, Upload, X } from 'lucide-react'
 import JSZip from 'jszip'
 import { useTranslation } from 'react-i18next'
 import { parsePptxFields } from '@/lib/pptx-parser'
 import { getVisibleSlideIndices } from '@/lib/pptx-utils'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -92,6 +93,23 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
   const [statusText, setStatusText] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // ---- beforeunload warning during upload ----
+
+  const beforeUnloadHandler = useCallback((e: BeforeUnloadEvent) => {
+    e.preventDefault()
+  }, [])
+
+  useEffect(() => {
+    if (uploading) {
+      window.addEventListener('beforeunload', beforeUnloadHandler)
+    } else {
+      window.removeEventListener('beforeunload', beforeUnloadHandler)
+    }
+    return () => {
+      window.removeEventListener('beforeunload', beforeUnloadHandler)
+    }
+  }, [uploading, beforeUnloadHandler])
+
   // ---- File selection ----
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -151,6 +169,15 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
     setStatusText('')
     setCurrentFileIndex(-1)
     onClose()
+  }
+
+  // ---- Reset for new batch ----
+
+  function handleResetForNewBatch() {
+    setQueue([])
+    setError(null)
+    setStatusText('')
+    setCurrentFileIndex(-1)
   }
 
   // ---- Upload all files ----
@@ -364,6 +391,9 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
   const doneFiles = queue.filter((f) => f.status === 'done').length
   const errorFiles = queue.filter((f) => f.status === 'error').length
   const allDone = uploading === false && totalFiles > 0 && doneFiles + errorFiles === totalFiles
+  const hasPptxFiles = queue.some((f) => f.extension === '.pptx')
+  const allFailed = allDone && doneFiles === 0 && errorFiles > 0
+  const showSuccessScreen = allDone && doneFiles > 0
   const progressPercent =
     totalFiles > 0 && uploading
       ? Math.round((currentFileIndex / totalFiles) * 100)
@@ -379,117 +409,189 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
           <DialogDescription>{t('slides.upload_presentations_description')}</DialogDescription>
         </DialogHeader>
 
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={ACCEPT_STRING}
+          multiple
+          className="hidden"
+          onChange={handleFileChange}
+        />
+
         <div className="space-y-4 py-2">
-          {/* File picker (hidden when uploading or done) */}
-          {!uploading && !allDone && (
-            <div
-              className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/25 p-6 text-center transition-colors hover:border-muted-foreground/50"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload className="h-8 w-8 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">
-                {t('slides.select_presentation_files')}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                .pptx, .ppt, .key, .odp &middot; {t('slides.max_50_mb')} &middot;{' '}
-                {t('slides.max_10_files')}
-              </p>
-            </div>
-          )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={ACCEPT_STRING}
-            multiple
-            className="hidden"
-            onChange={handleFileChange}
-          />
+          {/* Success Screen — replaces queue view when at least one file succeeded */}
+          {showSuccessScreen ? (
+            <div className="flex flex-col items-center gap-4 py-4">
+              <CheckCircle2 className="h-12 w-12 text-green-500" />
+              <div className="text-center space-y-1">
+                <h3 className="text-lg font-semibold">{t('slides.upload_finished_heading')}</h3>
+                <p className="text-sm text-muted-foreground">
+                  {errorFiles > 0
+                    ? t('slides.upload_mixed_result', {
+                        success: doneFiles,
+                        failed: errorFiles,
+                      })
+                    : t('slides.upload_finished_subheading')}
+                </p>
+              </div>
 
-          {/* File list */}
-          {queue.length > 0 && (
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {queue.map((qf, i) => (
-                <div
-                  key={`${qf.file.name}-${i}`}
-                  className="flex items-center gap-3 rounded-lg border border-border px-3 py-2"
-                >
-                  {/* Status indicator */}
-                  <div className="shrink-0">
-                    {qf.status === 'done' && <div className="h-2 w-2 rounded-full bg-green-500" />}
-                    {qf.status === 'error' && <FileX className="h-4 w-4 text-destructive" />}
-                    {qf.status === 'pending' && (
-                      <div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
-                    )}
-                    {(qf.status === 'uploading' ||
-                      qf.status === 'converting' ||
-                      qf.status === 'processing') && (
-                      <div className="h-2 w-2 animate-pulse rounded-full bg-primary" />
-                    )}
-                  </div>
-
-                  {/* File info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm truncate font-medium">{qf.file.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatSize(qf.file.size)}
-                      {qf.status === 'done' &&
-                        ` · ${t('slides.slides_created_count', { count: qf.slidesCreated })}`}
-                      {qf.status === 'error' && qf.error && (
-                        <span className="text-destructive"> · {qf.error}</span>
-                      )}
-                      {qf.status === 'converting' && (
-                        <span className="text-primary"> · {t('slides.converting')}</span>
-                      )}
-                    </p>
-                  </div>
-
-                  {/* Remove button (only when not uploading) */}
-                  {!uploading && !allDone && (
-                    <button
-                      onClick={() => removeFile(i)}
-                      className="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
+              {/* Failed files list (mixed result) */}
+              {errorFiles > 0 && (
+                <div className="w-full space-y-1.5">
+                  {queue
+                    .filter((f) => f.status === 'error')
+                    .map((f, i) => (
+                      <div
+                        key={`error-${i}`}
+                        className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2"
+                      >
+                        <FileX className="h-4 w-4 shrink-0 text-destructive" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm truncate font-medium">{f.file.name}</p>
+                          {f.error && (
+                            <p className="text-xs text-destructive truncate">{f.error}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                 </div>
-              ))}
-            </div>
-          )}
+              )}
 
-          {/* Progress */}
-          {(uploading || allDone) && (
-            <div className="space-y-2">
-              <Progress value={progressPercent} className="h-2" />
-              <p className="text-xs text-muted-foreground text-center">
-                {uploading ? (
-                  statusText
-                ) : (
-                  <>
-                    {doneFiles > 0 &&
-                      t('slides.upload_complete', {
-                        count: queue.reduce((sum, f) => sum + f.slidesCreated, 0),
-                      })}
-                    {errorFiles > 0 && ` · ${t('slides.some_files_failed', { count: errorFiles })}`}
-                  </>
-                )}
-              </p>
+              <div className="flex flex-col gap-2 w-full sm:flex-row sm:justify-center">
+                <Button variant="outline" onClick={handleResetForNewBatch}>
+                  {t('slides.upload_more_files')}
+                </Button>
+                <Button onClick={handleClose}>{t('slides.go_to_slides')}</Button>
+              </div>
             </div>
-          )}
+          ) : (
+            <>
+              {/* File picker (hidden when uploading) */}
+              {!uploading && (
+                <div
+                  className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/25 p-6 text-center transition-colors hover:border-muted-foreground/50"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    {t('slides.select_presentation_files')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    .pptx, .ppt, .key, .odp &middot; {t('slides.max_50_mb')} &middot;{' '}
+                    {t('slides.max_10_files')}
+                  </p>
+                </div>
+              )}
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+              {/* Hidden-slides info banner (only when queue has .pptx files, before upload starts) */}
+              {hasPptxFiles && !uploading && queue.length > 0 && (
+                <Alert className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/50">
+                  <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <AlertDescription className="text-sm text-blue-800 dark:text-blue-300">
+                    {t('slides.hidden_slides_hint')}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Processing warning banner (during upload) */}
+              {uploading && (
+                <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/50">
+                  <Loader2 className="h-4 w-4 animate-spin text-amber-600 dark:text-amber-400" />
+                  <AlertDescription className="text-sm text-amber-800 dark:text-amber-300">
+                    {t('slides.processing_warning')}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* File list */}
+              {queue.length > 0 && (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {queue.map((qf, i) => (
+                    <div
+                      key={`${qf.file.name}-${i}`}
+                      className="flex items-center gap-3 rounded-lg border border-border px-3 py-2"
+                    >
+                      {/* Status indicator */}
+                      <div className="shrink-0">
+                        {qf.status === 'done' && (
+                          <div className="h-2 w-2 rounded-full bg-green-500" />
+                        )}
+                        {qf.status === 'error' && <FileX className="h-4 w-4 text-destructive" />}
+                        {qf.status === 'pending' && (
+                          <div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
+                        )}
+                        {(qf.status === 'uploading' ||
+                          qf.status === 'converting' ||
+                          qf.status === 'processing') && (
+                          <div className="h-2 w-2 animate-pulse rounded-full bg-primary" />
+                        )}
+                      </div>
+
+                      {/* File info */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm truncate font-medium">{qf.file.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatSize(qf.file.size)}
+                          {qf.status === 'done' &&
+                            ` · ${t('slides.slides_created_count', { count: qf.slidesCreated })}`}
+                          {qf.status === 'error' && qf.error && (
+                            <span className="text-destructive"> · {qf.error}</span>
+                          )}
+                          {qf.status === 'converting' && (
+                            <span className="text-primary"> · {t('slides.converting')}</span>
+                          )}
+                        </p>
+                      </div>
+
+                      {/* Remove button (only when not uploading and not all done) */}
+                      {!uploading && !allDone && !allFailed && (
+                        <button
+                          onClick={() => removeFile(i)}
+                          className="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground transition-colors"
+                          aria-label={t('slides.cancel')}
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Progress */}
+              {(uploading || allFailed) && (
+                <div className="space-y-2">
+                  <Progress value={uploading ? progressPercent : 100} className="h-2" />
+                  <p className="text-xs text-muted-foreground text-center">
+                    {uploading ? (
+                      statusText
+                    ) : (
+                      <>{errorFiles > 0 && t('slides.some_files_failed', { count: errorFiles })}</>
+                    )}
+                  </p>
+                </div>
+              )}
+
+              {error && <p className="text-sm text-destructive">{error}</p>}
+            </>
+          )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={uploading}>
-            {allDone ? t('slides.close') : t('slides.cancel')}
-          </Button>
-          {!allDone && (
-            <Button onClick={handleUpload} disabled={uploading || queue.length === 0}>
-              {uploading ? t('slides.uploading') : t('slides.upload_button')}
+        {/* Footer — hidden on success screen (buttons are inline there) */}
+        {!showSuccessScreen && (
+          <DialogFooter>
+            <Button variant="outline" onClick={handleClose} disabled={uploading}>
+              {t('slides.cancel')}
             </Button>
-          )}
-        </DialogFooter>
+            {!allFailed ? (
+              <Button onClick={handleUpload} disabled={uploading || queue.length === 0}>
+                {uploading ? t('slides.uploading') : t('slides.upload_button')}
+              </Button>
+            ) : (
+              <Button onClick={handleUpload}>{t('slides.upload_button')}</Button>
+            )}
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   )

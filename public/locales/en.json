@@ -933,7 +933,14 @@
     "close": "Close",
     "only_pptx_accepted": "Only .pptx files are accepted",
     "fields_one": "{{count}} editable field",
-    "fields_other": "{{count}} editable fields"
+    "fields_other": "{{count}} editable fields",
+    "hidden_slides_hint": "Note: Hidden slides are skipped during upload.",
+    "processing_warning": "Your slides are being converted — please do not close this window until the process is complete.",
+    "upload_finished_heading": "Upload complete!",
+    "upload_finished_subheading": "You can now configure your text fields or upload more files.",
+    "upload_mixed_result": "{{success}} files uploaded successfully. {{failed}} files failed.",
+    "upload_more_files": "Upload more files",
+    "go_to_slides": "Go to slides"
   },
   "landing": {
     "stop_copying_slides": "Stop copying slides.",
