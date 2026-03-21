@@ -78,7 +78,7 @@ export function EditFieldsDialog({
         if (!o) onClose()
       }}
     >
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col relative">
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-hidden flex flex-col relative top-[50%] translate-y-[-50%]">
         {/* Success overlay */}
         {showSuccess && (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-[2px] rounded-lg">
@@ -108,7 +108,7 @@ export function EditFieldsDialog({
                 <img
                   src={imageUrl}
                   alt={slide.title}
-                  className="w-full object-contain max-h-[35vh]"
+                  className="w-full object-contain max-h-[25vh]"
                 />
               ) : (
                 <div className="flex items-center justify-center py-12 text-muted-foreground/40">
