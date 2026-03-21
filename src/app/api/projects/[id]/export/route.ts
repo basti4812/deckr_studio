@@ -3,6 +3,8 @@ import { requireActiveUser } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { logActivity } from '@/lib/activity-log'
+
+export const maxDuration = 300
 import { onProjectExported } from '@/lib/crm-hooks'
 import { isAllowedStorageUrl } from '@/lib/url-validation'
 import {

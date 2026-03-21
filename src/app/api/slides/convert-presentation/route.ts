@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import JSZip from 'jszip'
+
+export const maxDuration = 120
 import { getVisibleSlideIndices } from '@/lib/pptx-utils'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { checkRateLimit } from '@/lib/rate-limit'
