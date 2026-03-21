@@ -566,7 +566,7 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t('slides.upload_presentations')}</DialogTitle>
           <DialogDescription>{t('slides.upload_presentations_description')}</DialogDescription>
@@ -581,7 +581,7 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
           onChange={handleFileChange}
         />
 
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-2 overflow-hidden">
           {/* ── Compression Prompt (optional, for PPTX files <=100 MB) ── */}
           {phase === 'compression-prompt' && (
             <div className="flex flex-col items-center gap-4 py-4">
