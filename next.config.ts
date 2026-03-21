@@ -1,19 +1,6 @@
 import type { NextConfig } from 'next'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
-
 const nextConfig: NextConfig = {
-  async rewrites() {
-    // Proxy Supabase requests through our own domain to avoid Safari ITP
-    // (Intelligent Tracking Prevention) blocking cross-origin requests.
-    // Browser clients use /supabase-proxy/* instead of supabase.co directly.
-    return [
-      {
-        source: '/supabase-proxy/:path*',
-        destination: `${supabaseUrl}/:path*`,
-      },
-    ]
-  },
   async headers() {
     return [
       {
