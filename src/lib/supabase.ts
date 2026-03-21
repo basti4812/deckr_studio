@@ -13,6 +13,10 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabaseBrowserUrl =
   typeof window !== 'undefined' ? `${window.location.origin}/supabase-proxy` : supabaseUrl
 
+// Extract the project ref from the original Supabase URL for consistent cookie naming.
+// Without this, changing the URL would change the cookie name and break existing sessions.
+const supabaseProjectRef = supabaseUrl.match(/https:\/\/([^.]+)\./)?.[1] ?? 'supabase'
+
 // ---------------------------------------------------------------------------
 // Browser client (client components)
 // Uses @supabase/ssr for automatic cookie-based session handling.
@@ -20,7 +24,11 @@ const supabaseBrowserUrl =
 // ---------------------------------------------------------------------------
 
 export function createBrowserSupabaseClient() {
-  return createSSRBrowserClient(supabaseBrowserUrl, supabaseAnonKey)
+  return createSSRBrowserClient(supabaseBrowserUrl, supabaseAnonKey, {
+    cookieOptions: {
+      name: `sb-${supabaseProjectRef}-auth-token`,
+    },
+  })
 }
 
 /**
