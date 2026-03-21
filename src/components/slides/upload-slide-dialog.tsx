@@ -566,7 +566,7 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t('slides.upload_presentations')}</DialogTitle>
           <DialogDescription>{t('slides.upload_presentations_description')}</DialogDescription>
