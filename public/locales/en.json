@@ -553,7 +553,10 @@
     "auto_saved": "Changes saved automatically",
     "save_and_render": "Save & re-render",
     "rendering": "Rendering…",
-    "no_editable_fields": "This slide has no editable text fields."
+    "no_editable_fields": "This slide has no editable text fields.",
+    "saved_successfully": "Changes saved!",
+    "close_dialog": "Close",
+    "continue_editing": "Continue editing"
   },
   "comments": {
     "title": "Comments",

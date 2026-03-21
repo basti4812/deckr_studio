@@ -553,7 +553,10 @@
     "auto_saved": "Änderungen werden automatisch gespeichert",
     "save_and_render": "Speichern & neu rendern",
     "rendering": "Wird gerendert…",
-    "no_editable_fields": "Diese Folie hat keine bearbeitbaren Textfelder."
+    "no_editable_fields": "Diese Folie hat keine bearbeitbaren Textfelder.",
+    "saved_successfully": "Änderungen gespeichert!",
+    "close_dialog": "Fenster schließen",
+    "continue_editing": "Weiter bearbeiten"
   },
   "comments": {
     "title": "Kommentare",

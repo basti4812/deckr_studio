@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Loader2, LayoutTemplate } from 'lucide-react'
+import { CheckCircle2, Loader2, LayoutTemplate } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -37,6 +37,7 @@ export function EditFieldsDialog({
   const { t } = useTranslation()
   const [localValues, setLocalValues] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
+  const [showSuccess, setShowSuccess] = useState(false)
   const [currentPreviewUrl, setCurrentPreviewUrl] = useState<string | undefined>(previewUrl)
 
   // Reset local state when dialog opens or values change externally
@@ -44,6 +45,7 @@ export function EditFieldsDialog({
     if (open) {
       setLocalValues({ ...values })
       setCurrentPreviewUrl(previewUrl)
+      setShowSuccess(false)
     }
   }, [open, values, previewUrl])
 
@@ -59,9 +61,14 @@ export function EditFieldsDialog({
       if (newPreviewUrl) {
         setCurrentPreviewUrl(newPreviewUrl)
       }
+      setShowSuccess(true)
     } finally {
       setSaving(false)
     }
+  }
+
+  function handleContinueEditing() {
+    setShowSuccess(false)
   }
 
   return (
@@ -71,7 +78,23 @@ export function EditFieldsDialog({
         if (!o) onClose()
       }}
     >
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col relative">
+        {/* Success overlay */}
+        {showSuccess && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-[2px] rounded-lg">
+            <div className="flex flex-col items-center gap-4 p-6 text-center">
+              <CheckCircle2 className="h-12 w-12 text-green-500" />
+              <p className="text-lg font-medium">{t('edit_fields.saved_successfully')}</p>
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={onClose}>
+                  {t('edit_fields.close_dialog')}
+                </Button>
+                <Button onClick={handleContinueEditing}>{t('edit_fields.continue_editing')}</Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <DialogHeader>
           <DialogTitle className="truncate pr-6">{slide.title}</DialogTitle>
         </DialogHeader>
