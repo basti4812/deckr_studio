@@ -84,7 +84,7 @@ const CreateSchema = z.object({
     .number()
     .int()
     .min(1)
-    .max(50 * 1024 * 1024), // 50 MB
+    .max(100 * 1024 * 1024), // 100 MB
 })
 
 export async function POST(request: NextRequest, { params }: { params: Params }) {

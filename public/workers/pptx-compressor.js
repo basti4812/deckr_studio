@@ -110,7 +110,13 @@ const MAX_DIMENSION = 1920
 // Main compression logic
 // ---------------------------------------------------------------------------
 
-async function compressImage(imageBlob, targetWidth, targetHeight) {
+async function compressImage(imageBlob, targetWidth, targetHeight, originalPath) {
+  // Determine original format — MUST keep the same format to avoid
+  // Content_Types.xml mismatch (BUG-5: JPEG bytes in .png path = broken)
+  const ext = originalPath.split('.').pop().toLowerCase()
+  const isOriginalPng = ext === 'png'
+  const outputType = isOriginalPng ? 'image/png' : 'image/jpeg'
+
   // Decode the image using createImageBitmap (available in workers)
   const bitmap = await createImageBitmap(imageBlob)
   const origWidth = bitmap.width
@@ -133,7 +139,6 @@ async function compressImage(imageBlob, targetWidth, targetHeight) {
     newWidth = origWidth
     newHeight = origHeight
 
-    // Still cap at MAX_DIMENSION
     const longestOrig = Math.max(newWidth, newHeight)
     if (longestOrig > MAX_DIMENSION) {
       const scale = MAX_DIMENSION / longestOrig
@@ -142,36 +147,17 @@ async function compressImage(imageBlob, targetWidth, targetHeight) {
     }
   }
 
-  // If image is already small enough and is JPEG, might not need reprocessing
-  // But we still re-encode to normalize quality
-
   // Use OffscreenCanvas for drawing
   const canvas = new OffscreenCanvas(newWidth, newHeight)
   const ctx = canvas.getContext('2d')
   ctx.drawImage(bitmap, 0, 0, newWidth, newHeight)
   bitmap.close()
 
-  // Check for transparency
-  const imageData = ctx.getImageData(0, 0, newWidth, newHeight)
-  const isTransparent = hasTransparency(imageData)
+  // Re-encode in the SAME format as the original
+  const options = outputType === 'image/jpeg' ? { type: outputType, quality: 0.85 } : { type: outputType }
+  const compressedBlob = await canvas.convertToBlob(options)
 
-  if (isTransparent) {
-    // Encode as PNG (transparency required)
-    const pngBlob = await canvas.convertToBlob({ type: 'image/png' })
-    return { blob: pngBlob, extension: '.png', contentType: 'image/png' }
-  }
-
-  // Encode as JPEG quality 85
-  const jpegBlob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.85 })
-
-  // Also try PNG to see which is smaller
-  const pngBlob = await canvas.convertToBlob({ type: 'image/png' })
-
-  if (pngBlob.size < jpegBlob.size) {
-    return { blob: pngBlob, extension: '.png', contentType: 'image/png' }
-  }
-
-  return { blob: jpegBlob, extension: '.jpeg', contentType: 'image/jpeg' }
+  return { blob: compressedBlob, extension: isOriginalPng ? '.png' : '.jpeg', contentType: outputType }
 }
 
 // ---------------------------------------------------------------------------
@@ -296,7 +282,7 @@ self.onmessage = async function (e) {
         const targetWidth = dims ? dims.width : null
         const targetHeight = dims ? dims.height : null
 
-        const result = await compressImage(imageBlob, targetWidth, targetHeight)
+        const result = await compressImage(imageBlob, targetWidth, targetHeight, path)
 
         // Only replace if compressed version is smaller
         const compressedBuffer = await result.blob.arrayBuffer()
