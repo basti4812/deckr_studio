@@ -118,19 +118,44 @@ export async function POST(request: NextRequest, { params }: { params: Params })
     }
   }
 
-  // Download and process each slide in tray order
-  // Cache PPTX downloads by URL to avoid re-downloading the same multi-page file
+  // Download and process slides — parallel downloads, then sequential processing
   // Track source key per buffer so we can group same-source slides together
-  const pptxCache = new Map<string, ArrayBuffer>()
   const processedBuffers: Uint8Array[] = []
-  const sourceKeys: string[] = [] // parallel array: source key per buffer
+  const sourceKeys: string[] = []
+  let skippedCount = 0
 
+  // Step 1: Pre-download all unique PPTX files in parallel
+  const uniqueUrls = new Set<string>()
   for (const item of trayItems) {
-    // Personal slide: download from personal-slides bucket, no text edits
+    if (item.is_personal) continue
+    const slide = slideMap.get(item.slide_id)
+    if (slide?.pptx_url && isAllowedStorageUrl(slide.pptx_url)) {
+      uniqueUrls.add(slide.pptx_url)
+    }
+  }
+
+  const pptxCache = new Map<string, ArrayBuffer>()
+  const downloadResults = await Promise.allSettled(
+    [...uniqueUrls].map(async (url) => {
+      const res = await fetch(url)
+      if (!res.ok) throw new Error(`Download failed: ${res.status}`)
+      return { url, buffer: await res.arrayBuffer() }
+    })
+  )
+  for (const result of downloadResults) {
+    if (result.status === 'fulfilled') {
+      pptxCache.set(result.value.url, result.value.buffer)
+    }
+  }
+
+  // Step 2: Process each slide in tray order
+  for (const item of trayItems) {
+    // Personal slide
     if (item.is_personal && item.personal_slide_id) {
       const ps = personalSlideMap.get(item.personal_slide_id)
       if (!ps) {
-        return NextResponse.json({ error: `Personal slide not found` }, { status: 422 })
+        skippedCount++
+        continue
       }
 
       const { data: fileData, error: storageError } = await supabase.storage
@@ -138,10 +163,8 @@ export async function POST(request: NextRequest, { params }: { params: Params })
         .download(ps.pptx_storage_path)
 
       if (storageError || !fileData) {
-        return NextResponse.json(
-          { error: `Could not download personal slide "${ps.title}". Please try again.` },
-          { status: 502 }
-        )
+        skippedCount++
+        continue
       }
 
       const buffer = await fileData.arrayBuffer()
@@ -150,29 +173,22 @@ export async function POST(request: NextRequest, { params }: { params: Params })
       continue
     }
 
-    // Library slide — skip if deleted or missing PPTX
+    // Library slide — skip if deleted or missing
     const slide = slideMap.get(item.slide_id)
     if (!slide || !slide.pptx_url) {
+      skippedCount++
       continue
     }
 
-    // SEC-9: Validate pptx_url points to Supabase storage (prevent SSRF)
     if (!isAllowedStorageUrl(slide.pptx_url)) {
+      skippedCount++
       continue
     }
 
-    // Download PPTX from signed URL (with caching for multi-page files)
-    let fullBuffer = pptxCache.get(slide.pptx_url)
+    const fullBuffer = pptxCache.get(slide.pptx_url)
     if (!fullBuffer) {
-      const downloadRes = await fetch(slide.pptx_url)
-      if (!downloadRes.ok) {
-        return NextResponse.json(
-          { error: `Could not download "${slide.title}". Please try again.` },
-          { status: 502 }
-        )
-      }
-      fullBuffer = await downloadRes.arrayBuffer()
-      pptxCache.set(slide.pptx_url, fullBuffer)
+      skippedCount++
+      continue
     }
 
     // Extract single page from multi-page PPTX if needed
@@ -195,10 +211,11 @@ export async function POST(request: NextRequest, { params }: { params: Params })
   }
 
   if (processedBuffers.length === 0) {
-    return NextResponse.json(
-      { error: 'No downloadable slides found. Some slides may have been deleted.' },
-      { status: 400 }
-    )
+    const msg =
+      skippedCount > 0
+        ? `No downloadable slides found. ${skippedCount} of ${trayItems.length} slides may have been deleted or are unavailable.`
+        : 'No downloadable slides found. Add slides to export.'
+    return NextResponse.json({ error: msg }, { status: 400 })
   }
 
   // Debug mode: analyze PPTX structure instead of returning binary
@@ -287,13 +304,18 @@ export async function POST(request: NextRequest, { params }: { params: Params })
     .replace(/\s+/g, '_')
   const filename = `${safeName || 'presentation'}.pptx`
 
-  return new NextResponse(Buffer.from(mergedBuffer), {
-    headers: {
-      'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      'Content-Disposition': `attachment; filename="${filename}"`,
-      'Content-Length': String(mergedBuffer.length),
-    },
-  })
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'Content-Disposition': `attachment; filename="${filename}"`,
+    'Content-Length': String(mergedBuffer.length),
+  }
+  if (skippedCount > 0) {
+    headers['X-Slides-Skipped'] = String(skippedCount)
+    headers['X-Slides-Total'] = String(trayItems.length)
+    headers['X-Slides-Exported'] = String(processedBuffers.length)
+  }
+
+  return new NextResponse(Buffer.from(mergedBuffer), { headers })
 }
 
 // ---------------------------------------------------------------------------
