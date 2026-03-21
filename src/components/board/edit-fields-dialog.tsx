@@ -78,7 +78,10 @@ export function EditFieldsDialog({
         if (!o) onClose()
       }}
     >
-      <DialogContent className="fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] w-[90vw] !max-w-[90vw] h-[90vh] overflow-hidden flex flex-col relative p-0">
+      <DialogContent
+        className="overflow-hidden flex flex-col p-0 sm:rounded-lg"
+        style={{ width: '90vw', maxWidth: '90vw', height: '90vh', maxHeight: '90vh' }}
+      >
         {/* Success overlay */}
         {showSuccess && (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-[2px] rounded-lg">
