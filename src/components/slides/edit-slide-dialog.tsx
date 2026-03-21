@@ -2,11 +2,29 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, RefreshCw, Scan, Trash2, Upload, X } from 'lucide-react'
+import {
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  RefreshCw,
+  Scan,
+  Trash2,
+  Upload,
+  X,
+} from 'lucide-react'
 import { parsePptxFields } from '@/lib/pptx-parser'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -26,7 +44,7 @@ import {
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
-import type { EditableField, Slide } from './slide-card'
+import type { DetectedFieldConfig, Slide } from './slide-card'
 
 /** Detect typical PowerPoint auto-generated shape names */
 const AUTO_GENERATED_PATTERN =
@@ -42,18 +60,26 @@ interface EditSlideDialogProps {
   onSaved: (slide: Slide) => void
 }
 
+type FieldUsageMap = Record<string, { projectCount: number; userCount: number }>
+
 export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProps) {
   const { t } = useTranslation()
   const [title, setTitle] = useState('')
   const [status, setStatus] = useState<Slide['status']>('standard')
   const [tags, setTags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState('')
-  const [fields, setFields] = useState<EditableField[]>([])
+  const [detectedFields, setDetectedFields] = useState<DetectedFieldConfig[]>([])
   const [needsRename, setNeedsRename] = useState<Record<string, boolean>>({})
   const [replacementFile, setReplacementFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
   const [scanning, setScanning] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fieldUsage, setFieldUsage] = useState<FieldUsageMap>({})
+  const [loadingUsage, setLoadingUsage] = useState(false)
+  const [lockConfirm, setLockConfirm] = useState<{
+    fieldId: string
+    userCount: number
+  } | null>(null)
   const tagInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const scanInputRef = useRef<HTMLInputElement>(null)
@@ -64,12 +90,63 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
       setStatus(slide.status)
       setTags(slide.tags ?? [])
       setTagInput('')
-      setFields(slide.editable_fields ?? [])
+      // Use detected_fields if available, otherwise derive from editable_fields for backward compat
+      if (slide.detected_fields && slide.detected_fields.length > 0) {
+        setDetectedFields(slide.detected_fields)
+      } else if (slide.editable_fields && slide.editable_fields.length > 0) {
+        // Backward compat: convert old editable_fields to detected_fields format
+        setDetectedFields(
+          slide.editable_fields.map((f) => ({
+            id: f.id,
+            label: f.label,
+            placeholder: f.placeholder,
+            shapeName: '',
+            phType: null,
+            editable_state: f.required ? 'required' : 'optional',
+          }))
+        )
+      } else {
+        setDetectedFields([])
+      }
       setNeedsRename({})
       setReplacementFile(null)
       setError(null)
+      setFieldUsage({})
+
+      // Fetch field usage data
+      fetchFieldUsage(slide.id)
     }
   }, [slide])
+
+  async function fetchFieldUsage(slideId: string) {
+    setLoadingUsage(true)
+    try {
+      const supabase = createBrowserSupabaseClient()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session) return
+
+      const res = await fetch(`/api/slides/${slideId}/field-usage`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const usageMap: FieldUsageMap = {}
+        for (const entry of data.fields ?? []) {
+          usageMap[entry.fieldId] = {
+            projectCount: entry.projectCount,
+            userCount: entry.userCount,
+          }
+        }
+        setFieldUsage(usageMap)
+      }
+    } catch {
+      // Non-fatal — usage info is nice-to-have
+    } finally {
+      setLoadingUsage(false)
+    }
+  }
 
   function commitTagInput() {
     const trimmed = tagInput.trim().toLowerCase()
@@ -96,25 +173,62 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
     setReplacementFile(selected)
   }
 
-  function addField() {
-    setFields((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), label: '', placeholder: '', required: false },
-    ])
+  function updateFieldState(fieldId: string, newState: DetectedFieldConfig['editable_state']) {
+    const field = detectedFields.find((f) => f.id === fieldId)
+    if (!field) return
+
+    // If locking a field that has employee data, show confirmation
+    if (
+      newState === 'locked' &&
+      field.editable_state !== 'locked' &&
+      fieldUsage[fieldId]?.userCount > 0
+    ) {
+      setLockConfirm({
+        fieldId,
+        userCount: fieldUsage[fieldId].userCount,
+      })
+      return
+    }
+
+    applyFieldStateChange(fieldId, newState)
   }
 
-  function removeField(id: string) {
-    setFields((prev) => prev.filter((f) => f.id !== id))
+  function applyFieldStateChange(fieldId: string, newState: DetectedFieldConfig['editable_state']) {
+    setDetectedFields((prev) =>
+      prev.map((f) => {
+        if (f.id !== fieldId) return f
+        if (newState === 'locked') {
+          // Clear label and placeholder when locking
+          return { ...f, editable_state: newState, label: '', placeholder: '' }
+        }
+        return { ...f, editable_state: newState }
+      })
+    )
+    // Clear needsRename when locking
+    if (newState === 'locked') {
+      setNeedsRename((prev) => {
+        if (!prev[fieldId]) return prev
+        const next = { ...prev }
+        delete next[fieldId]
+        return next
+      })
+    }
   }
 
-  function updateField(id: string, changes: Partial<EditableField>) {
-    setFields((prev) => prev.map((f) => (f.id === id ? { ...f, ...changes } : f)))
+  function confirmLockField() {
+    if (!lockConfirm) return
+    applyFieldStateChange(lockConfirm.fieldId, 'locked')
+    setLockConfirm(null)
+  }
+
+  function updateFieldConfig(fieldId: string, changes: Partial<DetectedFieldConfig>) {
+    setDetectedFields((prev) => prev.map((f) => (f.id === fieldId ? { ...f, ...changes } : f)))
     // If the label was changed, clear the needsRename flag if new label is not auto-generated
     if (changes.label !== undefined && !isAutoGeneratedLabel(changes.label)) {
       setNeedsRename((prev) => {
-        if (!prev[id]) return prev
+        if (!prev[fieldId]) return prev
         const next = { ...prev }
-        delete next[id]
+        delete next[fieldId]
         return next
       })
     }
@@ -126,17 +240,39 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
     setScanning(true)
     try {
       const detected = await parsePptxFields(file, slide.page_index ?? 0)
-      const newFields = detected.map((f) => ({
-        id: f.id,
-        label: f.label.slice(0, 100),
-        placeholder: f.placeholder.length <= 500 ? f.placeholder : '',
-        required: f.required,
-      }))
-      setFields(newFields)
-      // Flag auto-generated labels that need renaming
+
+      // Match new fields to existing ones by shapeName
+      const existingByShape = new Map<string, DetectedFieldConfig>()
+      for (const f of detectedFields) {
+        if (f.shapeName) existingByShape.set(f.shapeName, f)
+      }
+
+      const newFields: DetectedFieldConfig[] = detected.map((f) => {
+        const existing = existingByShape.get(f.shapeName)
+        if (existing) {
+          // Preserve admin settings for known fields
+          return {
+            ...existing,
+            placeholder: f.placeholder.length <= 500 ? f.placeholder : existing.placeholder,
+          }
+        }
+        // New field: locked by default
+        return {
+          id: f.id,
+          label: f.label.slice(0, 100),
+          placeholder: f.placeholder.length <= 500 ? f.placeholder : '',
+          shapeName: f.shapeName,
+          phType: f.phType,
+          editable_state: 'locked' as const,
+        }
+      })
+
+      setDetectedFields(newFields)
+
+      // Flag auto-generated labels that need renaming (only for non-locked fields)
       const renameFlags: Record<string, boolean> = {}
       for (const f of newFields) {
-        if (isAutoGeneratedLabel(f.label)) {
+        if (f.editable_state !== 'locked' && isAutoGeneratedLabel(f.label)) {
           renameFlags[f.id] = true
         }
       }
@@ -156,8 +292,9 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
       return
     }
 
-    // Validate fields
-    for (const f of fields) {
+    // Validate fields — only non-locked fields need a label
+    const editableFields = detectedFields.filter((f) => f.editable_state !== 'locked')
+    for (const f of editableFields) {
       if (!f.label.trim()) {
         setError(t('slides.all_fields_need_label'))
         return
@@ -204,7 +341,8 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
         title: title.trim(),
         status,
         tags,
-        editable_fields: fields,
+        detected_fields: detectedFields,
+        // editable_fields is derived server-side from detected_fields
       }
       if (newPptxUrl) patchBody.pptx_url = newPptxUrl
 
@@ -232,130 +370,143 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
     }
   }
 
+  const editableCount = detectedFields.filter((f) => f.editable_state !== 'locked').length
+  const hasRenameIssues = Object.keys(needsRename).length > 0
+
   return (
-    <Dialog open={!!slide} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{t('slides.edit_slide')}</DialogTitle>
-          <DialogDescription>{t('slides.edit_slide_description')}</DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={!!slide} onOpenChange={(o) => !o && onClose()}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t('slides.edit_slide')}</DialogTitle>
+            <DialogDescription>{t('slides.edit_slide_description')}</DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-4 py-2">
-          {/* Title */}
-          <div className="space-y-2">
-            <Label htmlFor="edit-title">{t('slides.title')}</Label>
-            <Input id="edit-title" value={title} onChange={(e) => setTitle(e.target.value)} />
-          </div>
+          <div className="space-y-4 py-2">
+            {/* Title */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-title">{t('slides.title')}</Label>
+              <Input id="edit-title" value={title} onChange={(e) => setTitle(e.target.value)} />
+            </div>
 
-          {/* Status */}
-          <div className="space-y-2">
-            <Label htmlFor="edit-status">{t('slides.status')}</Label>
-            <Select value={status} onValueChange={(v) => setStatus(v as Slide['status'])}>
-              <SelectTrigger id="edit-status">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="standard">{t('slides.standard')}</SelectItem>
-                <SelectItem value="mandatory">{t('slides.mandatory_description')}</SelectItem>
-                <SelectItem value="deprecated">{t('slides.deprecated_description')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+            {/* Status */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-status">{t('slides.status')}</Label>
+              <Select value={status} onValueChange={(v) => setStatus(v as Slide['status'])}>
+                <SelectTrigger id="edit-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="standard">{t('slides.standard')}</SelectItem>
+                  <SelectItem value="mandatory">{t('slides.mandatory_description')}</SelectItem>
+                  <SelectItem value="deprecated">{t('slides.deprecated_description')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-          {/* Tags */}
-          <div className="space-y-2">
-            <Label>{t('slides.tags')}</Label>
-            <div
-              className="flex flex-wrap gap-1.5 min-h-[2rem] rounded-md border px-2 py-1.5 bg-background focus-within:ring-1 focus-within:ring-ring cursor-text"
-              onClick={() => tagInputRef.current?.focus()}
-            >
-              {tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium"
-                >
-                  {tag}
-                  <button
+            {/* Tags */}
+            <div className="space-y-2">
+              <Label>{t('slides.tags')}</Label>
+              <div
+                className="flex flex-wrap gap-1.5 min-h-[2rem] rounded-md border px-2 py-1.5 bg-background focus-within:ring-1 focus-within:ring-ring cursor-text"
+                onClick={() => tagInputRef.current?.focus()}
+              >
+                {tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium"
+                  >
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        removeTag(tag)
+                      }}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+                <input
+                  ref={tagInputRef}
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ',') {
+                      e.preventDefault()
+                      commitTagInput()
+                    }
+                    if (e.key === 'Backspace' && !tagInput && tags.length > 0) {
+                      setTags((prev) => prev.slice(0, -1))
+                    }
+                  }}
+                  onBlur={commitTagInput}
+                  placeholder={tags.length === 0 ? t('slides.type_tag_placeholder') : ''}
+                  className="flex-1 min-w-[120px] bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+                  disabled={tags.length >= 20}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">{t('slides.tags_hint')}</p>
+            </div>
+
+            <Separator />
+
+            {/* Replace PPTX */}
+            <div className="space-y-2">
+              <Label>{t('slides.powerpoint_file')}</Label>
+              {replacementFile ? (
+                <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40 px-3 py-2">
+                  <RefreshCw className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                  <span className="flex-1 truncate text-sm text-blue-700 dark:text-blue-300">
+                    {replacementFile.name}
+                  </span>
+                  <Button
                     type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      removeTag(tag)
-                    }}
-                    className="text-muted-foreground hover:text-foreground"
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 shrink-0"
+                    onClick={() => setReplacementFile(null)}
                   >
                     <X className="h-3 w-3" />
-                  </button>
-                </span>
-              ))}
-              <input
-                ref={tagInputRef}
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ',') {
-                    e.preventDefault()
-                    commitTagInput()
-                  }
-                  if (e.key === 'Backspace' && !tagInput && tags.length > 0) {
-                    setTags((prev) => prev.slice(0, -1))
-                  }
-                }}
-                onBlur={commitTagInput}
-                placeholder={tags.length === 0 ? t('slides.type_tag_placeholder') : ''}
-                className="flex-1 min-w-[120px] bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-                disabled={tags.length >= 20}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">{t('slides.tags_hint')}</p>
-          </div>
-
-          <Separator />
-
-          {/* Replace PPTX */}
-          <div className="space-y-2">
-            <Label>{t('slides.powerpoint_file')}</Label>
-            {replacementFile ? (
-              <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40 px-3 py-2">
-                <RefreshCw className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
-                <span className="flex-1 truncate text-sm text-blue-700 dark:text-blue-300">
-                  {replacementFile.name}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-5 w-5 shrink-0"
-                  onClick={() => setReplacementFile(null)}
+                  </Button>
+                </div>
+              ) : (
+                <div
+                  className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+                  onClick={() => fileInputRef.current?.click()}
                 >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-            ) : (
-              <div
-                className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload className="h-4 w-4 shrink-0" />
-                {t('slides.replace_pptx')}
-              </div>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-            <p className="text-xs text-muted-foreground">{t('slides.replace_warning')}</p>
-          </div>
+                  <Upload className="h-4 w-4 shrink-0" />
+                  {t('slides.replace_pptx')}
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <p className="text-xs text-muted-foreground">{t('slides.replace_warning')}</p>
+            </div>
 
-          <Separator />
+            <Separator />
 
-          {/* Editable fields */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label>{t('slides.editable_text_fields')}</Label>
-              <div className="flex items-center gap-1.5">
+            {/* Detected text fields — tri-state system */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>{t('slides.detected_text_fields')}</Label>
+                  {detectedFields.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {t('slides.detected_fields_summary', {
+                        total: detectedFields.length,
+                        editable: editableCount,
+                      })}
+                    </p>
+                  )}
+                </div>
                 <Button
                   type="button"
                   variant="outline"
@@ -366,112 +517,230 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
                   <Scan className="mr-1 h-3 w-3" />
                   {scanning ? t('slides.scanning') : t('slides.rescan_pptx')}
                 </Button>
-                <Button type="button" variant="outline" size="sm" onClick={addField}>
-                  <Plus className="mr-1 h-3 w-3" />
-                  {t('slides.add_field')}
-                </Button>
               </div>
+              <input
+                ref={scanInputRef}
+                type="file"
+                accept=".pptx"
+                className="hidden"
+                onChange={handleRescan}
+              />
+
+              {detectedFields.length === 0 && (
+                <p className="text-sm text-muted-foreground rounded-md border border-dashed p-3 text-center">
+                  {t('slides.no_detected_fields')}
+                </p>
+              )}
+
+              {detectedFields.map((field, index) => (
+                <FieldConfigRow
+                  key={field.id}
+                  field={field}
+                  index={index}
+                  needsRename={!!needsRename[field.id]}
+                  usage={fieldUsage[field.id]}
+                  loadingUsage={loadingUsage}
+                  onStateChange={(state) => updateFieldState(field.id, state)}
+                  onConfigChange={(changes) => updateFieldConfig(field.id, changes)}
+                  t={t}
+                />
+              ))}
             </div>
-            <input
-              ref={scanInputRef}
-              type="file"
-              accept=".pptx"
-              className="hidden"
-              onChange={handleRescan}
-            />
 
-            {fields.length === 0 && (
-              <p className="text-sm text-muted-foreground">{t('slides.no_editable_fields')}</p>
-            )}
-
-            {fields.map((field, index) => (
-              <div
-                key={field.id}
-                className={`rounded-md border p-3 space-y-2 ${needsRename[field.id] ? 'ring-2 ring-amber-400 border-amber-300' : ''}`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-muted-foreground">
-                      {t('slides.field_number', { number: index + 1 })}
-                    </span>
-                    {field.placeholder && (
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                        {t('slides.auto_detected')}
-                      </Badge>
-                    )}
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 text-destructive hover:text-destructive"
-                    onClick={() => removeField(field.id)}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs">{t('slides.label')} *</Label>
-                    <Input
-                      value={field.label}
-                      onChange={(e) => updateField(field.id, { label: e.target.value })}
-                      placeholder={t('slides.label_placeholder')}
-                      className={`h-8 text-sm ${needsRename[field.id] ? 'border-amber-400 focus-visible:ring-amber-400' : ''}`}
-                    />
-                    {needsRename[field.id] && (
-                      <p className="text-[10px] text-amber-600 dark:text-amber-400">
-                        {t('slides.auto_generated_warning')}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">{t('slides.placeholder')}</Label>
-                    <Input
-                      value={field.placeholder}
-                      onChange={(e) => updateField(field.id, { placeholder: e.target.value })}
-                      placeholder={t('slides.placeholder_placeholder')}
-                      maxLength={500}
-                      className="h-8 text-sm"
-                    />
-                    {field.placeholder.length > 450 && (
-                      <p className="text-[10px] text-warning">
-                        {field.placeholder.length}/500 {t('slides.placeholder_max_hint')}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id={`required-${field.id}`}
-                    checked={field.required}
-                    onCheckedChange={(checked) =>
-                      updateField(field.id, { required: checked === true })
-                    }
-                  />
-                  <Label
-                    htmlFor={`required-${field.id}`}
-                    className="text-sm font-normal cursor-pointer"
-                  >
-                    {t('slides.required_description')}
-                  </Label>
-                </div>
-              </div>
-            ))}
+            {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose} disabled={saving}>
+              {t('slides.cancel')}
+            </Button>
+            <Button onClick={handleSave} disabled={saving || hasRenameIssues}>
+              {saving ? t('slides.saving') : t('slides.save_changes')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Lock field confirmation dialog */}
+      <AlertDialog open={!!lockConfirm} onOpenChange={(o) => !o && setLockConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('slides.lock_field_title')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('slides.lock_field_warning', { count: lockConfirm?.userCount ?? 0 })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('slides.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmLockField}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t('slides.lock_field_confirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// FieldConfigRow — individual field with tri-state selector and expandable config
+// ---------------------------------------------------------------------------
+
+function FieldConfigRow({
+  field,
+  index,
+  needsRename,
+  usage,
+  loadingUsage,
+  onStateChange,
+  onConfigChange,
+  t,
+}: {
+  field: DetectedFieldConfig
+  index: number
+  needsRename: boolean
+  usage?: { projectCount: number; userCount: number }
+  loadingUsage: boolean
+  onStateChange: (state: DetectedFieldConfig['editable_state']) => void
+  onConfigChange: (changes: Partial<DetectedFieldConfig>) => void
+  t: (key: string, options?: Record<string, unknown>) => string
+}) {
+  const isExpanded = field.editable_state !== 'locked'
+
+  // Original PPTX text preview (for locked fields)
+  const previewText =
+    field.placeholder && field.placeholder.length > 60
+      ? field.placeholder.slice(0, 60) + '...'
+      : field.placeholder
+
+  return (
+    <div
+      className={`rounded-md border transition-all ${
+        needsRename
+          ? 'ring-2 ring-amber-400 border-amber-300'
+          : isExpanded
+            ? 'border-primary/30 bg-primary/5'
+            : ''
+      }`}
+    >
+      {/* Header row with tri-state selector */}
+      <div className="flex items-center gap-2 px-3 py-2.5">
+        {isExpanded ? (
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        )}
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">
+              {t('slides.field_number', { number: index + 1 })}
+            </span>
+            {field.shapeName && (
+              <span
+                className="text-[10px] text-muted-foreground/70 truncate max-w-[120px]"
+                title={field.shapeName}
+              >
+                {field.shapeName}
+              </span>
+            )}
+            {!loadingUsage && usage && usage.userCount > 0 && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                {t('slides.field_in_use', { count: usage.userCount })}
+              </Badge>
+            )}
+          </div>
+          {!isExpanded && previewText && (
+            <p className="text-xs text-muted-foreground truncate mt-0.5">{previewText}</p>
+          )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={saving}>
-            {t('slides.cancel')}
-          </Button>
-          <Button onClick={handleSave} disabled={saving || Object.keys(needsRename).length > 0}>
-            {saving ? t('slides.saving') : t('slides.save_changes')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <Select
+          value={field.editable_state}
+          onValueChange={(v) => onStateChange(v as DetectedFieldConfig['editable_state'])}
+        >
+          <SelectTrigger
+            className="h-7 w-[180px] text-xs shrink-0"
+            aria-label={t('slides.field_state')}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="locked">
+              <span className="text-xs">{t('slides.state_locked')}</span>
+            </SelectItem>
+            <SelectItem value="optional">
+              <span className="text-xs">{t('slides.state_optional')}</span>
+            </SelectItem>
+            <SelectItem value="required">
+              <span className="text-xs">{t('slides.state_required')}</span>
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Expandable config section — visible when Can fill / Must fill */}
+      {isExpanded && (
+        <div className="border-t px-3 py-2.5 space-y-2.5">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">{t('slides.label')} *</Label>
+              <Input
+                value={field.label}
+                onChange={(e) => onConfigChange({ label: e.target.value })}
+                placeholder={t('slides.label_placeholder')}
+                className={`h-8 text-sm ${needsRename ? 'border-amber-400 focus-visible:ring-amber-400' : ''}`}
+              />
+              {needsRename && (
+                <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                  {t('slides.auto_generated_warning')}
+                </p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">{t('slides.placeholder')}</Label>
+              <Input
+                value={field.placeholder}
+                onChange={(e) => onConfigChange({ placeholder: e.target.value })}
+                placeholder={t('slides.placeholder_placeholder')}
+                maxLength={500}
+                className="h-8 text-sm"
+              />
+              {field.placeholder.length > 450 && (
+                <p className="text-[10px] text-warning">
+                  {field.placeholder.length}/500 {t('slides.placeholder_max_hint')}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Delete (reset to locked) button */}
+          <div className="flex items-center justify-between">
+            {field.editable_state === 'required' && (
+              <div className="flex items-center gap-1.5">
+                <AlertTriangle className="h-3 w-3 text-amber-500" />
+                <span className="text-[10px] text-amber-600 dark:text-amber-400">
+                  {t('slides.required_export_warning')}
+                </span>
+              </div>
+            )}
+            <div className="flex-1" />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => onStateChange('locked')}
+            >
+              <Trash2 className="mr-1 h-3 w-3" />
+              {t('slides.reset_to_locked')}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

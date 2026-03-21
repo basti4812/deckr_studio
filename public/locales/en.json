@@ -940,7 +940,21 @@
     "upload_finished_subheading": "You can now configure your text fields or upload more files.",
     "upload_mixed_result": "{{success}} files uploaded successfully. {{failed}} files failed.",
     "upload_more_files": "Upload more files",
-    "go_to_slides": "Go to slides"
+    "go_to_slides": "Go to slides",
+    "post_upload_hint": "Now configure which text fields your team members can or must fill in. Click the three dots under each slide, then click 'Edit'.",
+    "detected_text_fields": "Detected text fields",
+    "detected_fields_summary": "{{total}} detected, {{editable}} editable",
+    "no_detected_fields": "This slide has no detected text fields.",
+    "state_locked": "Not editable",
+    "state_optional": "Can be filled",
+    "state_required": "Must be filled",
+    "field_state": "Field state",
+    "field_in_use": "{{count}} users have filled this",
+    "lock_field_title": "Lock this field?",
+    "lock_field_warning": "{{count}} team members have already filled in this field. Their entries will be lost.",
+    "lock_field_confirm": "Lock field",
+    "reset_to_locked": "Reset to locked",
+    "required_export_warning": "Export blocked if empty"
   },
   "landing": {
     "stop_copying_slides": "Stop copying slides.",

@@ -940,7 +940,21 @@
     "upload_finished_subheading": "Du kannst jetzt deine Textfelder konfigurieren oder weitere Dateien hochladen.",
     "upload_mixed_result": "{{success}} Dateien erfolgreich hochgeladen. {{failed}} Dateien fehlgeschlagen.",
     "upload_more_files": "Weitere Dateien hochladen",
-    "go_to_slides": "Zu den Folien"
+    "go_to_slides": "Zu den Folien",
+    "post_upload_hint": "Lege jetzt fest, wo deine Teamkolleg:innen eigene Texte eingeben können oder müssen. Klicke dazu unter der jeweiligen Folie auf die drei Punkte und dann auf 'Bearbeiten'.",
+    "detected_text_fields": "Erkannte Textfelder",
+    "detected_fields_summary": "{{total}} erkannt, {{editable}} bearbeitbar",
+    "no_detected_fields": "Diese Folie enthält keine erkannten Textfelder.",
+    "state_locked": "Nicht bearbeitbar",
+    "state_optional": "Kann ausgefüllt werden",
+    "state_required": "Muss ausgefüllt werden",
+    "field_state": "Feldstatus",
+    "field_in_use": "{{count}} Nutzer haben dieses Feld ausgefüllt",
+    "lock_field_title": "Feld sperren?",
+    "lock_field_warning": "{{count}} Mitarbeiter haben dieses Feld bereits ausgefüllt. Ihre Eingaben gehen verloren.",
+    "lock_field_confirm": "Feld sperren",
+    "reset_to_locked": "Auf gesperrt zurücksetzen",
+    "required_export_warning": "Export blockiert wenn leer"
   },
   "landing": {
     "stop_copying_slides": "Hören Sie auf, Folien zu kopieren.",

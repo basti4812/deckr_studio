@@ -463,6 +463,18 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
                 </div>
               )}
 
+              {/* Post-upload hint about configuring text fields */}
+              {hasPptxFiles && (
+                <div className="w-full rounded-md border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40 px-3 py-2.5">
+                  <div className="flex gap-2">
+                    <Info className="h-4 w-4 shrink-0 mt-0.5 text-blue-600 dark:text-blue-400" />
+                    <p className="text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
+                      {t('slides.post_upload_hint')}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-col gap-2 w-full sm:flex-row sm:justify-center">
                 <Button variant="outline" onClick={handleResetForNewBatch}>
                   {t('slides.upload_more_files')}

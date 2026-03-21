@@ -22,6 +22,7 @@ export interface Slide {
   pptx_url: string | null
   thumbnail_url: string | null
   editable_fields: EditableField[]
+  detected_fields?: DetectedFieldConfig[]
   pptx_updated_at: string | null
   created_at: string
   updated_at: string
@@ -38,6 +39,15 @@ export interface EditableField {
   label: string
   placeholder: string
   required: boolean
+}
+
+export interface DetectedFieldConfig {
+  id: string
+  label: string
+  placeholder: string
+  shapeName: string
+  phType: string | null
+  editable_state: 'locked' | 'optional' | 'required'
 }
 
 interface SlideCardProps {
