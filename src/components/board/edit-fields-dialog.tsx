@@ -117,18 +117,21 @@ export function EditFieldsDialog({
                     alt={slide.title}
                     className="block max-w-full max-h-[calc(90vh-10rem)] object-contain"
                   />
-                  {/* Field highlight overlay */}
+                  {/* Field highlight overlay — brand orange glow */}
                   {focusedBounds && (
                     <div
-                      className="absolute pointer-events-none animate-pulse"
+                      className="absolute pointer-events-none rounded-lg transition-all duration-300 ease-out"
                       style={{
                         left: `${focusedBounds.x}%`,
                         top: `${focusedBounds.y}%`,
                         width: `${focusedBounds.w}%`,
                         height: `${focusedBounds.h}%`,
-                        backgroundColor: 'rgba(239, 68, 68, 0.25)',
-                        border: '2px solid rgba(239, 68, 68, 0.6)',
-                        borderRadius: '2px',
+                        background:
+                          'linear-gradient(135deg, hsla(11, 54%, 49%, 0.15), hsla(11, 54%, 49%, 0.25))',
+                        border: '2px solid hsla(11, 54%, 49%, 0.5)',
+                        boxShadow:
+                          '0 0 16px 4px hsla(11, 54%, 49%, 0.3), inset 0 0 12px hsla(11, 54%, 49%, 0.1)',
+                        animation: 'field-glow 2s ease-in-out infinite',
                       }}
                     />
                   )}

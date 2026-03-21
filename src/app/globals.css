@@ -147,3 +147,20 @@
     border-left: 3px solid hsl(var(--sidebar-primary));
   }
 }
+
+/* Field highlight glow animation for edit-fields dialog */
+@keyframes field-glow {
+  0%,
+  100% {
+    opacity: 0.7;
+    box-shadow:
+      0 0 16px 4px hsla(11, 54%, 49%, 0.3),
+      inset 0 0 12px hsla(11, 54%, 49%, 0.1);
+  }
+  50% {
+    opacity: 1;
+    box-shadow:
+      0 0 24px 8px hsla(11, 54%, 49%, 0.45),
+      inset 0 0 16px hsla(11, 54%, 49%, 0.15);
+  }
+}
