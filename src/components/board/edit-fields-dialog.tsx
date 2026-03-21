@@ -5,13 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { CheckCircle2, Loader2, LayoutTemplate } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import type { Slide } from '@/components/slides/slide-card'
@@ -38,14 +32,15 @@ export function EditFieldsDialog({
   const [localValues, setLocalValues] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [focusedFieldId, setFocusedFieldId] = useState<string | null>(null)
   const [currentPreviewUrl, setCurrentPreviewUrl] = useState<string | undefined>(previewUrl)
 
-  // Reset local state when dialog opens or values change externally
   useEffect(() => {
     if (open) {
       setLocalValues({ ...values })
       setCurrentPreviewUrl(previewUrl)
       setShowSuccess(false)
+      setFocusedFieldId(null)
     }
   }, [open, values, previewUrl])
 
@@ -53,6 +48,12 @@ export function EditFieldsDialog({
   const hasChanges = Object.keys(localValues).some(
     (key) => (localValues[key] ?? '') !== (values[key] ?? '')
   )
+
+  // Find bounds for currently focused field
+  const focusedField = focusedFieldId
+    ? slide.editable_fields.find((f) => f.id === focusedFieldId)
+    : null
+  const focusedBounds = focusedField?.bounds
 
   async function handleSave() {
     setSaving(true)
@@ -67,10 +68,6 @@ export function EditFieldsDialog({
     }
   }
 
-  function handleContinueEditing() {
-    setShowSuccess(false)
-  }
-
   return (
     <Dialog
       open={open}
@@ -82,9 +79,9 @@ export function EditFieldsDialog({
         className="overflow-hidden flex flex-col p-0 sm:rounded-lg"
         style={{ width: '90vw', maxWidth: '90vw', height: '90vh', maxHeight: '90vh' }}
       >
-        {/* Success overlay */}
+        {/* Success overlay — needs relative parent (DialogContent via radix is already positioned) */}
         {showSuccess && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-[2px] rounded-lg">
+          <div className="absolute inset-0 z-[60] flex items-center justify-center bg-background/80 backdrop-blur-[2px] rounded-lg">
             <div className="flex flex-col items-center gap-4 p-6 text-center">
               <CheckCircle2 className="h-12 w-12 text-green-500" />
               <p className="text-lg font-medium">{t('edit_fields.saved_successfully')}</p>
@@ -92,7 +89,9 @@ export function EditFieldsDialog({
                 <Button variant="outline" onClick={onClose}>
                   {t('edit_fields.close_dialog')}
                 </Button>
-                <Button onClick={handleContinueEditing}>{t('edit_fields.continue_editing')}</Button>
+                <Button onClick={() => setShowSuccess(false)}>
+                  {t('edit_fields.continue_editing')}
+                </Button>
               </div>
             </div>
           </div>
@@ -105,18 +104,35 @@ export function EditFieldsDialog({
           </DialogHeader>
         </div>
 
-        {/* Two-column layout: preview left, fields right */}
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-          {/* Left: Slide preview */}
+        {/* Two-column layout */}
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
+          {/* Left: Slide preview with field highlighting */}
           <div className="md:w-1/2 lg:w-3/5 shrink-0 flex items-center justify-center bg-muted/30 p-6 overflow-hidden">
-            <div className="relative rounded-lg overflow-hidden bg-muted w-full h-full flex items-center justify-center">
+            <div className="relative rounded-lg overflow-hidden bg-muted max-w-full max-h-full">
               {imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={imageUrl}
-                  alt={slide.title}
-                  className="max-w-full max-h-full object-contain"
-                />
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={imageUrl}
+                    alt={slide.title}
+                    className="block max-w-full max-h-[calc(90vh-10rem)] object-contain"
+                  />
+                  {/* Field highlight overlay */}
+                  {focusedBounds && (
+                    <div
+                      className="absolute pointer-events-none animate-pulse"
+                      style={{
+                        left: `${focusedBounds.x}%`,
+                        top: `${focusedBounds.y}%`,
+                        width: `${focusedBounds.w}%`,
+                        height: `${focusedBounds.h}%`,
+                        backgroundColor: 'rgba(239, 68, 68, 0.25)',
+                        border: '2px solid rgba(239, 68, 68, 0.6)',
+                        borderRadius: '2px',
+                      }}
+                    />
+                  )}
+                </>
               ) : (
                 <div className="flex items-center justify-center py-12 text-muted-foreground/40">
                   <LayoutTemplate className="h-16 w-16" />
@@ -125,9 +141,9 @@ export function EditFieldsDialog({
             </div>
           </div>
 
-          {/* Right: Text fields */}
-          <div className="md:w-1/2 lg:w-2/5 flex flex-col overflow-hidden border-l">
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {/* Right: Text fields + footer */}
+          <div className="md:w-1/2 lg:w-2/5 flex flex-col overflow-hidden border-l min-h-0">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 min-h-0">
               {slide.editable_fields.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   {t('edit_fields.no_editable_fields')}
@@ -156,6 +172,8 @@ export function EditFieldsDialog({
                       onChange={(e) =>
                         setLocalValues((prev) => ({ ...prev, [field.id]: e.target.value }))
                       }
+                      onFocus={() => setFocusedFieldId(field.id)}
+                      onBlur={() => setFocusedFieldId(null)}
                       rows={3}
                       className="resize-none"
                       aria-required={field.required}
@@ -165,7 +183,7 @@ export function EditFieldsDialog({
               )}
             </div>
 
-            {/* Footer inside right column */}
+            {/* Footer */}
             <div className="shrink-0 border-t p-4 flex items-center justify-between gap-2">
               <Button variant="outline" onClick={onClose} disabled={saving}>
                 {t('edit_fields.cancel')}

@@ -308,6 +308,7 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
             shapeName: string
             phType: string | null
             editable_state: 'locked' | 'optional' | 'required'
+            bounds?: { x: number; y: number; w: number; h: number }
           }[] = []
           if (isPptx) {
             try {
@@ -319,6 +320,7 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
                 shapeName: f.shapeName,
                 phType: f.phType,
                 editable_state: 'locked' as const,
+                bounds: f.bounds,
               }))
             } catch {
               // Non-fatal

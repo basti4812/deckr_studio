@@ -11,6 +11,8 @@ export interface DetectedField {
   phType: string | null
   /** Tri-state: admin controls whether employees can/must fill this field */
   editable_state: 'locked' | 'optional' | 'required'
+  /** Shape position on slide as percentage (0-100) for thumbnail highlighting */
+  bounds?: { x: number; y: number; w: number; h: number }
 }
 
 /**
@@ -73,6 +75,22 @@ function parseSlideXml(slideXml: string): DetectedField[] {
     // Skip non-editable placeholder types (slide number, date, footer, header)
     if (phType && SKIP_PH_TYPES.has(phType)) continue
 
+    // Extract shape position (EMU units → percentage of slide)
+    // Standard 16:9 slide: 12192000 x 6858000 EMU
+    const offMatch = sp.match(/<a:off\s+x="(\d+)"\s+y="(\d+)"/)
+    const extMatch = sp.match(/<a:ext\s+cx="(\d+)"\s+cy="(\d+)"/)
+    let bounds: { x: number; y: number; w: number; h: number } | undefined
+    if (offMatch && extMatch) {
+      const slideW = 12192000
+      const slideH = 6858000
+      bounds = {
+        x: (parseInt(offMatch[1]) / slideW) * 100,
+        y: (parseInt(offMatch[2]) / slideH) * 100,
+        w: (parseInt(extMatch[1]) / slideW) * 100,
+        h: (parseInt(extMatch[2]) / slideH) * 100,
+      }
+    }
+
     // Extract text content
     const text = extractText(sp)
 
@@ -105,6 +123,7 @@ function parseSlideXml(slideXml: string): DetectedField[] {
       shapeName,
       phType,
       editable_state: 'locked',
+      bounds,
     })
   }
 

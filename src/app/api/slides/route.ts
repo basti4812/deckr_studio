@@ -20,6 +20,7 @@ const DetectedFieldSchema = z
     shapeName: z.string().default(''),
     phType: z.string().nullable().default(null),
     editable_state: z.enum(['locked', 'optional', 'required']),
+    bounds: z.object({ x: z.number(), y: z.number(), w: z.number(), h: z.number() }).optional(),
   })
   .refine((f) => f.editable_state === 'locked' || f.label.trim().length > 0, {
     message: 'Label is required for editable fields',

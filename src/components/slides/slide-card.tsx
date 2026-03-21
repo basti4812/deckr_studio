@@ -39,6 +39,7 @@ export interface EditableField {
   label: string
   placeholder: string
   required: boolean
+  bounds?: { x: number; y: number; w: number; h: number }
 }
 
 export interface DetectedFieldConfig {
@@ -48,6 +49,8 @@ export interface DetectedFieldConfig {
   shapeName: string
   phType: string | null
   editable_state: 'locked' | 'optional' | 'required'
+  /** Shape position on slide as percentage (0-100) for thumbnail highlighting */
+  bounds?: { x: number; y: number; w: number; h: number }
 }
 
 interface SlideCardProps {
