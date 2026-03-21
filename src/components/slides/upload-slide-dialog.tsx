@@ -95,7 +95,16 @@ interface UploadSlideDialogProps {
 
 export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: UploadSlideDialogProps) {
   const { t } = useTranslation()
-  const [queue, setQueue] = useState<QueuedFile[]>([])
+  const [queue, setQueueState] = useState<QueuedFile[]>([])
+  const queueRef = useRef<QueuedFile[]>([])
+  // Wrapper that keeps ref in sync with state
+  const setQueue: typeof setQueueState = (update) => {
+    setQueueState((prev) => {
+      const next = typeof update === 'function' ? update(prev) : update
+      queueRef.current = next
+      return next
+    })
+  }
   const [error, setError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [currentFileIndex, setCurrentFileIndex] = useState(-1)
@@ -336,7 +345,9 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
   // ---- Upload all files ----
 
   async function handleUpload() {
-    if (queue.length === 0) {
+    // Read from ref to get the latest queue (after compression state updates)
+    const currentQueue = queueRef.current
+    if (currentQueue.length === 0) {
       setError(t('slides.select_file_first'))
       return
     }
@@ -358,8 +369,8 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
 
     const allCreatedSlideIds: string[] = []
 
-    for (let fi = 0; fi < queue.length; fi++) {
-      const qf = queue[fi]
+    for (let fi = 0; fi < currentQueue.length; fi++) {
+      const qf = currentQueue[fi]
       setCurrentFileIndex(fi)
 
       // Update status to uploading
