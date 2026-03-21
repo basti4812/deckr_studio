@@ -108,6 +108,7 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
     originalSize: number
     compressedSize: number
   } | null>(null)
+  const [isMandatoryCompression, setIsMandatoryCompression] = useState(false)
   const { compress, compressing, progress: compressionProgress } = usePptxCompressor()
 
   // ---- beforeunload warning during upload ----
@@ -195,6 +196,7 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
     setCurrentFileIndex(-1)
     setPhase('selection')
     setCompressionResult(null)
+    setIsMandatoryCompression(false)
     onClose()
   }
 
@@ -207,6 +209,7 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
     setCurrentFileIndex(-1)
     setPhase('selection')
     setCompressionResult(null)
+    setIsMandatoryCompression(false)
   }
 
   // ---- Compression logic ----
@@ -298,6 +301,7 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
 
     if (hasMandatory && !alreadyCompressed) {
       // Mandatory compression — start immediately
+      setIsMandatoryCompression(true)
       await runCompression()
       // After compression finishes, proceed to upload
       handleUpload()
@@ -316,6 +320,7 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
 
   /** User chose to compress (from optional prompt) */
   async function handleCompressAndUpload() {
+    setIsMandatoryCompression(false)
     await runCompression()
     handleUpload()
   }
@@ -603,7 +608,9 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
               <div className="text-center space-y-1">
                 <h3 className="text-base font-semibold">{t('slides.compressing_title')}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  {t('slides.compressing_description')}
+                  {isMandatoryCompression
+                    ? t('slides.compressing_description_mandatory')
+                    : t('slides.compressing_description_optional')}
                 </p>
               </div>
               <div className="w-full space-y-2">
