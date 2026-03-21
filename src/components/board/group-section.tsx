@@ -5,7 +5,8 @@ import { useTranslation } from 'react-i18next'
 import { ChevronDown, ChevronRight, GripHorizontal, Pencil, Trash2, Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { CanvasSlideCard, CARD_WIDTH, type MoveTarget } from './canvas-slide-card'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { CanvasSlideCard, CARD_WIDTH, clampScale, type MoveTarget } from './canvas-slide-card'
 import type { Slide } from '@/components/slides/slide-card'
 
 const COLS = 5
@@ -126,6 +127,10 @@ export const GroupSection = memo(function GroupSection({
               onToggleCollapse()
             }}
             className="shrink-0 flex items-center justify-center h-5 w-5 rounded hover:bg-muted transition-colors"
+            style={{
+              transformOrigin: 'center center',
+              transform: zoom ? `scale(${clampScale(zoom)})` : undefined,
+            }}
           >
             {isCollapsed ? (
               <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
@@ -137,7 +142,13 @@ export const GroupSection = memo(function GroupSection({
 
         {/* Drag grip indicator */}
         {onGroupPointerDown && (
-          <GripHorizontal className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+          <GripHorizontal
+            className="h-4 w-4 text-muted-foreground/40 shrink-0"
+            style={{
+              transformOrigin: 'center center',
+              transform: zoom ? `scale(${clampScale(zoom)})` : undefined,
+            }}
+          />
         )}
 
         {editing ? (
@@ -166,9 +177,25 @@ export const GroupSection = memo(function GroupSection({
           </div>
         ) : (
           <>
-            <span className="text-sm font-semibold text-foreground/70 uppercase tracking-wider whitespace-nowrap">
-              {name}
-            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  className="font-extrabold text-foreground/70 uppercase tracking-wider truncate"
+                  style={{
+                    fontSize: Math.min(48, Math.max(16, 42 * (zoom ?? 1))) / (zoom ?? 1),
+                    maxWidth: groupWidth * 0.6,
+                    transformOrigin: 'left center',
+                  }}
+                >
+                  {name}
+                </span>
+              </TooltipTrigger>
+              {name.length > 30 && (
+                <TooltipContent side="bottom">
+                  <p>{name}</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
             {isPersonal && (
               <div data-no-pan className="flex items-center gap-0.5">
                 <Button
@@ -212,7 +239,16 @@ export const GroupSection = memo(function GroupSection({
           </div>
         )}
         <div className="flex-1 h-px bg-border" style={{ minWidth: 40 }} />
-        <span className="text-xs text-muted-foreground">{slides.length}</span>
+        <span
+          className="text-muted-foreground font-semibold"
+          style={{
+            fontSize: 14,
+            transformOrigin: 'right center',
+            transform: zoom ? `scale(${clampScale(zoom)})` : undefined,
+          }}
+        >
+          {slides.length}
+        </span>
       </div>
 
       {/* Slides grid — hidden when collapsed */}

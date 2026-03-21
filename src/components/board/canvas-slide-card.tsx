@@ -73,7 +73,7 @@ function StatusBadge({ status }: { status: Slide['status'] }) {
 }
 
 /** Clamp a counter-scale factor so icons never get absurdly large or small */
-function clampScale(zoom: number): number {
+export function clampScale(zoom: number): number {
   const raw = 1 / zoom
   return Math.min(2, Math.max(0.6, raw))
 }
