@@ -967,11 +967,13 @@
     "compression_yes": "Yes, compress",
     "compression_no": "No, keep original",
     "compressing_title": "Compressing images",
-    "compressing_description": "OnSlide is compressing images to their display size — no visual difference.",
+    "compressing_description": "Your file is too large for direct processing. OnSlide is now compressing images to their display size — no visual difference.",
     "compression_result": "Compressed: {{original}} → {{compressed}}",
     "compression_warning": "{{name}}: Compression failed — using original file",
     "compression_no_images": "No images found to compress",
-    "compression_already_optimal": "File is already optimally compressed"
+    "compression_already_optimal": "File is already optimally compressed",
+    "compression_still_too_large": "Compression could not reduce file size enough: {{names}}. Upload will be attempted anyway.",
+    "compression_skipped_images": "{{count}} image(s) could not be compressed (unsupported format) and were kept unchanged."
   },
   "landing": {
     "stop_copying_slides": "Stop copying slides.",

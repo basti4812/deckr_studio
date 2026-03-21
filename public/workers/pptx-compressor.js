@@ -20,6 +20,14 @@
 importScripts('/workers/jszip.min.js')
 
 // ---------------------------------------------------------------------------
+// Feature detection — Safari 16.x has OffscreenCanvas but no convertToBlob
+// ---------------------------------------------------------------------------
+
+const hasOffscreenCanvas =
+  typeof OffscreenCanvas !== 'undefined' &&
+  typeof OffscreenCanvas.prototype.convertToBlob === 'function'
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -166,6 +174,15 @@ async function compressImage(imageBlob, targetWidth, targetHeight, originalPath)
 
 self.onmessage = async function (e) {
   if (e.data.type !== 'compress') return
+
+  // Graceful fallback for browsers without OffscreenCanvas.convertToBlob (Safari 16.x)
+  if (!hasOffscreenCanvas) {
+    self.postMessage({
+      type: 'error',
+      message: 'Image compression is not supported in this browser. Please use Chrome or Firefox, or update Safari to version 17+.',
+    })
+    return
+  }
 
   try {
     const originalBuffer = e.data.buffer

@@ -239,6 +239,10 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
         totalOriginal += result.originalSize
         totalCompressed += result.compressedSize
 
+        if (result.imagesSkipped > 0) {
+          setError(t('slides.compression_skipped_images', { count: result.imagesSkipped }))
+        }
+
         setQueue((prev) =>
           prev.map((f, idx) =>
             idx === i
@@ -252,13 +256,12 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
           )
         )
       } else if (result.status === 'already-optimal') {
-        // Keep original, no size change
         setQueue((prev) => prev.map((f, idx) => (idx === i ? { ...f, compressed: false } : f)))
+        setError(t('slides.compression_already_optimal'))
       } else if (result.status === 'no-images') {
-        // Nothing to compress
         setQueue((prev) => prev.map((f, idx) => (idx === i ? { ...f, compressed: false } : f)))
+        setError(t('slides.compression_no_images'))
       } else if (result.status === 'error') {
-        // Non-fatal: keep original, show warning
         setError(t('slides.compression_warning', { name: qf.file.name }))
       }
     }
@@ -267,8 +270,16 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
       setCompressionResult({ originalSize: totalOriginal, compressedSize: totalCompressed })
     }
 
-    // After compression, check if any file still exceeds 100 MB
-    // (Vercel limit is ~50 MB for serverless, but Supabase storage handles direct uploads)
+    // Warn if any file still exceeds 100 MB after compression
+    setQueue((prev) => {
+      const stillTooLarge = prev.filter((f) => f.file.size > MAX_FILE_SIZE)
+      if (stillTooLarge.length > 0) {
+        const names = stillTooLarge.map((f) => f.file.name).join(', ')
+        setError(t('slides.compression_still_too_large', { names }))
+      }
+      return prev
+    })
+
     setPhase('selection')
   }
 
