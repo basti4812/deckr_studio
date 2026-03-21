@@ -391,7 +391,7 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
   return (
     <>
       <Dialog open={!!slide} onOpenChange={(o) => !o && onClose()}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t('slides.edit_slide')}</DialogTitle>
             <DialogDescription>{t('slides.edit_slide_description')}</DialogDescription>
