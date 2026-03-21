@@ -14,6 +14,15 @@ const EditableFieldSchema = z.object({
   required: z.boolean(),
 })
 
+const DetectedFieldSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().max(100).default(''),
+  placeholder: z.string().max(500).default(''),
+  shapeName: z.string().default(''),
+  phType: z.string().nullable().default(null),
+  editable_state: z.enum(['locked', 'optional', 'required']),
+})
+
 const PatchSlideSchema = z.object({
   title: z.string().min(1).max(255).optional(),
   status: z.enum(['standard', 'mandatory', 'deprecated']).optional(),
@@ -25,7 +34,22 @@ const PatchSlideSchema = z.object({
     .optional(),
   thumbnail_url: z.string().url().optional(),
   editable_fields: z.array(EditableFieldSchema).optional(),
+  detected_fields: z.array(DetectedFieldSchema).optional(),
 })
+
+/** Derive employee-facing editable_fields from admin-managed detected_fields */
+function deriveEditableFields(
+  detectedFields: z.infer<typeof DetectedFieldSchema>[]
+): z.infer<typeof EditableFieldSchema>[] {
+  return detectedFields
+    .filter((f) => f.editable_state !== 'locked')
+    .map((f) => ({
+      id: f.id,
+      label: f.label,
+      placeholder: f.placeholder,
+      required: f.editable_state === 'required',
+    }))
+}
 
 // ---------------------------------------------------------------------------
 // PATCH /api/slides/[id] — update title, status, editable_fields, pptx_url
@@ -58,7 +82,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     )
   }
 
-  const { title, status, tags, pptx_url, thumbnail_url, editable_fields } = parsed.data
+  const { title, status, tags, pptx_url, thumbnail_url, editable_fields, detected_fields } =
+    parsed.data
 
   const supabase = createServiceClient()
 
@@ -88,7 +113,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     updates.pptx_updated_at = new Date().toISOString()
   }
   if (thumbnail_url !== undefined) updates.thumbnail_url = thumbnail_url
-  if (editable_fields !== undefined) updates.editable_fields = editable_fields
+  if (detected_fields !== undefined) {
+    updates.detected_fields = detected_fields
+    // Auto-derive editable_fields from detected_fields
+    updates.editable_fields = deriveEditableFields(detected_fields)
+  } else if (editable_fields !== undefined) {
+    // Backward compat: direct editable_fields update (without detected_fields)
+    updates.editable_fields = editable_fields
+  }
 
   const { data, error } = await supabase
     .from('slides')

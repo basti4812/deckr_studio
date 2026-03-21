@@ -299,21 +299,26 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
           const slideNum = idx + 1 // display number (1-based, visible only)
           const slideTitle = indices.length > 1 ? `${title} — Slide ${slideNum}` : title
 
-          // Auto-detect editable fields (only for PPTX, client-side)
-          let editable_fields: {
+          // Auto-detect text fields from PPTX (client-side)
+          // All fields default to 'locked' — admin must explicitly approve
+          let detected_fields: {
             id: string
             label: string
             placeholder: string
-            required: boolean
+            shapeName: string
+            phType: string | null
+            editable_state: 'locked' | 'optional' | 'required'
           }[] = []
           if (isPptx) {
             try {
               const detected = await parsePptxFields(qf.file, pi)
-              editable_fields = detected.map((f) => ({
+              detected_fields = detected.map((f) => ({
                 id: f.id,
                 label: f.label.slice(0, 100),
                 placeholder: f.placeholder.length <= 500 ? f.placeholder : '',
-                required: f.required,
+                shapeName: f.shapeName,
+                phType: f.phType,
+                editable_state: 'locked' as const,
               }))
             } catch {
               // Non-fatal
@@ -333,7 +338,8 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
               page_index: pi,
               page_count: indices.length,
               source_filename: qf.file.name,
-              editable_fields,
+              detected_fields,
+              editable_fields: [], // Empty until admin approves fields
             }),
           })
 

@@ -12,6 +12,15 @@ const EditableFieldSchema = z.object({
   required: z.boolean(),
 })
 
+const DetectedFieldSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().max(100).default(''),
+  placeholder: z.string().max(500).default(''),
+  shapeName: z.string().default(''),
+  phType: z.string().nullable().default(null),
+  editable_state: z.enum(['locked', 'optional', 'required']),
+})
+
 const CreateSlideSchema = z.object({
   title: z.string().min(1, 'title is required').max(255),
   status: z.enum(['standard', 'mandatory', 'deprecated']).default('standard'),
@@ -24,6 +33,7 @@ const CreateSlideSchema = z.object({
     .nullable(),
   thumbnail_url: z.string().url().optional().nullable(),
   editable_fields: z.array(EditableFieldSchema).default([]),
+  detected_fields: z.array(DetectedFieldSchema).default([]),
   page_index: z.number().int().min(0).default(0),
   page_count: z.number().int().min(1).default(1),
   source_filename: z.string().max(255).optional().nullable(),
@@ -85,6 +95,7 @@ export async function POST(request: NextRequest) {
     pptx_url,
     thumbnail_url,
     editable_fields,
+    detected_fields,
     page_index,
     page_count,
     source_filename,
@@ -101,6 +112,7 @@ export async function POST(request: NextRequest) {
       pptx_url: pptx_url ?? null,
       thumbnail_url: thumbnail_url ?? null,
       editable_fields,
+      detected_fields,
       created_by: auth.user.id,
       page_index,
       page_count,

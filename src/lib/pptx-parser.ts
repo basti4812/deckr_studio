@@ -9,6 +9,8 @@ export interface DetectedField {
   shapeName: string
   /** Placeholder type from PPTX (title, body, subTitle, ctrTitle, etc.) */
   phType: string | null
+  /** Tri-state: admin controls whether employees can/must fill this field */
+  editable_state: 'locked' | 'optional' | 'required'
 }
 
 /**
@@ -102,6 +104,7 @@ function parseSlideXml(slideXml: string): DetectedField[] {
       required: false,
       shapeName,
       phType,
+      editable_state: 'locked',
     })
   }
 
