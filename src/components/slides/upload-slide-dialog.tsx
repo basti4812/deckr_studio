@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { CheckCircle2, FileX, Info, Loader2, Upload, X } from 'lucide-react'
+import { CheckCircle2, FileX, Info, Loader2, PackageOpen, Upload, X } from 'lucide-react'
 import JSZip from 'jszip'
 import { useTranslation } from 'react-i18next'
 import { parsePptxFields } from '@/lib/pptx-parser'
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog'
 import { Progress } from '@/components/ui/progress'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
+import { usePptxCompressor } from '@/hooks/use-pptx-compressor'
 import type { Slide } from './slide-card'
 
 // ---------------------------------------------------------------------------
@@ -32,7 +33,8 @@ const ACCEPT_STRING =
   'application/x-iwork-keynote-sffkey,' +
   'application/vnd.oasis.opendocument.presentation'
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
+const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100 MB
+const MAX_FILE_SIZE_NON_PPTX_HARD = 100 * 1024 * 1024 // 100 MB (non-PPTX cannot be compressed client-side)
 const MAX_FILES = 10
 
 function getExtension(name: string): string {
@@ -71,7 +73,14 @@ interface QueuedFile {
   status: 'pending' | 'uploading' | 'converting' | 'processing' | 'done' | 'error'
   error?: string
   slidesCreated: number
+  /** Original file size before compression (only set if compressed) */
+  originalSize?: number
+  /** Whether this file was compressed */
+  compressed?: boolean
 }
+
+/** Phase of the upload dialog */
+type DialogPhase = 'selection' | 'compression-prompt' | 'compressing' | 'uploading'
 
 interface UploadSlideDialogProps {
   open: boolean
@@ -93,6 +102,14 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
   const [statusText, setStatusText] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Compression state
+  const [phase, setPhase] = useState<DialogPhase>('selection')
+  const [compressionResult, setCompressionResult] = useState<{
+    originalSize: number
+    compressedSize: number
+  } | null>(null)
+  const { compress, compressing, progress: compressionProgress } = usePptxCompressor()
+
   // ---- beforeunload warning during upload ----
 
   const beforeUnloadHandler = useCallback((e: BeforeUnloadEvent) => {
@@ -100,7 +117,7 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
   }, [])
 
   useEffect(() => {
-    if (uploading) {
+    if (uploading || compressing) {
       window.addEventListener('beforeunload', beforeUnloadHandler)
     } else {
       window.removeEventListener('beforeunload', beforeUnloadHandler)
@@ -108,7 +125,7 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
     return () => {
       window.removeEventListener('beforeunload', beforeUnloadHandler)
     }
-  }, [uploading, beforeUnloadHandler])
+  }, [uploading, compressing, beforeUnloadHandler])
 
   // ---- File selection ----
 
@@ -134,8 +151,16 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
         continue
       }
 
-      if (file.size > MAX_FILE_SIZE) {
-        setError(`${file.name}: ${t('slides.file_too_large', { size: formatSize(file.size) })}`)
+      // Non-PPTX files over 100 MB are rejected (can't compress client-side)
+      if (ext !== '.pptx' && file.size > MAX_FILE_SIZE_NON_PPTX_HARD) {
+        setError(t('slides.non_pptx_too_large', { name: file.name }))
+        continue
+      }
+
+      // PPTX files: no hard upper limit rejection (compression will handle it)
+      // But we still reject truly absurd sizes to prevent browser crashes
+      if (file.size > 500 * 1024 * 1024) {
+        setError(t('slides.file_too_large_absolute', { name: file.name }))
         continue
       }
 
@@ -156,18 +181,20 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
   }
 
   function removeFile(index: number) {
-    if (uploading) return
+    if (uploading || compressing) return
     setQueue((prev) => prev.filter((_, i) => i !== index))
   }
 
   // ---- Close / reset ----
 
   function handleClose() {
-    if (uploading) return
+    if (uploading || compressing) return
     setQueue([])
     setError(null)
     setStatusText('')
     setCurrentFileIndex(-1)
+    setPhase('selection')
+    setCompressionResult(null)
     onClose()
   }
 
@@ -178,6 +205,116 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
     setError(null)
     setStatusText('')
     setCurrentFileIndex(-1)
+    setPhase('selection')
+    setCompressionResult(null)
+  }
+
+  // ---- Compression logic ----
+
+  /** Check if any PPTX file in the queue needs mandatory compression (> 100 MB) */
+  function hasMandatoryCompressionFiles(): boolean {
+    return queue.some((f) => f.extension === '.pptx' && f.file.size > MAX_FILE_SIZE)
+  }
+
+  /** Check if any PPTX file in the queue could benefit from optional compression (<=100 MB) */
+  function hasOptionalCompressionFiles(): boolean {
+    return queue.some((f) => f.extension === '.pptx' && f.file.size <= MAX_FILE_SIZE)
+  }
+
+  /** Run compression on all PPTX files in the queue */
+  async function runCompression() {
+    setPhase('compressing')
+    setCompressionResult(null)
+
+    let totalOriginal = 0
+    let totalCompressed = 0
+
+    for (let i = 0; i < queue.length; i++) {
+      const qf = queue[i]
+      if (qf.extension !== '.pptx') continue
+
+      const result = await compress(qf.file)
+
+      if (result.status === 'done') {
+        totalOriginal += result.originalSize
+        totalCompressed += result.compressedSize
+
+        setQueue((prev) =>
+          prev.map((f, idx) =>
+            idx === i
+              ? {
+                  ...f,
+                  file: result.file,
+                  originalSize: result.originalSize,
+                  compressed: true,
+                }
+              : f
+          )
+        )
+      } else if (result.status === 'already-optimal') {
+        // Keep original, no size change
+        setQueue((prev) => prev.map((f, idx) => (idx === i ? { ...f, compressed: false } : f)))
+      } else if (result.status === 'no-images') {
+        // Nothing to compress
+        setQueue((prev) => prev.map((f, idx) => (idx === i ? { ...f, compressed: false } : f)))
+      } else if (result.status === 'error') {
+        // Non-fatal: keep original, show warning
+        setError(t('slides.compression_warning', { name: qf.file.name }))
+      }
+    }
+
+    if (totalOriginal > 0 && totalCompressed > 0) {
+      setCompressionResult({ originalSize: totalOriginal, compressedSize: totalCompressed })
+    }
+
+    // After compression, check if any file still exceeds 100 MB
+    // (Vercel limit is ~50 MB for serverless, but Supabase storage handles direct uploads)
+    setPhase('selection')
+  }
+
+  // ---- "Start Upload" button handler with compression check ----
+
+  async function handleStartUpload() {
+    if (queue.length === 0) {
+      setError(t('slides.select_file_first'))
+      return
+    }
+
+    // Check if we need compression
+    const hasMandatory = hasMandatoryCompressionFiles()
+    const hasOptional = hasOptionalCompressionFiles()
+    const alreadyCompressed = queue.some((f) => f.compressed === true)
+
+    if (hasMandatory && !alreadyCompressed) {
+      // Mandatory compression — start immediately
+      await runCompression()
+      // After compression finishes, proceed to upload
+      handleUpload()
+      return
+    }
+
+    if (hasOptional && !alreadyCompressed && queue.some((f) => f.compressed === undefined)) {
+      // Optional compression — show prompt
+      setPhase('compression-prompt')
+      return
+    }
+
+    // No compression needed or already compressed — proceed to upload
+    handleUpload()
+  }
+
+  /** User chose to compress (from optional prompt) */
+  async function handleCompressAndUpload() {
+    await runCompression()
+    handleUpload()
+  }
+
+  /** User chose to skip compression (from optional prompt) */
+  function handleSkipCompression() {
+    setPhase('selection')
+    // Mark all files as not needing compression
+    setQueue((prev) => prev.map((f) => ({ ...f, compressed: false })))
+    handleUpload()
   }
 
   // ---- Upload all files ----
@@ -188,6 +325,7 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
       return
     }
 
+    setPhase('uploading')
     setUploading(true)
     setError(null)
 
@@ -198,6 +336,7 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
     if (!session) {
       setError('Not authenticated')
       setUploading(false)
+      setPhase('selection')
       return
     }
 
@@ -427,8 +566,49 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
         />
 
         <div className="space-y-4 py-2">
-          {/* Success Screen — replaces queue view when at least one file succeeded */}
-          {showSuccessScreen ? (
+          {/* ── Compression Prompt (optional, for PPTX files <=100 MB) ── */}
+          {phase === 'compression-prompt' && (
+            <div className="flex flex-col items-center gap-4 py-4">
+              <PackageOpen className="h-10 w-10 text-primary" />
+              <div className="text-center space-y-2">
+                <h3 className="text-base font-semibold">{t('slides.compression_prompt_title')}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {t('slides.compression_prompt_description')}
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 w-full sm:flex-row sm:justify-center">
+                <Button onClick={handleCompressAndUpload}>{t('slides.compression_yes')}</Button>
+                <Button variant="outline" onClick={handleSkipCompression}>
+                  {t('slides.compression_no')}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Compression Progress (mandatory or after user accepted) ── */}
+          {phase === 'compressing' && (
+            <div className="flex flex-col items-center gap-4 py-4">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+              <div className="text-center space-y-1">
+                <h3 className="text-base font-semibold">{t('slides.compressing_title')}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {t('slides.compressing_description')}
+                </p>
+              </div>
+              <div className="w-full space-y-2">
+                <Progress value={compressionProgress.percent} className="h-2" />
+                <p className="text-xs text-muted-foreground text-center">
+                  {compressionProgress.percent}%
+                  {compressionProgress.currentImage && (
+                    <> &middot; {compressionProgress.currentImage}</>
+                  )}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ── Success Screen ── */}
+          {showSuccessScreen && phase !== 'compression-prompt' && phase !== 'compressing' ? (
             <div className="flex flex-col items-center gap-4 py-4">
               <CheckCircle2 className="h-12 w-12 text-green-500" />
               <div className="text-center space-y-1">
@@ -442,6 +622,21 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
                     : t('slides.upload_finished_subheading')}
                 </p>
               </div>
+
+              {/* Compression result summary */}
+              {compressionResult && (
+                <div className="w-full rounded-md border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/40 px-3 py-2.5">
+                  <div className="flex gap-2 items-center">
+                    <PackageOpen className="h-4 w-4 shrink-0 text-green-600 dark:text-green-400" />
+                    <p className="text-xs text-green-800 dark:text-green-300">
+                      {t('slides.compression_result', {
+                        original: formatSize(compressionResult.originalSize),
+                        compressed: formatSize(compressionResult.compressedSize),
+                      })}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Failed files list (mixed result) */}
               {errorFiles > 0 && (
@@ -484,7 +679,7 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
                 <Button onClick={handleClose}>{t('slides.go_to_slides')}</Button>
               </div>
             </div>
-          ) : (
+          ) : phase !== 'compression-prompt' && phase !== 'compressing' ? (
             <>
               {/* File picker (hidden when uploading) */}
               {!uploading && (
@@ -497,7 +692,7 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
                     {t('slides.select_presentation_files')}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    .pptx, .ppt, .key, .odp &middot; {t('slides.max_50_mb')} &middot;{' '}
+                    .pptx, .ppt, .key, .odp &middot; {t('slides.max_100_mb')} &middot;{' '}
                     {t('slides.max_10_files')}
                   </p>
                 </div>
@@ -551,7 +746,16 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
                       <div className="flex-1 min-w-0">
                         <p className="text-sm truncate font-medium">{qf.file.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {formatSize(qf.file.size)}
+                          {qf.compressed && qf.originalSize ? (
+                            <>
+                              <span className="line-through">{formatSize(qf.originalSize)}</span>{' '}
+                              <span className="text-green-600 dark:text-green-400 font-medium">
+                                {formatSize(qf.file.size)}
+                              </span>
+                            </>
+                          ) : (
+                            formatSize(qf.file.size)
+                          )}
                           {qf.status === 'done' &&
                             ` · ${t('slides.slides_created_count', { count: qf.slidesCreated })}`}
                           {qf.status === 'error' && qf.error && (
@@ -594,21 +798,21 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
 
               {error && <p className="text-sm text-destructive">{error}</p>}
             </>
-          )}
+          ) : null}
         </div>
 
-        {/* Footer — hidden on success screen (buttons are inline there) */}
-        {!showSuccessScreen && (
+        {/* Footer — hidden on success screen and compression screens */}
+        {!showSuccessScreen && phase !== 'compression-prompt' && phase !== 'compressing' && (
           <DialogFooter>
             <Button variant="outline" onClick={handleClose} disabled={uploading}>
               {t('slides.cancel')}
             </Button>
             {!allFailed ? (
-              <Button onClick={handleUpload} disabled={uploading || queue.length === 0}>
+              <Button onClick={handleStartUpload} disabled={uploading || queue.length === 0}>
                 {uploading ? t('slides.uploading') : t('slides.upload_button')}
               </Button>
             ) : (
-              <Button onClick={handleUpload}>{t('slides.upload_button')}</Button>
+              <Button onClick={handleStartUpload}>{t('slides.upload_button')}</Button>
             )}
           </DialogFooter>
         )}

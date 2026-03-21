@@ -35,7 +35,7 @@ interface UploadPersonalSlideDialogProps {
   onUploaded: (slide: PersonalSlideRecord) => void
 }
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
+const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100 MB
 
 export function UploadPersonalSlideDialog({
   open,
