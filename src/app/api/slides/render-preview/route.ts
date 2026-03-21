@@ -7,7 +7,7 @@ import { isAllowedStorageUrl } from '@/lib/url-validation'
 import { renderSlidePreview, hasActualEdits, type EditableField } from '@/lib/slide-renderer'
 
 // ConvertAPI needs 10-30s for PPTX→PNG conversion; default Vercel timeout is too short
-export const maxDuration = 120
+export const maxDuration = 60
 
 const RequestSchema = z.object({
   slideId: z.string().uuid(),

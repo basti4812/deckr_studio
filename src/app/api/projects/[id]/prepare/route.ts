@@ -4,7 +4,7 @@ import { requireActiveUser } from '@/lib/auth-helpers'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { createServiceClient } from '@/lib/supabase'
 
-export const maxDuration = 300
+export const maxDuration = 60
 import { isAllowedStorageUrl } from '@/lib/url-validation'
 import {
   renderSlidePreview,
