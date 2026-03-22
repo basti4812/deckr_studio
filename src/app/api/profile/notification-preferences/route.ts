@@ -18,6 +18,7 @@ const PreferencesSchema = z
     slide_archived: z.boolean().optional(),
     slide_deleted: z.boolean().optional(),
     comment_added: z.boolean().optional(),
+    slide_replaced: z.boolean().optional(),
     // Mandatory types accepted in body but values are ignored (always true)
     payment_failed: z.boolean().optional(),
     trial_ending_7d: z.boolean().optional(),

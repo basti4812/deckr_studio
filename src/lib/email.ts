@@ -29,6 +29,7 @@ export type NotificationEmailType =
   | 'trial_ending_7d'
   | 'trial_ending_1d'
   | 'comment_added'
+  | 'slide_replaced'
 
 // Mandatory types that cannot be unsubscribed from
 export const MANDATORY_EMAIL_TYPES: NotificationEmailType[] = [

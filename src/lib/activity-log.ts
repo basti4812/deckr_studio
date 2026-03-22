@@ -16,6 +16,7 @@ export type ActivityEventType =
   | 'user.removed'
   | 'user.role_changed'
   | 'subscription.changed'
+  | 'slide.replaced'
   | 'share_link.created'
 
 export const ALL_EVENT_TYPES: ActivityEventType[] = [
@@ -23,6 +24,7 @@ export const ALL_EVENT_TYPES: ActivityEventType[] = [
   'slide.deprecated',
   'slide.archived',
   'slide.deleted',
+  'slide.replaced',
   'template_set.created',
   'template_set.updated',
   'project.exported',

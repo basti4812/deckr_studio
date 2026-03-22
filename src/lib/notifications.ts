@@ -17,6 +17,7 @@ export type NotificationType =
   | 'trial_ending_7d'
   | 'trial_ending_1d'
   | 'comment_added'
+  | 'slide_replaced'
 
 export type ResourceType = 'project' | 'slide' | 'billing'
 
