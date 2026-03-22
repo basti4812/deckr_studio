@@ -182,7 +182,9 @@ export const GroupSection = memo(function GroupSection({
                 <span
                   className="font-extrabold text-foreground/70 uppercase tracking-wider truncate"
                   style={{
-                    fontSize: Math.min(48, Math.max(16, 42 * (zoom ?? 1))) / (zoom ?? 1),
+                    // Clamp the SCREEN-rendered size to 16-48px, then convert to CSS fontSize
+                    // screenSize = fontSize * zoom, so fontSize = screenSize / zoom
+                    fontSize: Math.min(48, Math.max(16, 42)) / (zoom ?? 1),
                     maxWidth: groupWidth * 0.6,
                     transformOrigin: 'left center',
                   }}
