@@ -276,44 +276,58 @@ export async function DELETE(
   const isArchived = existing.archived_at !== null
 
   // --- Case 1: Slide is used in projects and NOT archived → soft delete (archive) ---
+  // BUG-7: Add WHERE archived_at IS NULL to guard against concurrent requests.
+  // If a second request finds the slide already archived (concurrent archive),
+  // the update matches 0 rows and we fall through to permanent delete logic.
   if (projectCount > 0 && !isArchived) {
     const { error: archiveErr } = await supabase
       .from('slides')
       .update({ archived_at: new Date().toISOString() })
       .eq('id', id)
+      .is('archived_at', null)
 
     if (archiveErr) {
       return NextResponse.json({ error: archiveErr.message }, { status: 500 })
     }
 
-    // Notify affected project owners
-    const uniqueOwners = [...new Set(affectedProjects!.map((p) => p.owner_id))]
-    createNotifications(
-      uniqueOwners.map((ownerId) => ({
+    // Re-check if archive actually took effect (concurrent guard)
+    const { data: recheckSlide } = await supabase
+      .from('slides')
+      .select('archived_at')
+      .eq('id', id)
+      .single()
+
+    if (recheckSlide?.archived_at) {
+      // Archive succeeded (or was already archived by concurrent request)
+      const uniqueOwners = [...new Set(affectedProjects!.map((p) => p.owner_id))]
+      createNotifications(
+        uniqueOwners.map((ownerId) => ({
+          tenantId: auth.profile.tenant_id,
+          userId: ownerId,
+          type: 'slide_archived' as const,
+          message: `Die Folie "${existing.title}" wurde archiviert`,
+          resourceType: 'slide' as const,
+          resourceId: id,
+        }))
+      ).catch(() => {})
+
+      logActivity({
         tenantId: auth.profile.tenant_id,
-        userId: ownerId,
-        type: 'slide_archived' as const,
-        message: `Die Folie "${existing.title}" wurde archiviert`,
-        resourceType: 'slide' as const,
+        actorId: auth.user.id,
+        eventType: 'slide.archived',
+        resourceType: 'slide',
         resourceId: id,
-      }))
-    ).catch(() => {})
+        resourceName: existing.title,
+        metadata: { projectCount },
+      })
 
-    logActivity({
-      tenantId: auth.profile.tenant_id,
-      actorId: auth.user.id,
-      eventType: 'slide.archived',
-      resourceType: 'slide',
-      resourceId: id,
-      resourceName: existing.title,
-      metadata: { projectCount },
-    })
-
-    return NextResponse.json({
-      action: 'archived',
-      projectCount,
-      message: `Slide archived. Used in ${projectCount} project${projectCount !== 1 ? 's' : ''}.`,
-    })
+      return NextResponse.json({
+        action: 'archived',
+        projectCount,
+        message: `Slide archived. Used in ${projectCount} project${projectCount !== 1 ? 's' : ''}.`,
+      })
+    }
+    // If archived_at is still null somehow, fall through to permanent delete
   }
 
   // --- Case 2: Slide is archived → permanent delete (even if in projects) ---

@@ -2,6 +2,7 @@
 
 import { useTranslation } from 'react-i18next'
 import {
+  AlertTriangle,
   GripVertical,
   LayoutTemplate,
   Lock,
@@ -74,6 +75,7 @@ export function TraySlideItem({
   onNote,
 }: TraySlideItemProps) {
   const { t } = useTranslation()
+  const isArchived = !!slide.archived_at
   const isUpdated =
     !!slide.pptx_updated_at &&
     !!projectUpdatedAt &&
@@ -90,9 +92,13 @@ export function TraySlideItem({
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
-        opacity: isDragging ? 0.5 : 1,
+        opacity: isDragging ? 0.5 : isArchived ? 0.6 : 1,
       }}
-      className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5 group"
+      className={`flex items-center gap-2 rounded-md border px-2 py-1.5 group ${
+        isArchived
+          ? 'bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800'
+          : 'bg-background'
+      }`}
     >
       {/* Drag handle — hidden for view-only */}
       {!onRemove ? (
@@ -125,19 +131,35 @@ export function TraySlideItem({
       {/* Title + fill indicator */}
       <div className="flex flex-1 min-w-0 flex-col gap-0.5">
         <span
-          className="flex items-center gap-1 truncate text-xs leading-tight"
+          className={`flex items-center gap-1 truncate text-xs leading-tight ${isArchived ? 'text-muted-foreground' : ''}`}
           title={slide.title}
         >
           {isMandatory && <Lock className="h-2.5 w-2.5 shrink-0 text-muted-foreground/60" />}
+          {isArchived && (
+            <AlertTriangle
+              className="h-2.5 w-2.5 shrink-0 text-amber-500"
+              aria-label={t('board.slide_archived')}
+            />
+          )}
           {slide.title}
         </span>
         <div className="flex items-center gap-1">
-          {isUpdated && (
+          {isArchived && (
+            <span
+              className="inline-block rounded-full bg-amber-100 px-1.5 text-[9px] font-semibold text-amber-700 leading-4 dark:bg-amber-900/40 dark:text-amber-300"
+              title={t('board.slide_archived_tooltip')}
+            >
+              {t('board.slide_archived')}
+            </span>
+          )}
+          {isUpdated && !isArchived && (
             <span className="inline-block rounded-full bg-blue-100 px-1.5 text-[9px] font-semibold text-blue-700 leading-4 dark:bg-blue-900/40 dark:text-blue-300">
               {t('board.updated')}
             </span>
           )}
-          {hasEditableFields && <FillDot slide={slide} instanceEdits={instanceEdits} />}
+          {hasEditableFields && !isArchived && (
+            <FillDot slide={slide} instanceEdits={instanceEdits} />
+          )}
         </div>
       </div>
 

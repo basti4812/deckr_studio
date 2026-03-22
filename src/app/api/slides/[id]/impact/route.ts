@@ -8,6 +8,11 @@ import { createServiceClient } from '@/lib/supabase'
 //
 // Returns how many projects and users reference this slide.
 // Used by the admin delete dialog to show impact before archiving.
+//
+// NOTE (BUG-8 / PROJ-46): This endpoint intentionally exposes project names
+// and owner display names to admins. This is acceptable because the endpoint
+// is admin-only (requireAdmin) and admins need to see which projects are
+// affected before archiving/deleting a slide.
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

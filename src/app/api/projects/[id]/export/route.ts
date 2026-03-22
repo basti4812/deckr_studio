@@ -30,6 +30,7 @@ interface SlideRecord {
   page_index: number | null
   page_count: number | null
   editable_fields: EditableField[]
+  archived_at: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest, { params }: { params: Params })
   if (slideIds.length > 0) {
     const { data: slidesData, error: slidesError } = await supabase
       .from('slides')
-      .select('id, title, pptx_url, page_index, page_count, editable_fields')
+      .select('id, title, pptx_url, page_index, page_count, editable_fields, archived_at')
       .in('id', slideIds)
       .eq('tenant_id', auth.profile.tenant_id)
 
@@ -210,6 +211,27 @@ export async function POST(request: NextRequest, { params }: { params: Params })
     sourceKeys.push(`library:${slide.pptx_url}`)
   }
 
+  // BUG-5: Block export entirely when slides have been permanently deleted
+  // (missing from DB). A partial export would silently omit slides.
+  if (skippedCount > 0) {
+    const missingTitles: string[] = []
+    for (const item of trayItems) {
+      if (item.is_personal) continue
+      const slide = slideMap.get(item.slide_id)
+      if (!slide || !slide.pptx_url) {
+        missingTitles.push(item.slide_id)
+      }
+    }
+    if (missingTitles.length > 0) {
+      return NextResponse.json(
+        {
+          error: `Export blocked: ${missingTitles.length} slide(s) have been deleted and are no longer available. Please remove them from the presentation before exporting.`,
+        },
+        { status: 400 }
+      )
+    }
+  }
+
   if (processedBuffers.length === 0) {
     const msg =
       skippedCount > 0
@@ -304,6 +326,13 @@ export async function POST(request: NextRequest, { params }: { params: Params })
     .replace(/\s+/g, '_')
   const filename = `${safeName || 'presentation'}.pptx`
 
+  // BUG-6: Check for archived slides and set header so frontend can show warning
+  const archivedCount = trayItems.filter((item) => {
+    if (item.is_personal) return false
+    const slide = slideMap.get(item.slide_id)
+    return slide?.archived_at != null
+  }).length
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
     'Content-Disposition': `attachment; filename="${filename}"`,
@@ -313,6 +342,9 @@ export async function POST(request: NextRequest, { params }: { params: Params })
     headers['X-Slides-Skipped'] = String(skippedCount)
     headers['X-Slides-Total'] = String(trayItems.length)
     headers['X-Slides-Exported'] = String(processedBuffers.length)
+  }
+  if (archivedCount > 0) {
+    headers['X-Slides-Archived'] = String(archivedCount)
   }
 
   return new NextResponse(Buffer.from(mergedBuffer), { headers })

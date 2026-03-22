@@ -169,6 +169,7 @@ export default function SlideLibraryPage() {
   const [editSlide, setEditSlide] = useState<Slide | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [bulkDeleteProgress, setBulkDeleteProgress] = useState(0)
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
   const [bulkStatusLoading, setBulkStatusLoading] = useState(false)
   const [bulkTagsOpen, setBulkTagsOpen] = useState(false)
@@ -379,6 +380,9 @@ export default function SlideLibraryPage() {
 
       const errors: string[] = []
       const deleted: string[] = []
+      const total = selected.size
+      let processed = 0
+      setBulkDeleteProgress(0)
 
       for (const id of selected) {
         const res = await fetch(`/api/slides/${id}`, {
@@ -392,6 +396,8 @@ export default function SlideLibraryPage() {
           const slide = slides.find((s) => s.id === id)
           errors.push(`${slide?.title ?? id}: ${(data as { error?: string }).error ?? 'Failed'}`)
         }
+        processed++
+        setBulkDeleteProgress(Math.round((processed / total) * 100))
       }
 
       if (deleted.length > 0) {
@@ -405,6 +411,7 @@ export default function SlideLibraryPage() {
     } finally {
       setBulkDeleting(false)
       setBulkDeleteConfirm(false)
+      setBulkDeleteProgress(0)
     }
   }
 
@@ -908,7 +915,10 @@ export default function SlideLibraryPage() {
       </AlertDialog>
 
       {/* Bulk delete confirmation */}
-      <AlertDialog open={bulkDeleteConfirm} onOpenChange={(o) => !o && setBulkDeleteConfirm(false)}>
+      <AlertDialog
+        open={bulkDeleteConfirm}
+        onOpenChange={(o) => !o && !bulkDeleting && setBulkDeleteConfirm(false)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
@@ -917,11 +927,26 @@ export default function SlideLibraryPage() {
                 defaultValue: `Delete ${selected.size} slides?`,
               })}
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t(
-                'admin.bulk_delete_message',
-                'This action cannot be undone. Slides that are used in projects cannot be deleted.'
-              )}
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  {t(
+                    'admin.bulk_delete_message',
+                    'This action cannot be undone. Slides that are used in projects cannot be deleted.'
+                  )}
+                </p>
+                {bulkDeleting && (
+                  <div className="space-y-1">
+                    <Progress value={bulkDeleteProgress} className="h-2" />
+                    <p className="text-xs text-muted-foreground">
+                      {t('admin.bulk_delete_progress', {
+                        progress: bulkDeleteProgress,
+                        defaultValue: `${bulkDeleteProgress}% complete`,
+                      })}
+                    </p>
+                  </div>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

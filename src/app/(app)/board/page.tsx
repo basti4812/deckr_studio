@@ -289,6 +289,11 @@ function BoardPageInner() {
   } | null>(null)
   const [presentationMode, setPresentationMode] = useState(false)
 
+  // Archived slides warning dialog state (BUG-6 / PROJ-46)
+  const [archivedWarning, setArchivedWarning] = useState<{
+    proceed: () => void
+  } | null>(null)
+
   // Prepare dialog state (PROJ-35: text injection for presentation/share/PDF)
   const [prepareState, setPrepareState] = useState<{
     open: boolean
@@ -439,7 +444,9 @@ function BoardPageInner() {
       const token = session.access_token
 
       const [slidesRes, groupsRes, layoutRes] = await Promise.all([
-        fetch('/api/slides', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
+        fetch('/api/slides?include_archived=true', {
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch(() => null),
         fetch('/api/groups', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
         fetch('/api/board/layout', { headers: { Authorization: `Bearer ${token}` } }).catch(
           () => null
@@ -972,12 +979,27 @@ function BoardPageInner() {
    */
   function guardExport(action: () => void, proceedLabel: string) {
     const missing = checkMissingMandatory(trayItems, slideMap)
+
+    // BUG-6: Check for archived slides and show warning before export
+    const runArchivedCheck = (nextAction: () => void) => {
+      const hasArchived = trayItems.some((item) => {
+        if (item.is_personal) return false
+        const slide = slideMap.get(item.slide_id)
+        return slide?.archived_at != null
+      })
+      if (hasArchived) {
+        setArchivedWarning({ proceed: nextAction })
+      } else {
+        nextAction()
+      }
+    }
+
     const runFillCheck = () => {
       const issues = checkFillStatus(trayItems, slideMap, textEdits)
       if (issues.length > 0) {
         setFillWarning({ issues, proceed: action, proceedLabel })
       } else {
-        action()
+        runArchivedCheck(action)
       }
     }
     if (missing.length > 0) {
@@ -2382,6 +2404,41 @@ function BoardPageInner() {
               </Button>
               <Button size="sm" onClick={() => setMandatoryWarning(null)}>
                 {t('mandatory_warning.go_back')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Archived slides warning dialog (BUG-6 / PROJ-46) */}
+      {archivedWarning && (
+        <Dialog
+          open
+          onOpenChange={(o) => {
+            if (!o) setArchivedWarning(null)
+          }}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
+                {t('board.slide_archived')}
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">{t('board.export_warning_archived')}</p>
+            <DialogFooter className="flex-col gap-2 sm:flex-row sm:gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setArchivedWarning(null)}>
+                {t('export_dialog.close')}
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  const proceed = archivedWarning.proceed
+                  setArchivedWarning(null)
+                  proceed()
+                }}
+              >
+                {t('board.export_continue_anyway')}
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -53,6 +53,9 @@ export async function GET(request: NextRequest) {
   const auth = await requireActiveUser(request)
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
+  // NOTE: include_archived is intentionally available to non-admin users.
+  // Employees need archived slides so the board/tray can show visual treatment
+  // (grayed-out + warning icon) instead of silently hiding them. (BUG-9 / PROJ-46)
   const includeArchived = request.nextUrl.searchParams.get('include_archived') === 'true'
 
   const supabase = createServiceClient()

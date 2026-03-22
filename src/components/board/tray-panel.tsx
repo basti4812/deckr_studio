@@ -10,8 +10,10 @@ import {
   Link2,
   Play,
   Save,
+  Trash2,
   Upload,
   Users,
+  X,
 } from 'lucide-react'
 import {
   DndContext,
@@ -369,9 +371,32 @@ export function TrayPanel({
                     )
                   }
 
-                  // Library slide
+                  // Library slide — show placeholder if permanently deleted
                   const slide = slideMap.get(item.slide_id)
-                  if (!slide) return null
+                  if (!slide) {
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1.5"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 shrink-0 text-destructive" />
+                        <span className="flex-1 truncate text-xs text-destructive">
+                          {t('board.slide_deleted_tooltip')}
+                        </span>
+                        {onRemove && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5 shrink-0 text-destructive hover:text-destructive"
+                            onClick={() => onRemove(item.id)}
+                            title={t('board.remove_from_project')}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    )
+                  }
                   const isMandatory = slide.status === 'mandatory'
                   return (
                     <TraySlideItem
