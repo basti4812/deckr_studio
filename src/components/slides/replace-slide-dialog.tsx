@@ -146,10 +146,7 @@ export function ReplaceSlideDialog({ slide, onClose, onReplaced }: ReplaceSlideD
   // ---------------------------------------------------------------------------
 
   function handleClose() {
-    if (isProcessing) {
-      abortRef.current = true
-      return
-    }
+    abortRef.current = true
     setFile(null)
     setPhase('selection')
     setProgress(0)

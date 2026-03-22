@@ -23,7 +23,11 @@ const DetectedFieldSchema = z.object({
 
 const ReplaceSlideSchema = z.object({
   pptx_url: z.string().url().refine(isAllowedStorageUrl, 'pptx_url must point to Supabase storage'),
-  thumbnail_url: z.string().url().optional(),
+  thumbnail_url: z
+    .string()
+    .url()
+    .refine(isAllowedStorageUrl, 'thumbnail_url must point to Supabase storage')
+    .optional(),
   detected_fields: z.array(DetectedFieldSchema),
   page_index: z.number().int().min(0),
   page_count: z.number().int().min(1),
@@ -111,9 +115,11 @@ function mergeFieldsByShapeName(
     const oldField = oldByShape.get(newField.shapeName)
     if (!oldField) return newField // new field, keep defaults (locked)
 
-    // Carry over admin configuration from the old field
+    // Carry over admin configuration AND the old field ID
+    // (preserves employee text_edits which reference the field ID)
     return {
       ...newField,
+      id: oldField.id,
       label: oldField.label,
       placeholder: oldField.placeholder,
       editable_state: oldField.editable_state,
