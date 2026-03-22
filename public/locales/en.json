@@ -999,7 +999,8 @@
     "compression_no_images": "No images found to compress",
     "compression_already_optimal": "File is already optimally compressed",
     "compression_still_too_large": "Compression could not reduce file size enough: {{names}}. Upload will be attempted anyway.",
-    "compression_skipped_images": "{{count}} image(s) could not be compressed (unsupported format) and were kept unchanged."
+    "compression_skipped_images": "{{count}} image(s) could not be compressed (unsupported format) and were kept unchanged.",
+    "no_visible_slides": "No visible slides found in this file. All slides are hidden."
   },
   "landing": {
     "stop_copying_slides": "Stop copying slides.",

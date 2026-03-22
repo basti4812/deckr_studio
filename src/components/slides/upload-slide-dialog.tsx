@@ -58,7 +58,7 @@ async function countPptxPages(
   const zip = await JSZip.loadAsync(file)
   const visibleIndices = await getVisibleSlideIndices(zip)
   if (visibleIndices.length === 0) {
-    throw new Error('No slides found in the file — is this a valid PowerPoint?')
+    throw new Error('NO_VISIBLE_SLIDES')
   }
   return { pageCount: visibleIndices.length, visibleIndices }
 }
@@ -543,7 +543,8 @@ export function UploadSlideDialog({ open, tenantId, onClose, onUploaded }: Uploa
           console.error('[upload] Thumbnail generation request failed:', err)
         })
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Upload failed'
+        const rawMsg = err instanceof Error ? err.message : 'Upload failed'
+        const msg = rawMsg === 'NO_VISIBLE_SLIDES' ? t('slides.no_visible_slides') : rawMsg
         setQueue((prev) =>
           prev.map((f, i) => (i === fi ? { ...f, status: 'error', error: msg } : f))
         )

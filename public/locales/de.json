@@ -999,7 +999,8 @@
     "compression_no_images": "Keine Bilder zum Komprimieren gefunden",
     "compression_already_optimal": "Die Datei ist bereits optimal komprimiert",
     "compression_still_too_large": "Komprimierung konnte die Dateigröße nicht ausreichend reduzieren: {{names}}. Der Upload wird trotzdem versucht.",
-    "compression_skipped_images": "{{count}} Bild(er) konnten nicht komprimiert werden (nicht unterstütztes Format) und wurden unverändert beibehalten."
+    "compression_skipped_images": "{{count}} Bild(er) konnten nicht komprimiert werden (nicht unterstütztes Format) und wurden unverändert beibehalten.",
+    "no_visible_slides": "Keine sichtbaren Folien in dieser Datei gefunden. Alle Folien sind ausgeblendet."
   },
   "landing": {
     "stop_copying_slides": "Hören Sie auf, Folien zu kopieren.",

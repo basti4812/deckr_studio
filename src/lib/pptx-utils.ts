@@ -68,5 +68,6 @@ export async function getVisibleSlideIndices(
     visibleIndices.push(i)
   }
 
-  return visibleIndices.length > 0 ? visibleIndices : [0]
+  // Return empty array if ALL slides are hidden — caller must handle this
+  return visibleIndices
 }
