@@ -3,7 +3,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { CheckSquare, ImageIcon, Loader2, RefreshCw, Tag, Trash2, Upload, X } from 'lucide-react'
+import {
+  Archive,
+  CheckSquare,
+  ImageIcon,
+  Loader2,
+  RefreshCw,
+  Tag,
+  Trash2,
+  Upload,
+  X,
+} from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,7 +33,9 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import { useCurrentUser } from '@/hooks/use-current-user'
@@ -35,6 +47,17 @@ import { EditSlideDialog } from '@/components/slides/edit-slide-dialog'
 import type { Slide } from '@/components/slides/slide-card'
 
 type StatusFilter = 'all' | 'standard' | 'mandatory' | 'deprecated'
+
+// ---------------------------------------------------------------------------
+// Impact data type from /api/slides/[id]/impact
+// ---------------------------------------------------------------------------
+
+interface SlideImpact {
+  slideTitle: string
+  projectCount: number
+  userCount: number
+  projects: { id: string; name: string; ownerName: string }[]
+}
 
 // ---------------------------------------------------------------------------
 // Bulk Tag Popover — shows existing tags as checkboxes + input for new tag
@@ -144,24 +167,31 @@ export default function SlideLibraryPage() {
   const [filter, setFilter] = useState<StatusFilter>('all')
   const [uploadOpen, setUploadOpen] = useState(false)
   const [editSlide, setEditSlide] = useState<Slide | null>(null)
-  const [deleteSlide, setDeleteSlide] = useState<Slide | null>(null)
-  const [deleting, setDeleting] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
   const [bulkStatusLoading, setBulkStatusLoading] = useState(false)
   const [bulkTagsOpen, setBulkTagsOpen] = useState(false)
   const [bulkTagsLoading, setBulkTagsLoading] = useState(false)
+  const [showArchived, setShowArchived] = useState(false)
+
+  // Delete/archive dialog state
+  const [deleteSlide, setDeleteSlide] = useState<Slide | null>(null)
+  const [impact, setImpact] = useState<SlideImpact | null>(null)
+  const [impactLoading, setImpactLoading] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteProgress, setDeleteProgress] = useState(0)
 
   const { data: slidesData, isLoading: loading } = useQuery({
-    queryKey: ['slides'],
+    queryKey: ['slides', showArchived],
     queryFn: async () => {
       const supabase = createBrowserSupabaseClient()
       const {
         data: { session },
       } = await supabase.auth.getSession()
       if (!session) throw new Error('Not authenticated')
-      const res = await fetch('/api/slides', {
+      const url = showArchived ? '/api/slides?include_archived=true' : '/api/slides'
+      const res = await fetch(url, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
       if (!res.ok) throw new Error('Failed to load slides')
@@ -180,7 +210,7 @@ export default function SlideLibraryPage() {
   // Poll for thumbnail updates when slides are actively generating
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pollCountRef = useRef(0)
-  const MAX_POLL_CYCLES = 60 // 5s × 60 = 5 minutes max polling
+  const MAX_POLL_CYCLES = 60 // 5s x 60 = 5 minutes max polling
 
   const generatingThumbnails = slides.filter(
     (s) =>
@@ -221,9 +251,14 @@ export default function SlideLibraryPage() {
     }
   }, [generatingThumbnails.length, loading])
 
-  async function handleDelete() {
-    if (!deleteSlide) return
-    setDeleting(true)
+  // -------------------------------------------------------------------------
+  // Impact check before delete
+  // -------------------------------------------------------------------------
+
+  async function fetchImpact(slide: Slide) {
+    setDeleteSlide(slide)
+    setImpact(null)
+    setImpactLoading(true)
     try {
       const supabase = createBrowserSupabaseClient()
       const {
@@ -231,16 +266,87 @@ export default function SlideLibraryPage() {
       } = await supabase.auth.getSession()
       if (!session) return
 
+      const res = await fetch(`/api/slides/${slide.id}/impact`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setImpact(data)
+      } else {
+        // Fallback: no impact data, allow delete
+        setImpact({ slideTitle: slide.title, projectCount: 0, userCount: 0, projects: [] })
+      }
+    } finally {
+      setImpactLoading(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!deleteSlide) return
+    setDeleting(true)
+    setDeleteProgress(30)
+    try {
+      const supabase = createBrowserSupabaseClient()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session) return
+
+      setDeleteProgress(60)
       const res = await fetch(`/api/slides/${deleteSlide.id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
+
+      setDeleteProgress(90)
       if (res.ok) {
+        const data = await res.json()
+        if (data.action === 'archived') {
+          toast.success(t('admin.slide_archived_success'))
+        } else {
+          toast.success(t('admin.slide_deleted_success'))
+        }
         invalidateSlides()
       }
+      setDeleteProgress(100)
     } finally {
-      setDeleting(false)
-      setDeleteSlide(null)
+      // Brief delay to show 100% progress before closing
+      setTimeout(() => {
+        setDeleting(false)
+        setDeleteSlide(null)
+        setImpact(null)
+        setDeleteProgress(0)
+      }, 300)
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Unarchive a slide
+  // -------------------------------------------------------------------------
+
+  async function handleUnarchive(slide: Slide) {
+    try {
+      const supabase = createBrowserSupabaseClient()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session) return
+
+      const res = await fetch(`/api/slides/${slide.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ archived_at: null }),
+      })
+
+      if (res.ok) {
+        toast.success(t('admin.unarchive_success'))
+        invalidateSlides()
+      }
+    } catch {
+      /* ignore */
     }
   }
 
@@ -422,14 +528,25 @@ export default function SlideLibraryPage() {
   // Collect all unique tags from existing slides for the bulk tag popover
   const allTags = [...new Set(slides.flatMap((s) => (s.tags as string[]) ?? []))].sort()
 
-  const filtered = filter === 'all' ? slides : slides.filter((s) => s.status === filter)
+  // Split active vs archived
+  const activeSlides = slides.filter((s) => !s.archived_at)
+  const archivedSlides = slides.filter((s) => !!s.archived_at)
+
+  const filtered = filter === 'all' ? activeSlides : activeSlides.filter((s) => s.status === filter)
+
+  // When showArchived is true, also show archived slides at the end
+  const displaySlides = showArchived ? [...filtered, ...archivedSlides] : filtered
 
   const counts = {
-    all: slides.length,
-    standard: slides.filter((s) => s.status === 'standard').length,
-    mandatory: slides.filter((s) => s.status === 'mandatory').length,
-    deprecated: slides.filter((s) => s.status === 'deprecated').length,
+    all: activeSlides.length,
+    standard: activeSlides.filter((s) => s.status === 'standard').length,
+    mandatory: activeSlides.filter((s) => s.status === 'mandatory').length,
+    deprecated: activeSlides.filter((s) => s.status === 'deprecated').length,
   }
+
+  // Determine what the delete dialog should show
+  const isDeleteSlideArchived = !!deleteSlide?.archived_at
+  const hasImpact = impact && impact.projectCount > 0
 
   return (
     <>
@@ -452,7 +569,7 @@ export default function SlideLibraryPage() {
             >
               <ImageIcon className="mr-2 h-4 w-4" />
               {regenerating
-                ? t('admin.regenerating_thumbnails', 'Generating…')
+                ? t('admin.regenerating_thumbnails', 'Generating...')
                 : t('admin.regenerate_thumbnails', {
                     count: retryableThumbnailCount,
                     defaultValue: `Regenerate thumbnails (${retryableThumbnailCount})`,
@@ -466,26 +583,44 @@ export default function SlideLibraryPage() {
         </div>
       </div>
 
-      {/* Filter tabs */}
-      <Tabs value={filter} onValueChange={(v) => setFilter(v as StatusFilter)}>
-        <TabsList>
-          <TabsTrigger value="all">
-            {t('admin.all')} ({counts.all})
-          </TabsTrigger>
-          <TabsTrigger value="standard">
-            {t('admin.standard')} ({counts.standard})
-          </TabsTrigger>
-          <TabsTrigger value="mandatory">
-            {t('admin.mandatory')} ({counts.mandatory})
-          </TabsTrigger>
-          <TabsTrigger value="deprecated">
-            {t('admin.deprecated')} ({counts.deprecated})
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+      {/* Filter tabs + archive toggle */}
+      <div className="flex items-center justify-between gap-4">
+        <Tabs value={filter} onValueChange={(v) => setFilter(v as StatusFilter)}>
+          <TabsList>
+            <TabsTrigger value="all">
+              {t('admin.all')} ({counts.all})
+            </TabsTrigger>
+            <TabsTrigger value="standard">
+              {t('admin.standard')} ({counts.standard})
+            </TabsTrigger>
+            <TabsTrigger value="mandatory">
+              {t('admin.mandatory')} ({counts.mandatory})
+            </TabsTrigger>
+            <TabsTrigger value="deprecated">
+              {t('admin.deprecated')} ({counts.deprecated})
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {/* Archive toggle */}
+        <label className="flex items-center gap-2 text-sm cursor-pointer shrink-0">
+          <Switch
+            checked={showArchived}
+            onCheckedChange={setShowArchived}
+            aria-label={showArchived ? t('admin.hide_archived') : t('admin.show_archived')}
+          />
+          <span className="flex items-center gap-1.5 text-muted-foreground">
+            <Archive className="h-3.5 w-3.5" />
+            {showArchived ? t('admin.hide_archived') : t('admin.show_archived')}
+            {archivedSlides.length > 0 && (
+              <span className="text-xs">({archivedSlides.length})</span>
+            )}
+          </span>
+        </label>
+      </div>
 
       {/* Selection toolbar */}
-      {filtered.length > 0 && !loading && (
+      {displaySlides.length > 0 && !loading && (
         <div className="flex items-center gap-3">
           <Button
             variant={selected.size > 0 ? 'default' : 'outline'}
@@ -555,7 +690,7 @@ export default function SlideLibraryPage() {
           <Loader2 className="h-4 w-4 animate-spin text-primary" />
           <p className="text-sm text-primary">
             {regenerating
-              ? t('admin.generating_thumbnails_banner', 'Generating thumbnails, please wait…')
+              ? t('admin.generating_thumbnails_banner', 'Generating thumbnails, please wait...')
               : t('admin.thumbnails_pending_banner', {
                   count: generatingThumbnails.length,
                   defaultValue: `${generatingThumbnails.length} thumbnail${generatingThumbnails.length !== 1 ? 's' : ''} are being generated. They will appear automatically.`,
@@ -597,7 +732,7 @@ export default function SlideLibraryPage() {
             </div>
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : displaySlides.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
           <p className="text-sm font-medium text-muted-foreground">
             {filter === 'all'
@@ -626,7 +761,7 @@ export default function SlideLibraryPage() {
             const groups = new Map<string, Slide[]>()
             const ungrouped: Slide[] = []
 
-            for (const slide of filtered) {
+            for (const slide of displaySlides) {
               if (slide.source_filename && (slide.page_count ?? 1) > 1) {
                 const key = slide.source_filename
                 if (!groups.has(key)) groups.set(key, [])
@@ -645,7 +780,8 @@ export default function SlideLibraryPage() {
                     filename={filename}
                     slides={groupSlides}
                     onEdit={setEditSlide}
-                    onDelete={setDeleteSlide}
+                    onDelete={fetchImpact}
+                    onUnarchive={handleUnarchive}
                     selected={selected}
                     onSelectChange={toggleSelect}
                   />
@@ -656,7 +792,8 @@ export default function SlideLibraryPage() {
                     key={slide.id}
                     slide={slide}
                     onEdit={setEditSlide}
-                    onDelete={setDeleteSlide}
+                    onDelete={fetchImpact}
+                    onUnarchive={handleUnarchive}
                     selected={selected.has(slide.id)}
                     onSelectChange={(checked) => toggleSelect(slide.id, checked)}
                   />
@@ -689,23 +826,82 @@ export default function SlideLibraryPage() {
         }}
       />
 
-      {/* Delete confirmation */}
-      <AlertDialog open={!!deleteSlide} onOpenChange={(o) => !o && setDeleteSlide(null)}>
+      {/* Delete / Archive confirmation dialog */}
+      <AlertDialog
+        open={!!deleteSlide}
+        onOpenChange={(o) => {
+          if (!o && !deleting) {
+            setDeleteSlide(null)
+            setImpact(null)
+            setDeleteProgress(0)
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('admin.delete_slide_confirm')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('admin.delete_slide_message', { title: deleteSlide?.title })}
+            <AlertDialogTitle>
+              {isDeleteSlideArchived
+                ? t('admin.permanent_delete_title')
+                : hasImpact
+                  ? t('admin.archive_slide_title')
+                  : t('admin.delete_slide_confirm')}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                {impactLoading ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>{t('admin.loading_impact')}</span>
+                  </div>
+                ) : isDeleteSlideArchived ? (
+                  <p>{t('admin.permanent_delete_message')}</p>
+                ) : hasImpact ? (
+                  <>
+                    <p>
+                      {t('admin.archive_slide_impact', {
+                        userCount: impact!.userCount,
+                        projectCount: impact!.projectCount,
+                      })}
+                    </p>
+                    {impact!.projects.length > 0 && impact!.projects.length <= 10 && (
+                      <ul className="list-disc pl-5 text-xs text-muted-foreground space-y-0.5">
+                        {impact!.projects.map((p) => (
+                          <li key={p.id}>
+                            {p.name} ({p.ownerName})
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                ) : (
+                  <p>{t('admin.archive_slide_no_impact')}</p>
+                )}
+                {/* Progress bar during deletion */}
+                {deleting && <Progress value={deleteProgress} className="h-2" />}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting || impactLoading}>
+              {t('admin.cancel')}
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              disabled={deleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleting || impactLoading}
+              className={
+                isDeleteSlideArchived || !hasImpact
+                  ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                  : ''
+              }
             >
-              {deleting ? t('admin.deleting') : t('admin.delete_slide_button')}
+              {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {deleting
+                ? t('admin.deleting')
+                : isDeleteSlideArchived
+                  ? t('admin.permanent_delete_button')
+                  : hasImpact
+                    ? t('admin.archive_slide_button')
+                    : t('admin.delete_slide_button')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -738,7 +934,7 @@ export default function SlideLibraryPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {bulkDeleting
-                ? t('admin.deleting', 'Deleting…')
+                ? t('admin.deleting', 'Deleting...')
                 : t('admin.delete_slides_button', {
                     count: selected.size,
                     defaultValue: `Delete ${selected.size} slides`,

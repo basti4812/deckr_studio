@@ -1,6 +1,16 @@
 'use client'
 
-import { AlertTriangle, LayoutTemplate, Lock, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import {
+  AlertTriangle,
+  Archive,
+  LayoutTemplate,
+  Lock,
+  MoreHorizontal,
+  Pencil,
+  RotateCcw,
+  Trash2,
+} from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -58,11 +68,24 @@ interface SlideCardProps {
   slide: Slide
   onEdit: (slide: Slide) => void
   onDelete: (slide: Slide) => void
+  onUnarchive?: (slide: Slide) => void
   selected?: boolean
   onSelectChange?: (selected: boolean) => void
 }
 
-function StatusBadge({ status }: { status: Slide['status'] }) {
+function StatusBadge({ status, isArchived }: { status: Slide['status']; isArchived?: boolean }) {
+  const { t } = useTranslation()
+  if (isArchived) {
+    return (
+      <Badge
+        variant="outline"
+        className="gap-1 text-xs border-amber-500 text-amber-600 dark:text-amber-400"
+      >
+        <Archive className="h-3 w-3" />
+        {t('admin.archived_slides')}
+      </Badge>
+    )
+  }
   if (status === 'mandatory') {
     return (
       <Badge variant="default" className="gap-1 text-xs">
@@ -86,9 +109,21 @@ function StatusBadge({ status }: { status: Slide['status'] }) {
   )
 }
 
-export function SlideCard({ slide, onEdit, onDelete, selected, onSelectChange }: SlideCardProps) {
+export function SlideCard({
+  slide,
+  onEdit,
+  onDelete,
+  onUnarchive,
+  selected,
+  onSelectChange,
+}: SlideCardProps) {
+  const { t } = useTranslation()
+  const isArchived = !!slide.archived_at
+
   return (
-    <Card className={`group overflow-hidden ${selected ? 'ring-2 ring-primary' : ''}`}>
+    <Card
+      className={`group overflow-hidden ${selected ? 'ring-2 ring-primary' : ''} ${isArchived ? 'opacity-70' : ''}`}
+    >
       {/* Thumbnail area */}
       <div className="relative aspect-video bg-muted flex items-center justify-center border-b">
         {onSelectChange !== undefined && (
@@ -103,14 +138,21 @@ export function SlideCard({ slide, onEdit, onDelete, selected, onSelectChange }:
         )}
         {slide.thumbnail_url ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={slide.thumbnail_url} alt={slide.title} className="h-full w-full object-cover" />
+          <img
+            src={slide.thumbnail_url}
+            alt={slide.title}
+            className={`h-full w-full object-cover ${isArchived ? 'grayscale' : ''}`}
+          />
         ) : (
           <div className="flex flex-col items-center gap-2 text-muted-foreground">
             <LayoutTemplate className="h-10 w-10" />
             <span className="text-xs">.pptx</span>
           </div>
         )}
-        {slide.status === 'deprecated' && <div className="absolute inset-0 bg-destructive/10" />}
+        {slide.status === 'deprecated' && !isArchived && (
+          <div className="absolute inset-0 bg-destructive/10" />
+        )}
+        {isArchived && <div className="absolute inset-0 bg-muted/30" />}
       </div>
 
       <CardContent className="p-3 pb-2">
@@ -126,7 +168,7 @@ export function SlideCard({ slide, onEdit, onDelete, selected, onSelectChange }:
       </CardContent>
 
       <CardFooter className="flex items-center justify-between p-3 pt-0">
-        <StatusBadge status={slide.status} />
+        <StatusBadge status={slide.status} isArchived={isArchived} />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -136,17 +178,25 @@ export function SlideCard({ slide, onEdit, onDelete, selected, onSelectChange }:
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onEdit(slide)}>
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit
-            </DropdownMenuItem>
+            {!isArchived && (
+              <DropdownMenuItem onClick={() => onEdit(slide)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+            )}
+            {isArchived && onUnarchive && (
+              <DropdownMenuItem onClick={() => onUnarchive(slide)}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                {t('admin.unarchive_slide')}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => onDelete(slide)}
               className="text-destructive focus:text-destructive"
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              Delete
+              {isArchived ? t('admin.permanent_delete_button') : 'Delete'}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

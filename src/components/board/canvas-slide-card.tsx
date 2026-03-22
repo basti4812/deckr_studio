@@ -3,6 +3,7 @@
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
+  AlertCircle,
   AlertTriangle,
   ArrowRightLeft,
   Eye,
@@ -103,6 +104,7 @@ export const CanvasSlideCard = memo(function CanvasSlideCard({
     }
   }
 
+  const isArchived = !!slide.archived_at
   const hasContextMenu = onAnnotationClick || (moveTargets && moveTargets.length > 0)
   const hasEditableFields = slide.editable_fields && slide.editable_fields.length > 0
 
@@ -136,13 +138,33 @@ export const CanvasSlideCard = memo(function CanvasSlideCard({
             <img
               src={slide.thumbnail_url}
               alt={slide.title}
-              className="h-full w-full object-cover"
+              className={`h-full w-full object-cover ${isArchived ? 'grayscale opacity-60' : ''}`}
               loading="lazy"
             />
           ) : (
             <LayoutTemplate className="h-8 w-8 text-muted-foreground/40" />
           )}
-          {slide.status === 'deprecated' && <div className="absolute inset-0 bg-destructive/10" />}
+          {slide.status === 'deprecated' && !isArchived && (
+            <div className="absolute inset-0 bg-destructive/10" />
+          )}
+          {/* Archived overlay — grayed out with red exclamation */}
+          {isArchived && (
+            <>
+              <div className="absolute inset-0 bg-muted/20" />
+              <div
+                className="absolute bottom-1.5 right-1.5 flex items-center justify-center rounded-full bg-destructive text-white shadow-sm"
+                style={{
+                  width: 22,
+                  height: 22,
+                  transform: `scale(${iconScale})`,
+                  transformOrigin: 'bottom right',
+                }}
+                title={t('board.slide_archived_tooltip')}
+              >
+                <AlertCircle className="h-3.5 w-3.5" />
+              </div>
+            </>
+          )}
           {onAddToTray && (
             <div className="absolute inset-0 flex items-center justify-center bg-primary/0 group-hover/card:bg-primary/10 transition-colors">
               <div

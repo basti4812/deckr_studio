@@ -41,6 +41,7 @@ const PatchSlideSchema = z.object({
   thumbnail_url: z.string().url().optional(),
   editable_fields: z.array(EditableFieldSchema).optional(),
   detected_fields: z.array(DetectedFieldSchema).optional(),
+  archived_at: z.null().optional(),
 })
 
 /** Derive employee-facing editable_fields from admin-managed detected_fields */
@@ -89,8 +90,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     )
   }
 
-  const { title, status, tags, pptx_url, thumbnail_url, editable_fields, detected_fields } =
-    parsed.data
+  const {
+    title,
+    status,
+    tags,
+    pptx_url,
+    thumbnail_url,
+    editable_fields,
+    detected_fields,
+    archived_at,
+  } = parsed.data
 
   const supabase = createServiceClient()
 
@@ -120,6 +129,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     updates.pptx_updated_at = new Date().toISOString()
   }
   if (thumbnail_url !== undefined) updates.thumbnail_url = thumbnail_url
+  if (archived_at === null) updates.archived_at = null
   if (detected_fields !== undefined) {
     updates.detected_fields = detected_fields
     // Auto-derive editable_fields from detected_fields
