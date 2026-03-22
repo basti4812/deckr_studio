@@ -7,6 +7,8 @@ import { createServiceClient } from '@/lib/supabase'
 export type ActivityEventType =
   | 'slide.uploaded'
   | 'slide.deprecated'
+  | 'slide.archived'
+  | 'slide.deleted'
   | 'template_set.created'
   | 'template_set.updated'
   | 'project.exported'
@@ -19,6 +21,8 @@ export type ActivityEventType =
 export const ALL_EVENT_TYPES: ActivityEventType[] = [
   'slide.uploaded',
   'slide.deprecated',
+  'slide.archived',
+  'slide.deleted',
   'template_set.created',
   'template_set.updated',
   'project.exported',

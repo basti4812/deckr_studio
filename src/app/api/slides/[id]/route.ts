@@ -245,7 +245,7 @@ export async function DELETE(
   // Verify the slide belongs to this admin's tenant
   const { data: existing, error: fetchError } = await supabase
     .from('slides')
-    .select('id, tenant_id, pptx_url')
+    .select('id, title, tenant_id, pptx_url, archived_at')
     .eq('id', id)
     .eq('tenant_id', auth.profile.tenant_id)
     .single()
@@ -255,19 +255,73 @@ export async function DELETE(
   }
 
   // Check if any project references this slide
-  const { count: projectCount } = await supabase
+  const { data: affectedProjects } = await supabase
     .from('projects')
-    .select('*', { count: 'exact', head: true })
+    .select('id, owner_id, name')
     .eq('tenant_id', auth.profile.tenant_id)
     .contains('slide_order', [{ slide_id: id }])
+    .limit(500)
 
-  if (projectCount && projectCount > 0) {
-    return NextResponse.json(
-      {
-        error: `Slide is used in ${projectCount} project${projectCount !== 1 ? 's' : ''}. Remove it from all projects before deleting.`,
-      },
-      { status: 409 }
-    )
+  const projectCount = affectedProjects?.length ?? 0
+  const isArchived = existing.archived_at !== null
+
+  // --- Case 1: Slide is used in projects and NOT archived → soft delete (archive) ---
+  if (projectCount > 0 && !isArchived) {
+    const { error: archiveErr } = await supabase
+      .from('slides')
+      .update({ archived_at: new Date().toISOString() })
+      .eq('id', id)
+
+    if (archiveErr) {
+      return NextResponse.json({ error: archiveErr.message }, { status: 500 })
+    }
+
+    // Notify affected project owners
+    const uniqueOwners = [...new Set(affectedProjects!.map((p) => p.owner_id))]
+    createNotifications(
+      uniqueOwners.map((ownerId) => ({
+        tenantId: auth.profile.tenant_id,
+        userId: ownerId,
+        type: 'slide_archived' as const,
+        message: `Die Folie "${existing.title}" wurde archiviert`,
+        resourceType: 'slide' as const,
+        resourceId: id,
+      }))
+    ).catch(() => {})
+
+    logActivity({
+      tenantId: auth.profile.tenant_id,
+      actorId: auth.user.id,
+      eventType: 'slide.archived',
+      resourceType: 'slide',
+      resourceId: id,
+      resourceName: existing.title,
+      metadata: { projectCount },
+    })
+
+    return NextResponse.json({
+      action: 'archived',
+      projectCount,
+      message: `Slide archived. Used in ${projectCount} project${projectCount !== 1 ? 's' : ''}.`,
+    })
+  }
+
+  // --- Case 2: Slide is archived → permanent delete (even if in projects) ---
+  // --- Case 3: Slide is NOT in any project → permanent delete ---
+
+  // Notify affected project owners before deletion
+  if (projectCount > 0 && affectedProjects) {
+    const uniqueOwners = [...new Set(affectedProjects.map((p) => p.owner_id))]
+    createNotifications(
+      uniqueOwners.map((ownerId) => ({
+        tenantId: auth.profile.tenant_id,
+        userId: ownerId,
+        type: 'slide_deleted' as const,
+        message: `Die Folie "${existing.title}" wurde endgültig gelöscht`,
+        resourceType: 'slide' as const,
+        resourceId: id,
+      }))
+    ).catch(() => {})
   }
 
   // Delete the DB record
@@ -282,5 +336,14 @@ export async function DELETE(
     await supabase.storage.from('slides').remove([storagePath])
   }
 
-  return NextResponse.json({ success: true })
+  logActivity({
+    tenantId: auth.profile.tenant_id,
+    actorId: auth.user.id,
+    eventType: 'slide.deleted',
+    resourceType: 'slide',
+    resourceId: id,
+    resourceName: existing.title,
+  })
+
+  return NextResponse.json({ action: 'deleted', success: true })
 }

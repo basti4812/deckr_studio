@@ -32,6 +32,7 @@ export interface Slide {
   source_filename?: string | null
   thumbnail_status?: string | null
   thumbnail_error?: string | null
+  archived_at?: string | null
 }
 
 export interface EditableField {

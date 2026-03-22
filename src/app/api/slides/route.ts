@@ -53,13 +53,21 @@ export async function GET(request: NextRequest) {
   const auth = await requireActiveUser(request)
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
+  const includeArchived = request.nextUrl.searchParams.get('include_archived') === 'true'
+
   const supabase = createServiceClient()
-  const { data, error } = await supabase
+  let query = supabase
     .from('slides')
     .select('*')
     .eq('tenant_id', auth.profile.tenant_id)
     .order('created_at', { ascending: false })
     .limit(500)
+
+  if (!includeArchived) {
+    query = query.is('archived_at', null)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })

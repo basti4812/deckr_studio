@@ -24,6 +24,8 @@ export type NotificationEmailType =
   | 'payment_failed'
   | 'slide_deprecated'
   | 'slide_updated'
+  | 'slide_archived'
+  | 'slide_deleted'
   | 'trial_ending_7d'
   | 'trial_ending_1d'
   | 'comment_added'
