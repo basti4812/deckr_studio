@@ -11,6 +11,7 @@ interface SlideGroupCardProps {
   slides: Slide[]
   onEdit: (slide: Slide) => void
   onDelete: (slide: Slide) => void
+  onReplace?: (slide: Slide) => void
   onUnarchive?: (slide: Slide) => void
   selected: Set<string>
   onSelectChange: (id: string, checked: boolean) => void
@@ -21,6 +22,7 @@ export function SlideGroupCard({
   slides,
   onEdit,
   onDelete,
+  onReplace,
   onUnarchive,
   selected,
   onSelectChange,
@@ -93,6 +95,7 @@ export function SlideGroupCard({
                 slide={slide}
                 onEdit={onEdit}
                 onDelete={onDelete}
+                onReplace={onReplace}
                 onUnarchive={onUnarchive}
                 selected={selected.has(slide.id)}
                 onSelectChange={(checked) => onSelectChange(slide.id, checked)}

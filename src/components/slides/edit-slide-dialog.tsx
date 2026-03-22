@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronRight,
+  LayoutTemplate,
   RefreshCw,
   Scan,
   Trash2,
@@ -398,6 +399,27 @@ export function EditSlideDialog({ slide, onClose, onSaved }: EditSlideDialogProp
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {/* Slide preview thumbnail */}
+            {slide && (
+              <div className="relative aspect-video w-full overflow-hidden rounded-lg border bg-muted">
+                {slide.thumbnail_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={slide.thumbnail_url}
+                    alt={slide.title}
+                    className="h-full w-full object-contain"
+                  />
+                ) : (
+                  <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground">
+                    <LayoutTemplate className="h-10 w-10" />
+                    <span className="text-xs">
+                      {t('slides.no_detected_fields', 'No preview available')}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Title */}
             <div className="space-y-2">
               <Label htmlFor="edit-title">{t('slides.title')}</Label>

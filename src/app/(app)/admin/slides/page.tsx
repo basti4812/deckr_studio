@@ -44,6 +44,7 @@ import { SlideCard } from '@/components/slides/slide-card'
 import { SlideGroupCard } from '@/components/slides/slide-group-card'
 import { UploadSlideDialog } from '@/components/slides/upload-slide-dialog'
 import { EditSlideDialog } from '@/components/slides/edit-slide-dialog'
+import { ReplaceSlideDialog } from '@/components/slides/replace-slide-dialog'
 import type { Slide } from '@/components/slides/slide-card'
 
 type StatusFilter = 'all' | 'standard' | 'mandatory' | 'deprecated'
@@ -167,6 +168,7 @@ export default function SlideLibraryPage() {
   const [filter, setFilter] = useState<StatusFilter>('all')
   const [uploadOpen, setUploadOpen] = useState(false)
   const [editSlide, setEditSlide] = useState<Slide | null>(null)
+  const [replaceSlide, setReplaceSlide] = useState<Slide | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const [bulkDeleteProgress, setBulkDeleteProgress] = useState(0)
@@ -788,6 +790,7 @@ export default function SlideLibraryPage() {
                     slides={groupSlides}
                     onEdit={setEditSlide}
                     onDelete={fetchImpact}
+                    onReplace={setReplaceSlide}
                     onUnarchive={handleUnarchive}
                     selected={selected}
                     onSelectChange={toggleSelect}
@@ -800,6 +803,7 @@ export default function SlideLibraryPage() {
                     slide={slide}
                     onEdit={setEditSlide}
                     onDelete={fetchImpact}
+                    onReplace={setReplaceSlide}
                     onUnarchive={handleUnarchive}
                     selected={selected.has(slide.id)}
                     onSelectChange={(checked) => toggleSelect(slide.id, checked)}
@@ -830,6 +834,15 @@ export default function SlideLibraryPage() {
         onSaved={() => {
           invalidateSlides()
           setEditSlide(null)
+        }}
+      />
+
+      {/* Replace dialog */}
+      <ReplaceSlideDialog
+        slide={replaceSlide}
+        onClose={() => setReplaceSlide(null)}
+        onReplaced={() => {
+          invalidateSlides()
         }}
       />
 

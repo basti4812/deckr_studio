@@ -8,6 +8,7 @@ import {
   Lock,
   MoreHorizontal,
   Pencil,
+  RefreshCw,
   RotateCcw,
   Trash2,
 } from 'lucide-react'
@@ -68,6 +69,7 @@ interface SlideCardProps {
   slide: Slide
   onEdit: (slide: Slide) => void
   onDelete: (slide: Slide) => void
+  onReplace?: (slide: Slide) => void
   onUnarchive?: (slide: Slide) => void
   selected?: boolean
   onSelectChange?: (selected: boolean) => void
@@ -113,6 +115,7 @@ export function SlideCard({
   slide,
   onEdit,
   onDelete,
+  onReplace,
   onUnarchive,
   selected,
   onSelectChange,
@@ -181,7 +184,13 @@ export function SlideCard({
             {!isArchived && (
               <DropdownMenuItem onClick={() => onEdit(slide)}>
                 <Pencil className="mr-2 h-4 w-4" />
-                Edit
+                {t('slides.edit_slide', 'Edit')}
+              </DropdownMenuItem>
+            )}
+            {!isArchived && onReplace && (
+              <DropdownMenuItem onClick={() => onReplace(slide)}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                {t('slides.replace_slide')}
               </DropdownMenuItem>
             )}
             {isArchived && onUnarchive && (
